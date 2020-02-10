@@ -1,0 +1,11 @@
+[profile.dev]
+codegen-units = 4
+
+[workspace]
+members = [
+    "corr_client",
+    "corr_server",
+    "lib/corr_server_lib",
+    "lib/corr_client_lib",
+    "lib/corr_core"
+]

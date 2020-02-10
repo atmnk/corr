@@ -1,0 +1,16 @@
+[package]
+name = "corr_client"
+version = "0.1.0"
+authors = ["ATM <naik.atmaram@gmail.com>"]
+description = "A cross platform client for correlated journeys"
+license = "MIT"
+repository = "https://github.com/atmaramnaik/corr"
+readme = "README.md"
+documentation = "https://docs.rs/corr_client"
+keywords = ["api", "data", "testing", "adhoc", "data creation"]
+categories = ["api"]
+edition = "2018"
+autoexamples = false
+
+[dependencies]
+#corr_client_lib={path="../lib/corr_client_lib"}
