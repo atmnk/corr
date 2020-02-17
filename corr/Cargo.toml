@@ -1,6 +1,6 @@
 [package]
 name = "corr"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["ATM <naik.atmaram@gmail.com>"]
 description = "A cross platform client for correlated journeys"
 license = "MIT"
@@ -13,4 +13,6 @@ edition = "2018"
 autoexamples = false
 
 [dependencies]
-#corr_client_lib={path="../lib/corr_client_lib"}
+clap = "2.33.0"
+corr_client_lib={path="../lib/corr_client_lib"}
+app_dirs2 = "2"

@@ -4,7 +4,7 @@ codegen-units = 4
 [workspace]
 members = [
     "corr",
-    "corr_server",
+    "corrs",
     "lib/corr_server_lib",
     "lib/corr_client_lib",
     "lib/corr_core"
