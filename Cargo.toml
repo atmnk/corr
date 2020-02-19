@@ -9,5 +9,6 @@ members = [
     "lib/corr_client_lib",
     "lib/corr_core",
     "lib/corr_templates",
-    "lib/corr_journeys"
+    "lib/corr_journeys",
+    "lib/corr_websocket"
 ]

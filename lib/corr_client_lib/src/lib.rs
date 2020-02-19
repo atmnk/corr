@@ -2,70 +2,30 @@ extern crate rand;
 extern crate serde;
 extern crate websocket;
 extern crate serde_json;
-use std::collections::HashMap;
-use rand::Rng;
-use serde::{Serialize, Deserialize};
-use corr_core::{DesiredAction, VariableDesciption, VarType, RawVariableValue};
+use corr_core::runtime::VariableDesciption;
+use corr_core::runtime::RawVariableValue;
+use corr_core::io::StringIO;
+use corr_core::runtime::Messanger;
+use corr_core::io::StdStringIO;
+use corr_websocket::{DesiredAction};
 use websocket::{ClientBuilder, OwnedMessage};
 use websocket::client::sync::Client;
 use websocket::stream::sync::TcpStream;
-use std::io;
-use std::io::{BufRead};
 pub struct CliClient<T,U> where T:Server,U:StringIO {
     pub server:Box<T>,
-    pub io:IO<U>
+    pub io:Messanger<U>
 }
 impl CliClient<WebSocketServer,StdStringIO>{
     pub fn new(server:String) -> CliClient<WebSocketServer, StdStringIO> {
         CliClient {
             server:connect(server),
-            io:IO::new(StdStringIO{})
+            io:Messanger::new(StdStringIO{})
         }
     }
 
 }
 pub struct WebSocketServer {
     client: Client<TcpStream>
-    //pub base_url:String
-}
-pub struct IO<T> where T:StringIO{
-    string_io:Box<T>
-}
-pub struct StdStringIO{
-
-}
-impl StringIO for StdStringIO{
-    fn write(&mut self,value: String) {
-        println!("{}",value);
-    }
-    fn read_raw(&mut self) -> String {
-        let mut line = String::new();
-        let stdin = io::stdin();
-        stdin.lock().read_line(&mut line).unwrap();
-        line.truncate(line.trim_end().len());
-        line
-    }
-}
-impl<T> IO<T> where T:StringIO{
-    fn new(str_io:T)->IO<T>{
-        IO{
-            string_io:Box::new(str_io)
-        }
-    }
-    fn ask(&mut self, var_desc: VariableDesciption)->RawVariableValue {
-        self.string_io.write(format!("Please enter value for {} of type {:?}",var_desc.name,var_desc.data_type));
-        let line = self.string_io.read();
-        RawVariableValue {
-            value:Option::Some(line),
-            name:var_desc.name.clone(),
-            data_type:var_desc.data_type.clone()
-        }
-
-    }
-
-    fn tell(&mut self, words: String) {
-        self.string_io.write(words);
-    }
 }
 
 
@@ -73,18 +33,8 @@ impl<T> IO<T> where T:StringIO{
 pub struct Filter{
     pub value:String
 }
-pub trait StringIO {
-    fn write(&mut self,value:String);
-    fn read_raw(&mut self)->String;
-    fn read(&mut self)->String{
-        sanitize(self.read_raw())
-    }
 
-}
-fn sanitize(mut line:String)->String {
-    line.truncate(line.trim_end().len());
-    line
-}
+
 pub trait Server {
     fn start(&mut self)->Result<(), Box<dyn std::error::Error>>;
     fn whatsNext(&mut self)->Result<DesiredAction,Box<dyn std::error::Error>>;
@@ -96,7 +46,7 @@ pub trait JourneyClient {
     fn tell(&mut self,words:String);
 }
 fn connect(server: String)->Box<WebSocketServer> {
-    let mut client = ClientBuilder::new(format!("ws://{}:9876",server).as_str())
+    let client = ClientBuilder::new(format!("ws://{}:9876",server).as_str())
         .unwrap()
         .add_protocol("rust-websocket")
         .connect_insecure()
@@ -108,7 +58,7 @@ fn connect(server: String)->Box<WebSocketServer> {
 impl<T,U> JourneyClient for CliClient<T,U> where T:Server,U:StringIO {
     fn run(&mut self,filter:Filter)-> Result<(), Box<dyn std::error::Error>>{
         self.tell(format!("running filter {:?}",filter));
-        let session = self.server.start()?;
+        self.server.start()?;
         loop {
             let next = self.server.whatsNext()?;
             match next {
@@ -181,7 +131,7 @@ impl Server for WebSocketServer {
 
 #[cfg(test)]
 mod tests {
-    pub fn newWithMocks(server:Box<MockServer>, io:IO<VecBufferStringIO>) -> CliClient<MockServer, VecBufferStringIO> {
+    pub fn newWithMocks(server:Box<MockServer>, io:Messanger<VecBufferStringIO>) -> CliClient<MockServer, VecBufferStringIO> {
         CliClient {
             server,
             io
@@ -250,8 +200,12 @@ mod tests {
             Ok(())
         }
     }
-    use crate::{CliClient, JourneyClient, Filter, DesiredAction, VariableDesciption, IO, Server, StringIO};
-    use corr_core::{VarType, RawVariableValue};
+    use corr_core::io::StringIO;
+use corr_core::runtime::Messanger;
+use corr_core::runtime::VariableDesciption;
+use corr_core::runtime::{RawVariableValue,VarType};
+use corr_websocket::DesiredAction;
+use crate::{CliClient, JourneyClient, Filter, Server};
 
     #[test]
     fn should_run_journey(){
@@ -268,7 +222,7 @@ mod tests {
         ];
         let mut server_ip = "localhost".to_string();
         let mut server = connect_mock(server_ip,actions);
-        let mut io = IO{
+        let mut io = Messanger{
             string_io:Box::new(VecBufferStringIO {
                 pointer:0,
                 captured:vec![format!("3.2\n"),format!("3\n"),format!("Atmaram\n\t")],

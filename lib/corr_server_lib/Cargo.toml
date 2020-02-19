@@ -15,6 +15,8 @@ uuid = { version = "0.8", features = ["serde", "v4"] }
 corr_core={path="../corr_core"}
 corr_templates={path="../corr_templates"}
 corr_journeys={path="../corr_journeys"}
+corr_websocket={path="../corr_websocket"}
+
 websocket ="0.24.0"
 futures = "0.1.4"
 tokio = {version = "0.1.22"}

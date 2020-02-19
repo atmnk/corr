@@ -2,7 +2,6 @@ extern crate tokio;
 extern crate websocket;
 extern crate corr_core;
 extern crate serde_json;
-extern crate corr_templates;
 extern crate corr_journeys;
 use std::thread;
 use websocket::sync::Server;
@@ -10,16 +9,18 @@ use websocket::OwnedMessage;
 use websocket::sync::Client;
 use self::websocket::websocket_base::stream::sync::Splittable;
 use std::convert::TryInto;
-use self::corr_core::{Action, DesiredAction, VariableDesciption, VarType, RawVariableValue, Channel, Value, Variable, Runtime};
 use corr_journeys::Journey;
 use std::thread::Thread;
 use std::time::Duration;
 use std::process::exit;
-use self::corr_templates::json::Fillable;
+use corr_templates::json::Fillable;
 use std::borrow::BorrowMut;
 use self::corr_journeys::{Executable, JourneyStore, Interactable};
 use std::cell::RefCell;
 use std::rc::Rc;
+use corr_websocket::{Action, DesiredAction};
+use corr_core::runtime::{Variable, VarType, Value, RawVariableValue, VariableDesciption};
+use self::corr_core::runtime::{ValueProvider, Environment};
 
 pub struct SocketClient<T>(T) where T:IO;
 
@@ -58,7 +59,7 @@ impl<T> IO for Client<T> where T:std::io::Read+std::io::Write+Splittable{
     fn close(&mut self) {
     }
 }
-impl<T> Channel for SocketClient<T> where T:IO{
+impl<T> ValueProvider for SocketClient<T> where T:IO{
 
     fn read(&mut self, variable: Variable) -> Value {
         let mut desired_action = DesiredAction::Tell(VariableDesciption{
@@ -127,7 +128,7 @@ pub fn start<T>(mut io:SocketClient<T>) where T:IO{
     let js = JourneyStore {
         journeys
     };
-    js.start_with(format!("hello"),Runtime{ channel:Rc::new(RefCell::new(io))});
+    js.start_with(format!("hello"),Environment{ channel:Rc::new(RefCell::new(io))});
 }
 pub fn create_server() {
     let server = Server::bind("127.0.0.1:9876").unwrap();
