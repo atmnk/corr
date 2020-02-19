@@ -57,7 +57,7 @@ fn main()->std::io::Result<()>{
             value:matches.value_of("filter").unwrap().to_string()
         };
         match client.run(filter) {
-            Ok(something)=>{
+            Ok(_)=>{
                 println!("You are done here")
             },
             Err(err)=>{

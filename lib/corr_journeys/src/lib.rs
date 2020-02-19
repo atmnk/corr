@@ -1,7 +1,4 @@
-use std::rc::Rc;
-use std::cell::RefCell;
 use corr_templates::json::Fillable;
-use std::borrow::BorrowMut;
 use corr_core::runtime::{Variable, ValueProvider, Environment};
 use corr_core::runtime::Value;
 use corr_core::runtime::VarType;
@@ -15,7 +12,7 @@ pub trait Interactable<T>  where T:ValueProvider {
     fn start_with(&self,filter:String,runtime:Environment<T>);
 }
 impl<T> Interactable<T> for JourneyStore where T:ValueProvider{
-    fn start_with(&self, filter: String, mut runtime: Environment<T>) {
+    fn start_with(&self, _filter: String, mut runtime: Environment<T>) {
         runtime.write(format!("Choose from following"));
         let mut counter = 1;
         for journey in &self.journeys{
@@ -23,13 +20,13 @@ impl<T> Interactable<T> for JourneyStore where T:ValueProvider{
             counter+=1;
         }
         runtime.write(format!("Enter your choice"));
-        let mut num = runtime.read(Variable{
+        let num = runtime.read(Variable{
             name:format!("choice"),
             data_type:Option::Some(VarType::Long)
         });
         match num {
             Value::Long(val)=>{
-                let mut selected = self.journeys[(val-1) as usize].clone();
+                let selected = self.journeys[(val-1) as usize].clone();
                 selected.execute(runtime);
             }
             _=>{return}
@@ -64,12 +61,12 @@ use corr_core::runtime::{ValueProvider, Value,Environment};
     struct MockChannel;
     impl ValueProvider for MockChannel{
 
-        fn read(&mut self, variable: Variable) -> Value {
+        fn read(&mut self, _variable: Variable) -> Value {
             Value::Long(1)
         }
 
 
-        fn write(&mut self, text: String) {
+        fn write(&mut self, _text: String) {
 
         }
 

@@ -98,15 +98,15 @@ impl RawVariableValue{
         match &self.data_type {
             VarType::String=>true,
             VarType::Long=>match self.value.clone().unwrap().parse::<i64>() {
-                Ok(val)=>true,
+                Ok(_)=>true,
                 _=>false
             },
             VarType::Boolean=>match self.value.clone().unwrap().parse::<bool>() {
-                Ok(val)=>true,
+                Ok(_)=>true,
                 _=>false
             },
             VarType::Double=>match self.value.clone().unwrap().parse::<f64>() {
-                Ok(val)=>true,
+                Ok(_)=>true,
                 _=>false
             }
         }
@@ -146,8 +146,8 @@ pub struct Environment<T>{
 }
 
 impl<T> Environment<T> where T:ValueProvider{
-    pub fn iterate<F>(&self, refering_as: Variable, to_list: Variable, inner: F) where F: Fn(usize) {
-        let mut length = (*self.channel).borrow_mut().read(Variable{
+    pub fn iterate<F>(&self, _refering_as: Variable, to_list: Variable, inner: F) where F: Fn(usize) {
+        let length = (*self.channel).borrow_mut().read(Variable{
             name:format!("{}.size",to_list.name),
             data_type:Option::Some(VarType::Long)
         });

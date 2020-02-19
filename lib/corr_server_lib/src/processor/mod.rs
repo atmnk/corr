@@ -8,14 +8,8 @@ use websocket::sync::Server;
 use websocket::OwnedMessage;
 use websocket::sync::Client;
 use self::websocket::websocket_base::stream::sync::Splittable;
-use std::convert::TryInto;
 use corr_journeys::Journey;
-use std::thread::Thread;
-use std::time::Duration;
-use std::process::exit;
-use corr_templates::json::Fillable;
-use std::borrow::BorrowMut;
-use self::corr_journeys::{Executable, JourneyStore, Interactable};
+use self::corr_journeys::{JourneyStore, Interactable};
 use std::cell::RefCell;
 use std::rc::Rc;
 use corr_websocket::{Action, DesiredAction};
@@ -31,29 +25,37 @@ pub trait IO {
 }
 impl<T> IO for Client<T> where T:std::io::Read+std::io::Write+Splittable{
     fn send(&mut self,desired_action: DesiredAction) {
-        self.send_message(&OwnedMessage::Text(serde_json::to_string(&desired_action).unwrap()));
+        self.send_message(&OwnedMessage::Text(serde_json::to_string(&desired_action).unwrap())).unwrap();
     }
 
     fn wait_for_action(&mut self)-> Action {
-        let message = self.recv_message().unwrap();
-        match message {
-            OwnedMessage::Close(_) => {
+        let resp=self.recv_message();
+        match resp {
+            Ok(message)=>{
+                match message {
+                    OwnedMessage::Close(_) => {
+                        Action::Quit
+                    }
+                    OwnedMessage::Ping(_) => {
+                        Action::Ping
+                    }
+                    OwnedMessage::Text(val) => {
+                        let var:RawVariableValue=serde_json::from_str(&val.as_str()).unwrap();
+                        Action::Told(var)
+                    },
+                    OwnedMessage::Pong(_)=>{
+                        Action::Pong
+                    },
+                    OwnedMessage::Binary(_)=>{
+                        Action::Ignorable
+                    }
+                }
+            },
+            Err(_)=>{
                 Action::Quit
             }
-            OwnedMessage::Ping(ping) => {
-                Action::Ping
-            }
-            OwnedMessage::Text(val) => {
-                let var:RawVariableValue=serde_json::from_str(&val.as_str()).unwrap();
-                Action::Told(var)
-            },
-            OwnedMessage::Pong(pong)=>{
-                Action::Pong
-            },
-            OwnedMessage::Binary(data)=>{
-                Action::Ignorable
-            }
         }
+        
     }
 
     fn close(&mut self) {
@@ -62,7 +64,7 @@ impl<T> IO for Client<T> where T:std::io::Read+std::io::Write+Splittable{
 impl<T> ValueProvider for SocketClient<T> where T:IO{
 
     fn read(&mut self, variable: Variable) -> Value {
-        let mut desired_action = DesiredAction::Tell(VariableDesciption{
+        let desired_action = DesiredAction::Tell(VariableDesciption{
            name: variable.name.clone(),
             data_type:match variable.data_type {
                 Option::None=>{
@@ -75,7 +77,8 @@ impl<T> ValueProvider for SocketClient<T> where T:IO{
         });
 
         self.0.send(desired_action.clone());
-        while let client_action=self.0.wait_for_action() {
+        loop{
+            let client_action=self.0.wait_for_action();
             match &client_action {
                 Action::Told(var)=>{
                     if var.is_valid() {
@@ -92,9 +95,6 @@ impl<T> ValueProvider for SocketClient<T> where T:IO{
                 }
             }
         }
-        return Value::Null
-
-
     }
     fn write(&mut self, text: String) {
         self.0.send(DesiredAction::Listen(text))
@@ -102,7 +102,8 @@ impl<T> ValueProvider for SocketClient<T> where T:IO{
 
     fn close(&mut self) {
         self.0.send(DesiredAction::Quit);
-        while let client_action=self.0.wait_for_action() {
+        loop{
+            let client_action=self.0.wait_for_action();
             match &client_action {
                 Action::Quit=>{
                     self.0.close();
@@ -116,7 +117,7 @@ impl<T> ValueProvider for SocketClient<T> where T:IO{
 
     }
 }
-pub fn start<T>(mut io:SocketClient<T>) where T:IO{
+pub fn start<T>(io:SocketClient<T>) where T:IO{
     let journeys=vec![
         Journey{
             name:format!("Tell me your name")
@@ -141,7 +142,7 @@ pub fn create_server() {
                 return;
             }
 
-            let mut client = request.use_protocol("rust-websocket").accept().unwrap();
+            let client = request.use_protocol("rust-websocket").accept().unwrap();
 
             let ip = client.peer_addr().unwrap();
 

@@ -37,12 +37,12 @@ pub struct Filter{
 
 pub trait Server {
     fn start(&mut self)->Result<(), Box<dyn std::error::Error>>;
-    fn whatsNext(&mut self)->Result<DesiredAction,Box<dyn std::error::Error>>;
+    fn what_is_next(&mut self)->Result<DesiredAction,Box<dyn std::error::Error>>;
     fn tell(&mut self,variable:RawVariableValue)->Result<(),Box<dyn std::error::Error>>;
 }
 pub trait JourneyClient {
     fn run(&mut self,filter:Filter)-> Result<(), Box<dyn std::error::Error>>;
-    fn ask(&mut self,var_Desc:VariableDesciption)->RawVariableValue;
+    fn ask(&mut self,var_desc:VariableDesciption)->RawVariableValue;
     fn tell(&mut self,words:String);
 }
 fn connect(server: String)->Box<WebSocketServer> {
@@ -60,12 +60,12 @@ impl<T,U> JourneyClient for CliClient<T,U> where T:Server,U:StringIO {
         self.tell(format!("running filter {:?}",filter));
         self.server.start()?;
         loop {
-            let next = self.server.whatsNext()?;
+            let next = self.server.what_is_next()?;
             match next {
                 DesiredAction::Quit => return Ok(()),
                 DesiredAction::Tell(var)=>{
                     let val=self.ask(var);
-                    self.server.tell(val);
+                    self.server.tell(val)?;
                 },
                 DesiredAction::Listen(words)=>{
                     self.tell(words);
@@ -95,7 +95,7 @@ impl Server for WebSocketServer {
         Ok(())
     }
 
-    fn whatsNext(&mut self)->Result<DesiredAction,Box<dyn std::error::Error>> {
+    fn what_is_next(&mut self)->Result<DesiredAction,Box<dyn std::error::Error>> {
         loop{
             let message=self.client.recv_message().unwrap();
             match message {
@@ -103,8 +103,8 @@ impl Server for WebSocketServer {
                     let da:DesiredAction=serde_json::from_str(&val.as_str()).unwrap();
                     match da {
                         DesiredAction::Quit=>{
-                            self.client.send_message(&OwnedMessage::Close(None));
-                            self.client.shutdown();
+                            self.client.send_message(&OwnedMessage::Close(None))?;
+                            self.client.shutdown()?;
                         },
                         _=>{
 
@@ -113,8 +113,8 @@ impl Server for WebSocketServer {
                     return Ok(da);
                 },
                 OwnedMessage::Close(_)=>{
-                    self.client.send_message(&OwnedMessage::Close(None));
-                    self.client.shutdown();
+                    self.client.send_message(&OwnedMessage::Close(None))?;
+                    self.client.shutdown()?;
                     return Ok(DesiredAction::Quit)
                 }
                 _=>{
@@ -124,14 +124,14 @@ impl Server for WebSocketServer {
     }
 
     fn tell(&mut self, variable: RawVariableValue)->Result<(),Box<dyn std::error::Error>>  {
-        self.client.send_message(&OwnedMessage::Text(serde_json::to_string(&variable).unwrap()));
+        self.client.send_message(&OwnedMessage::Text(serde_json::to_string(&variable)?))?;
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    pub fn newWithMocks(server:Box<MockServer>, io:Messanger<VecBufferStringIO>) -> CliClient<MockServer, VecBufferStringIO> {
+    pub fn new_with_mocks(server:Box<MockServer>, io:Messanger<VecBufferStringIO>) -> CliClient<MockServer, VecBufferStringIO> {
         CliClient {
             server,
             io
@@ -142,16 +142,7 @@ mod tests {
         told:Vec<String>,
         captured:Vec<String>
     }
-    impl VecBufferStringIO {
-        pub fn new()-> VecBufferStringIO {
-            VecBufferStringIO {
-                pointer:0,
-                captured:Vec::new(),
-                told:Vec::new()
-            }
-        }
-    }
-
+    
     impl StringIO for VecBufferStringIO {
         fn write(&mut self, value: String) {
             self.told.push(value);
@@ -184,7 +175,7 @@ mod tests {
             Ok(())
         }
 
-        fn whatsNext(&mut self)->Result<DesiredAction,Box<dyn std::error::Error>>  {
+        fn what_is_next(&mut self)->Result<DesiredAction,Box<dyn std::error::Error>>  {
             self.pointer += 1;
             if self.actions.len()>=self.pointer {
                 Ok(self.actions[self.pointer-1].clone())
@@ -209,7 +200,7 @@ use crate::{CliClient, JourneyClient, Filter, Server};
 
     #[test]
     fn should_run_journey(){
-        let mut actions= vec![
+        let actions= vec![
             DesiredAction::Listen("Whats Your Choise".to_string()),
             DesiredAction::Tell(VariableDesciption{
                 name:"choice".to_string(),
@@ -220,20 +211,20 @@ use crate::{CliClient, JourneyClient, Filter, Server};
                 data_type:VarType::String
             })
         ];
-        let mut server_ip = "localhost".to_string();
-        let mut server = connect_mock(server_ip,actions);
-        let mut io = Messanger{
+        let server_ip = "localhost".to_string();
+        let server = connect_mock(server_ip,actions);
+        let io = Messanger{
             string_io:Box::new(VecBufferStringIO {
                 pointer:0,
                 captured:vec![format!("3.2\n"),format!("3\n"),format!("Atmaram\n\t")],
                 told:Vec::new()
             })
         };
-        let mut client = newWithMocks(server,io
+        let mut client = new_with_mocks(server,io
         );
         client.run(Filter {
             value:format!("create data")
-        });
+        }).unwrap();
         assert_eq!(client.io.string_io.told,vec![
             format!("running filter Filter {{ value: \"create data\" }}"),
             format!("Whats Your Choise"),
