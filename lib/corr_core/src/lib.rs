@@ -1,5 +1,8 @@
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::borrow::BorrowMut;
 
 #[derive(Debug,PartialEq,Clone,Serialize,Deserialize)]
 pub enum DesiredAction{
@@ -120,61 +123,49 @@ impl RawVariableValue{
         }
     }
 }
-//#[derive(Debug,PartialEq,Clone,Serialize,Deserialize)]
-//pub enum Variable{
-//    String(String,String),
-//    Long(String,String),
-//    Boolean(String,String),
-//    Double(String,String),
-//    Null(String)
-//}
-//impl Variable{
-//    pub fn data_type(&self)->VarType{
-//        match self {
-//            Variable::String(_,_)=>VarType::String,
-//            Variable::Long(_,_)=>VarType::Long,
-//            Variable::Boolean(_,_)=>VarType::Boolean,
-//            Variable::Double(_,_)=>VarType::Double,
-//            Variable::Null(_)=>VarType::Any,
-//        }
-//    }
-//    pub fn is_valid(&self)-> bool {
-//        match self {
-//            Variable::String(_,val)=>true,
-//            Variable::Long(_,val)=>match val.parse::<i64>() {
-//                Ok(val)=>true,
-//                _=>false
-//            },
-//            Variable::Boolean(_,val)=>match val.parse::<bool>() {
-//                Ok(val)=>true,
-//                _=>false
-//            },
-//            Variable::Double(_,val)=>match val.parse::<f64>() {
-//                Ok(val)=>true,
-//                _=>false
-//            },
-//            Variable::Null(_)=> true,
-//        }
-//    }
-//    pub fn to_value(&self)->Value{
-//        match self {
-//            Variable::String(_,val)=>Value::String(val.clone()),
-//            Variable::Long(_,val)=>match val.parse::<i64>() {
-//                Ok(val)=>Value::Long(val.clone()),
-//                _=>Value::Long(0)
-//            },
-//            Variable::Boolean(_,val)=>match val.parse::<bool>() {
-//                Ok(val)=>Value::Boolean(val),
-//                _=>Value::Boolean(false)
-//            },
-//            Variable::Double(_,val)=>match val.parse::<f64>() {
-//                Ok(val)=>Value::Double(val),
-//                _=>Value::Double(0.0)
-//            },
-//            Variable::Null(_)=> Value::Null,
-//        }
-//    }
-//}
+pub struct Runtime<T>{
+    pub channel:Rc<RefCell<T>>
+}
+
+impl<T> Runtime<T> where T:Channel{
+    pub fn iterate<F>(&self, refering_as: Variable, to_list: Variable, inner: F) where F: Fn() {
+        let mut length = (*self.channel).borrow_mut().read(Variable{
+            name:format!("{}.size",to_list.name),
+            data_type:Option::Some(VarType::Long)
+        });
+        match length {
+            Value::Long(l)=>{
+                let size = l as usize;
+                for i in 0..size {
+                    inner();
+                }
+            },
+            _=>{}
+        }
+
+    }
+}
+impl<T> Channel for Runtime<T> where T:Channel{
+    fn read(&mut self, variable: Variable) -> Value {
+        (*self.channel).borrow_mut().read(variable)
+    }
+
+    fn write(&mut self, text: String) {
+        (*self.channel).borrow_mut().write(text);
+    }
+
+    fn close(&mut self) {
+        (*self.channel).borrow_mut().close();
+    }
+}
+pub trait Channel{
+    fn read(&mut self,variable:Variable)->Value;
+
+//    fn iterate<F>(&mut self,refering_as:Variable,to_list:Variable,inner:F) where F:Fn();
+    fn write(&mut self,text:String);
+    fn close(&mut self);
+}
+
 #[cfg(test)]
 mod tests{
     use crate::Value;
@@ -210,6 +201,12 @@ mod tests{
         array.push(Value::String(format!("hello")));
         assert_eq!(serde_json::to_string(&Value::Array(array)).unwrap(),format!(r#"["hello"]"#))
     }
+}
+
+#[derive(Clone,PartialEq,Debug)]
+pub struct Variable{
+    pub name:String,
+    pub data_type:Option<VarType>
 }
 
 

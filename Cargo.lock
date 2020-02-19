@@ -195,10 +195,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "corr_journeys"
+version = "0.1.0"
+dependencies = [
+ "corr_core 0.1.0",
+ "corr_templates 0.1.0",
+]
+
+[[package]]
 name = "corr_server_lib"
 version = "0.1.0"
 dependencies = [
  "corr_core 0.1.0",
+ "corr_journeys 0.1.0",
+ "corr_templates 0.1.0",
  "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocket 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocket_contrib 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -207,6 +217,13 @@ dependencies = [
  "tokio 0.1.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "websocket 0.24.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "corr_templates"
+version = "0.1.0"
+dependencies = [
+ "corr_core 0.1.0",
 ]
 
 [[package]]

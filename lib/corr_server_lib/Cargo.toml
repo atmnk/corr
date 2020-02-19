@@ -13,6 +13,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json= "1.0.48"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 corr_core={path="../corr_core"}
+corr_templates={path="../corr_templates"}
+corr_journeys={path="../corr_journeys"}
 websocket ="0.24.0"
 futures = "0.1.4"
 tokio = {version = "0.1.22"}
