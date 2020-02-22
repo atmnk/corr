@@ -14,8 +14,11 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use corr_websocket::{Action, DesiredAction};
 use corr_core::runtime::{Variable, VarType, Value, RawVariableValue, VariableDesciption};
-use self::corr_core::runtime::{ValueProvider, Environment};
-
+use self::corr_core::runtime::{ValueProvider, Environment, RCValueProvider};
+use std::collections::HashMap;
+use serde::export::PhantomData;
+use corr_rest::{GetStep, PostStep};
+#[derive(Debug)]
 pub struct SocketClient<T>(T) where T:IO;
 
 pub trait IO {
@@ -62,6 +65,7 @@ impl<T> IO for Client<T> where T:std::io::Read+std::io::Write+Splittable{
     }
 }
 impl<T> ValueProvider for SocketClient<T> where T:IO{
+
 
     fn read(&mut self, variable: Variable) -> Value {
         let desired_action = DesiredAction::Tell(VariableDesciption{
@@ -116,20 +120,38 @@ impl<T> ValueProvider for SocketClient<T> where T:IO{
         }
 
     }
+    fn set_index_ref(&mut self, _: Variable, _: Variable) { 
+
+    }
+    fn drop(&mut self, _: String) { 
+
+    }
+
+    fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
+            
+    }
 }
 pub fn start<T>(io:SocketClient<T>) where T:IO{
     let journeys=vec![
         Journey{
-            name:format!("Tell me your name")
+            name:format!("Post Step"),
+            steps:vec![Box::new(PostStep{})]
         },
         Journey{
-            name:format!("Tell me your age")
+            name:format!("Get Step"),
+            steps:vec![Box::new(GetStep{})]
         }
     ];
     let js = JourneyStore {
         journeys
     };
-    js.start_with(format!("hello"),Environment{ channel:Rc::new(RefCell::new(io))});
+    let mut rc_channel=RCValueProvider {
+        value_store:Vec::new(),
+        reference_store:Rc::new(RefCell::new(HashMap::new())),
+        fallback_provider:io,
+        indexes:HashMap::new()
+    };
+    js.start_with(format!("hello"),Environment{ channel:Rc::new(RefCell::new(rc_channel))});
 }
 pub fn create_server() {
     let server = Server::bind("127.0.0.1:9876").unwrap();

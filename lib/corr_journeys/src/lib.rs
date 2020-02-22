@@ -2,16 +2,18 @@ use corr_templates::json::Fillable;
 use corr_core::runtime::{Variable, ValueProvider, Environment};
 use corr_core::runtime::Value;
 use corr_core::runtime::VarType;
+use std::fmt::Debug;
+use std::rc::Rc;
+use corr_templates::json::parser::parse;
+use std::marker::PhantomData;
 
-
-#[derive(Debug,PartialEq,Clone)]
-pub struct JourneyStore{
-    pub journeys:Vec<Journey>
+pub struct JourneyStore<T> where T:ValueProvider{
+    pub journeys:Vec<Journey<T>>
 }
 pub trait Interactable<T>  where T:ValueProvider {
     fn start_with(&self,filter:String,runtime:Environment<T>);
 }
-impl<T> Interactable<T> for JourneyStore where T:ValueProvider{
+impl<T> Interactable<T> for JourneyStore<T> where T:ValueProvider{
     fn start_with(&self, _filter: String, mut runtime: Environment<T>) {
         runtime.write(format!("Choose from following"));
         let mut counter = 1;
@@ -26,28 +28,26 @@ impl<T> Interactable<T> for JourneyStore where T:ValueProvider{
         });
         match num {
             Value::Long(val)=>{
-                let selected = self.journeys[(val-1) as usize].clone();
-                selected.execute(runtime);
+                let selected = self.journeys.get((val-1) as usize).unwrap();
+                runtime.write(format!("Executing journey {}",selected.name));
+                selected.execute(&runtime);
             }
             _=>{return}
         }
     }
 }
-#[derive(Debug,PartialEq,Clone)]
-pub struct Journey{
-    pub name:String
+pub struct Journey<T> where T:ValueProvider{
+    pub name:String,
+    pub steps:Vec<Box<Executable<T>>>,
 }
 pub trait Executable<T> where T:ValueProvider{
-    fn execute(&self,runtime:Environment<T>);
+    fn execute(&self,runtime:&Environment<T>);
 }
-impl<T> Executable<T> for Journey where T:ValueProvider{
-    fn execute(&self,runtime: Environment<T>) {
-        let tmp=corr_templates::json::Json::Variable(Variable{
-            name:format!("name {:?}",self.name),
-            data_type:Option::Some(VarType::String)
-        });
-        tmp.fill(&runtime);
-        (*runtime.channel).borrow_mut().close();
+impl<T> Executable<T> for Journey<T> where T:ValueProvider{
+    fn execute(&self,runtime: &Environment<T>) {
+        for step in &self.steps  {
+            step.execute(&runtime);
+        }
     }
 }
 #[cfg(test)]
@@ -57,10 +57,12 @@ use corr_core::runtime::{ValueProvider, Value,Environment};
     use crate::{JourneyStore, Journey, Interactable, Executable};
     use std::rc::Rc;
     use std::cell::RefCell;
+    use std::marker::PhantomData;
 
+    #[derive(Debug)]
     struct MockChannel;
     impl ValueProvider for MockChannel{
-
+        
         fn read(&mut self, _variable: Variable) -> Value {
             Value::Long(1)
         }
@@ -73,21 +75,36 @@ use corr_core::runtime::{ValueProvider, Value,Environment};
         fn close(&mut self) {
 
         }
+        fn set_index_ref(&mut self, _: corr_core::runtime::Variable, _: corr_core::runtime::Variable) { unimplemented!() }
+        fn drop(&mut self, _: std::string::String) { unimplemented!() }
+
+        fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
+            unimplemented!()
+        }
     }
     #[test]
     fn should_start_journey_store(){
         let js=JourneyStore {
             journeys:vec![Journey{
-                name:format!("Hello")
+                name:format!("Hello"),
+                steps:vec![Box::new(Post{})],
             }]
         };
         js.start_with(format!("hello"),Environment{ channel:Rc::new(RefCell::new(MockChannel))})
     }
+    struct Post;
+    impl<T>  Executable<T> for Post where T:ValueProvider{
+        fn execute(&self, runtime: &Environment<T>) {
+            println!("Hello");
+        }
+    }
     #[test]
     fn should_execute_journey(){
+
         let jn=Journey{
-                name:format!("Hello")
+                name:format!("Hello"),
+                steps:vec![Box::new(Post{})],
             };
-        jn.execute(Environment{ channel:Rc::new(RefCell::new(MockChannel))})
+        jn.execute(& Environment{ channel:Rc::new(RefCell::new(MockChannel))})
     }
 }

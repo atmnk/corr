@@ -16,6 +16,7 @@ corr_core={path="../corr_core"}
 corr_templates={path="../corr_templates"}
 corr_journeys={path="../corr_journeys"}
 corr_websocket={path="../corr_websocket"}
+corr_rest={path="../corr_rest"}
 
 websocket ="0.24.0"
 futures = "0.1.4"
