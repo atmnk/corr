@@ -1,5 +1,5 @@
 [package]
-name = "corr_journeys"
+name = "corr_journeys_builder"
 version = "0.1.0"
 authors = ["ATM <naik.atmaram@gmail.com>"]
 edition = "2018"
@@ -9,4 +9,6 @@ edition = "2018"
 [dependencies]
 corr_core={path="../corr_core"}
 corr_templates={path="../corr_templates"}
+corr_rest={path="../corr_rest"}
+corr_journeys={path="../corr_journeys"}
 nom = "5.1.0"

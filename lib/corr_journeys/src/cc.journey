@@ -1,0 +1,37 @@
+`create n categories`{
+    for (category:Object in categories) {
+        post(
+            url:@text"http://localhost:8080/api/category",
+            body:@json"{"name":{{category.name:String}}}",
+            response:@json"{"id":{{category.id}}}");
+        `create n categories`();
+    };
+    post(
+        url:"http://localhost:8080/api/category",
+        body:@"{"name":{{category_name:String}}}",
+        response:@"{"id":{{category.id}}}"
+    );
+    until ( id != '100' building catagory in categories){
+        post(
+            url:@text"http://localhost:8080/api/category",
+            body:@json"{"name":{{category.name:String}}}",
+            response:@json"{"id":{{category.id}}}");
+    }
+    times(count building catagory in categories){
+        post(
+            url:@text"http://localhost:8080/api/category",
+            body:@json"{"name":{{category.name:String}}}",
+            response:@json"{"id":{{id}}}");
+    }
+    if( a == 'Hello'){
+        post(
+                    url:@text"http://localhost:8080/api/category",
+                    body:@json"{"name":{{category.name:String}}}",
+                    response:@json"{"id":{{id}}}");
+    } else if() {
+        post(
+                    url:@text"http://localhost:8080/api/category",
+                    body:@json"{"name":{{category.name:String}}}",
+                    response:@json"{"id":{{id}}}");
+    }
+}

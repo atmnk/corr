@@ -1,10 +1,10 @@
-use nom::{IResult, InputTake, Compare};
+use nom::{IResult, InputTakeAtPosition, AsChar};
 use corr_core::runtime::{Variable, VarType};
 use nom::combinator::{map, opt};
 use nom::branch::alt;
 use nom::sequence::{delimited, tuple, terminated};
 use nom::bytes::complete::{escaped, is_not, tag};
-use nom::character::complete::{anychar, char, digit1};
+use nom::character::complete::{anychar, char, multispace0};
 use std::str;
 use nom::error::ParseError;
 use nom::multi::many0;
@@ -32,21 +32,15 @@ fn parse_bytes<'a>(i: &[u8])->IResult<&[u8], ExtractableJson>{
 fn non_ascii(chr: u8) -> bool {
     chr >= 0x80 && chr <= 0xFD
 }
-fn ws<F, I, O, E>(inner: F) -> impl Fn(I) -> IResult<I, O, E>
+pub fn ws<I, O, E: ParseError<I>, F>(inner: F) -> impl Fn(I) -> IResult<I, O, E>
     where
         F: Fn(I) -> IResult<I, O, E>,
-        I: InputTake + Clone + PartialEq + for<'a> Compare<&'a [u8; 1]>,
-        E: ParseError<I>,
+        I: InputTakeAtPosition,
+        <I as InputTakeAtPosition>::Item: AsChar + Clone,
 {
-    move |i: I| {
-        let i = alt::<_, _, (), _>((tag(b" "), tag(b"\t")))(i.clone())
-            .map(|(i, _)| i)
-            .unwrap_or(i);
-        let (i, res) = inner(i)?;
-        let i = alt::<_, _, (), _>((tag(b" "), tag(b"\t")))(i.clone())
-            .map(|(i, _)| i)
-            .unwrap_or(i);
-        Ok((i, res))
+    move |input: I| {
+        let (input, _) = multispace0(input)?;
+        terminated(&inner,multispace0)(input)
     }
 }
 

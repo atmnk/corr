@@ -1,0 +1,6 @@
+`create one category`{
+    post(url:@text`http://localhost:8080/api/category`,
+                body:@json`{"name":{{category}}}`,
+                response:@ejson`{"id":{{id}}}`);
+    print(text:@text`Created Category With Name {{category}} by id {{id}}`);
+}

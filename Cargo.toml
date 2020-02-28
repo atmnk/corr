@@ -11,5 +11,6 @@ members = [
     "lib/corr_templates",
     "lib/corr_journeys",
     "lib/corr_websocket",
-    "lib/corr_rest"
+    "lib/corr_rest",
+    "lib/corr_journeys_builder"
 ]

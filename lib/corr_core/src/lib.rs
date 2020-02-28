@@ -1,6 +1,5 @@
 pub mod runtime;
 pub mod io;
-use std::result::Result;
 
 pub fn break_on(path:String,chr:char)->Option<(String,String)>{
     let spl:Vec<&str>=path.rsplitn(2,chr).collect();

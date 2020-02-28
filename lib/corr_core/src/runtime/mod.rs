@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::result::Result;
 use crate::break_on;
-use std::borrow::BorrowMut;
+use std::collections::hash_map::RandomState;
 
 pub struct Messanger<T> where T:StringIO{
     pub string_io:Box<T>
@@ -58,6 +58,83 @@ pub enum Value{
     Array(Vec<Value>),
     Null
 }
+impl Value {
+    pub fn to_string(&self)->String{
+        match self {
+            Value::String(val)=>val.clone(),
+            Value::Long(val)=>format!("{}",val),
+            Value::Double(val)=>format!("{}",val),
+            Value::Boolean(val)=>format!("{}",val),
+            Value::Null=>format!("null"),
+            Value::Array(values)=>{
+                let mut str=format!("");
+                for value in values{
+                    str.push_str(value.to_string().as_str())
+                }
+                str
+            },
+            Value::Object(_)=>{
+                unimplemented!();
+            },
+        }
+    }
+    pub fn from(value:&serde_json::Value)->Value{
+        match value {
+            serde_json::Value::Null=>Value::Null,
+            serde_json::Value::Bool(b)=>Value::Boolean(b.clone()),
+            serde_json::Value::String(val)=>Value::String(val.clone()),
+            serde_json::Value::Number(n)=>{
+                if n.is_i64() {
+                    Value::Long(n.as_i64().unwrap())
+                } else if n.is_f64() {
+                    Value::Double(n.as_f64().unwrap())
+                } else {
+                    unimplemented!();
+                }
+            },
+            serde_json::Value::Object(obj)=>{
+                let mut map=HashMap::new();
+                for (key,value) in obj{
+                    map.insert(key.clone(),Value::from(value));
+                }
+                Value::Object(map)
+            },
+            serde_json::Value::Array(vec)=>{
+                let mut new_vec=Vec::new();
+                for value in vec{
+                    new_vec.push(Value::from(value))
+                }
+                Value::Array(new_vec)
+            }
+        }
+    }
+    pub fn get_associated_var_type(&self)->Option<VarType>{
+        match self {
+            Value::String(_)=>{
+                Option::Some(VarType::String)
+            },
+            Value::Boolean(_)=>{
+                Option::Some(VarType::Boolean)
+            },
+            Value::Object(_)=>{
+                Option::Some(VarType::Object)
+            },
+            Value::Long(_)=>{
+                Option::Some(VarType::Long)
+            },
+            Value::Array(_)=>{
+                Option::Some(VarType::List)
+            },
+            Value::Double(_)=>{
+                Option::Some(VarType::Double)
+            },
+            Value::Null=>{
+                Option::None
+            },
+        }
+    }
+}
+
 impl Serialize for Value {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
@@ -143,6 +220,7 @@ impl RawVariableValue{
 }
 
 pub trait ValueProvider{
+    fn save(&self,var:Variable,value:Value);
     fn read(&mut self,variable:Variable)->Value;
 
     //    fn iterate<F>(&mut self,refering_as:Variable,to_list:Variable,inner:F) where F:Fn();
@@ -152,22 +230,25 @@ pub trait ValueProvider{
     fn load_ith_as(&mut self,i:usize,index_ref_var:Variable,list_ref_var:Variable);
     fn close(&mut self);
 }
-pub struct Environment<T> where T:ValueProvider {
-    pub channel:Rc<RefCell<T>>
+pub struct Environment {
+    pub channel:Rc<RefCell<RCValueProvider>>
 }
-impl<T> Environment<T> where T:ValueProvider{
-    pub fn new_rc(provider:T)->Environment<RCValueProvider<T>>{
+impl Environment {
+    pub fn new_rc<T: 'static>(provider:T)->Environment where T:ValueProvider{
         Environment{
             channel:Rc::new(RefCell::new(RCValueProvider{
                 indexes:HashMap::new(),
                 reference_store:Rc::new(RefCell::new(HashMap::new())),
                 value_store:vec![],
-                fallback_provider:provider
+                fallback_provider:Box::new(provider)
             }))
         }
     }
 }
-impl<T> Environment<T> where T:ValueProvider{
+impl Environment {
+    pub fn save(&self,var:Variable,val:Value){
+        (*self.channel).borrow_mut().save(var,val);
+    }
     pub fn iterate<F>(&self, refering_as: Variable, to_list: Variable, inner: F) where F: Fn(usize) {
         let length = (*self.channel).borrow_mut().read(Variable{
             name:format!("{}.size",to_list.name),
@@ -187,6 +268,16 @@ impl<T> Environment<T> where T:ValueProvider{
             _=>{}
         }
 
+    }
+    pub fn iterate_outside_building_inside<F>(&self, refering_as: Variable, to_list: Variable,size:usize, inner: F) where F: Fn(usize) {
+
+        (*self.channel).borrow_mut().set_index_ref(refering_as.clone() ,to_list.clone());
+        (*self.channel).borrow_mut().create_object_at_path(to_list.name.clone(),Rc::new(Object::new_list_object()));
+        for i in 0..size {
+            (*self.channel).borrow_mut().load_ith_as(i,refering_as.clone() ,to_list.clone());
+            inner(i);
+            (*self.channel).borrow_mut().drop(refering_as.name.clone());
+        }
     }
     pub fn build_iterate<F,G>(&self, refering_as: Variable, to_list: Variable,mut push_to:Vec<G>, inner: F)->Vec<G> where F: Fn(usize)->G{
         let length = (*self.channel).borrow_mut().read(Variable{
@@ -210,8 +301,8 @@ impl<T> Environment<T> where T:ValueProvider{
     }
 }
 
-impl<T> ValueProvider for Environment<T> where T:ValueProvider{
-    
+impl ValueProvider for Environment{
+
     fn read(&mut self, variable: Variable) -> Value {
         (*self.channel).borrow_mut().read(variable)
     }
@@ -233,6 +324,10 @@ impl<T> ValueProvider for Environment<T> where T:ValueProvider{
     fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
         (*self.channel).borrow_mut().load_ith_as(i,index_ref_var,list_ref_var);
     }
+
+    fn save(&self, var: Variable, value: Value) {
+        (*self.channel).borrow_mut().save(var,value);
+    }
 }
 
 #[derive(Clone,PartialEq,Debug)]
@@ -253,16 +348,36 @@ impl Object {
     pub fn new_object_object(map:HashMap<String,Rc<Object>>)->Object{
         return Object::Object(Rc::new(RefCell::new(map)))
     }
+    pub fn to_value(&self)->Value{
+        match self{
+            Object::Final(val)=> {
+                return val.clone()
+            },
+            Object::List(inner)=>{
+                let mut vec=Vec::new();
+                for val in &*(**inner).borrow(){
+                    vec.push(val.to_value())
+                }
+                Value::Array(vec)
+            },
+            Object::Object(inner)=>{
+            let mut map=HashMap::new();
+            for (key,val) in &*(**inner).borrow(){
+                map.insert(key.clone(),val.to_value());
+            }
+            Value::Object(map)
+            },
+        }
+    }
 }
-#[derive(PartialEq,Clone)]
-pub struct RCValueProvider<T> where T:ValueProvider{
-    pub fallback_provider:T,
+pub struct RCValueProvider{
+    pub fallback_provider:Box<dyn ValueProvider>,
     pub value_store:Vec<Rc<Object>>,
     pub reference_store:Rc<RefCell<HashMap<String,Rc<Object>>>>,
     pub indexes:HashMap<String,String>,
 }
 
-impl<T> RCValueProvider<T> where T:ValueProvider{
+impl RCValueProvider {
     pub fn get_object_at_path(&self,var:String)->Option<Rc<Object>>{
         if var.contains('.'){
             let (left,right)=break_on(var.clone(),'.').unwrap();
@@ -329,9 +444,7 @@ impl<T> RCValueProvider<T> where T:ValueProvider{
 
         } else {
             (*self.reference_store).borrow_mut().insert(var.clone(),Rc::clone(&object));
-            println!("Should Inserting in refered object {}, {:?}",var.clone(),self.indexes);
             if self.indexes.contains_key(&var.clone()){
-                println!("Inserting in refered object {:?}",self.indexes);
                 let obj=self.get_object_at_path(self.indexes.get(&var.clone()).unwrap().clone()).unwrap().clone();
                 match &*obj {
                     Object::Final(val)=>{
@@ -353,40 +466,29 @@ impl<T> RCValueProvider<T> where T:ValueProvider{
 
 
 }
-impl<T> ValueProvider for RCValueProvider<T> where T:ValueProvider{
+impl ValueProvider for RCValueProvider{
     
     fn read(&mut self, var: Variable) -> Value {
         let obj = self.get_object_at_path(var.name.clone());
         match obj {
             Option::Some(rc_value)=>{
-                match &*rc_value {
-                    Object::Final(val)=>{
-                        println!("Returning already found value{:?}",val);
-                        val.clone()
-                    },
-                    _=>{
-                        unimplemented!();
-                    }
-                }
+                rc_value.to_value()
             },
             Option::None =>{
                 let opt = break_on(var.name.clone(),'.');
                 match opt {
                     Option::Some((left,right))=>{
                         if right.clone() == "size"{
-                            let obj= self.create_object_at_path(left,Rc::new(Object::new_list_object()));
-                            println!("Reading from console");
+                            self.create_object_at_path(left,Rc::new(Object::new_list_object()));
                             let val=self.fallback_provider.read(var.clone());
                             val
                         } else {
-                            println!("Reading from console");
                             let val=self.fallback_provider.read(var.clone());
                             self.create_object_at_path(var.name.clone(),Rc::new(Object::Final(val.clone())));
                             val
                         }
                     },
                     Option::None=>{
-                        println!("Reading from console");
                         let val=self.fallback_provider.read(var.clone());
                         self.create_object_at_path(var.name.clone(),Rc::new(Object::Final(val.clone())));
                         val
@@ -405,7 +507,7 @@ impl<T> ValueProvider for RCValueProvider<T> where T:ValueProvider{
     fn close(&mut self) { 
         self.fallback_provider.close();
     }
-    fn set_index_ref(&mut self, as_ref:Variable, in_ref:Variable) { 
+    fn set_index_ref(&mut self, as_ref:Variable, in_ref:Variable) {
         self.indexes.insert(as_ref.name.clone(), in_ref.name.clone());
     }
     fn drop(&mut self, key: String) { 
@@ -424,7 +526,6 @@ impl<T> ValueProvider for RCValueProvider<T> where T:ValueProvider{
     }
 
     fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
-        println!("{:?}{:?}{:?}",i,index_ref_var,list_ref_var);
         if (*self.reference_store).borrow().contains_key(&list_ref_var.name.clone()){
             let val = (*self.reference_store).borrow().get(&list_ref_var.name.clone()).unwrap().clone();
             match &*val {
@@ -469,11 +570,15 @@ impl<T> ValueProvider for RCValueProvider<T> where T:ValueProvider{
         }
 
     }
+
+    fn save(&self, var: Variable, value: Value) {
+        self.create_object_at_path(var.name.clone(),Rc::new(Object::Final(value)));
+    }
 }
 
 #[cfg(test)]
-mod tests{
-    use crate::runtime::RCValueProvider;
+mod tests {
+    use crate::runtime::{RCValueProvider};
     use crate::runtime::Variable;
     use crate::runtime::Environment;
     use crate::runtime::{ValueProvider, VarType};
@@ -483,171 +588,192 @@ mod tests{
     use std::cell::RefCell;
 
     extern crate serde_json;
+
     #[test]
-    fn should_serialize_string_value(){
-        assert_eq!(serde_json::to_string(&Value::String(format!("hello"))).unwrap(),format!("\"hello\""))
+    fn should_serialize_string_value() {
+        assert_eq!(serde_json::to_string(&Value::String(format!("hello"))).unwrap(), format!("\"hello\""))
     }
+
     #[test]
-    fn should_serialize_long_value(){
-        assert_eq!(serde_json::to_string(&Value::Long(34)).unwrap(),format!("34"))
+    fn should_serialize_long_value() {
+        assert_eq!(serde_json::to_string(&Value::Long(34)).unwrap(), format!("34"))
     }
+
     #[test]
-    fn should_serialize_double_value(){
-        assert_eq!(serde_json::to_string(&Value::Double(34.00)).unwrap(),format!("34.0"))
+    fn should_serialize_double_value() {
+        assert_eq!(serde_json::to_string(&Value::Double(34.00)).unwrap(), format!("34.0"))
     }
+
     #[test]
-    fn should_serialize_null_value(){
-        assert_eq!(serde_json::to_string(&Value::Null).unwrap(),format!("null"))
+    fn should_serialize_null_value() {
+        assert_eq!(serde_json::to_string(&Value::Null).unwrap(), format!("null"))
     }
+
     #[test]
-    fn should_serialize_object_value(){
-        let mut map=HashMap::new();
-        map.insert(format!("hello"),Value::String(format!("hello")));
-        assert_eq!(serde_json::to_string(&Value::Object(map)).unwrap(),format!(r#"{{"hello":"hello"}}"#))
+    fn should_serialize_object_value() {
+        let mut map = HashMap::new();
+        map.insert(format!("hello"), Value::String(format!("hello")));
+        assert_eq!(serde_json::to_string(&Value::Object(map)).unwrap(), format!(r#"{{"hello":"hello"}}"#))
     }
+
     #[test]
-    fn should_serialize_array_value(){
-        let mut array=Vec::new();
+    fn should_serialize_array_value() {
+        let mut array = Vec::new();
         array.push(Value::String(format!("hello")));
-        assert_eq!(serde_json::to_string(&Value::Array(array)).unwrap(),format!(r#"["hello"]"#))
+        assert_eq!(serde_json::to_string(&Value::Array(array)).unwrap(), format!(r#"["hello"]"#))
     }
 
-    impl ValueProvider for MockProvider{
-        
-        fn read(&mut self, _: Variable) -> Value { let ret=self.1[self.0].clone(); self.0+=1;ret }
-        fn write(&mut self, str: String) { println!("{}",str) }
-        fn close(&mut self) {  }
-        fn set_index_ref(&mut self, _: Variable, _:Variable) { }
-        fn drop(&mut self, _: String) { }
+    impl ValueProvider for MockProvider {
+        fn read(&mut self, _: Variable) -> Value {
+            let ret = self.1[self.0].clone();
+            self.0 += 1;
+            ret
+        }
+        fn write(&mut self, str: String) { println!("{}", str) }
+        fn close(&mut self) {}
+        fn set_index_ref(&mut self, _: Variable, _: Variable) {}
+        fn drop(&mut self, _: String) {}
 
-        fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
+        fn load_ith_as(&mut self, _i: usize, _index_ref_var: Variable, _list_ref_var: Variable) {}
 
+        fn save(&self, _var: Variable, _value: Value) {
+            unimplemented!()
         }
     }
+
     #[derive(Debug)]
-    struct MockProvider(usize,Vec<Value>);
+    struct MockProvider(usize, Vec<Value>);
+
     #[test]
-    fn should_iterate_over_runtime(){
-        let rt=Environment{
-            channel: Rc::new(RefCell::new(MockProvider(0,vec![Value::Long(3),
-            Value::String(format!("Atmaram 0")),
-            Value::Long(2),
-            Value::String(format!("Atmaram 00")),
-            Value::String(format!("Atmaram 01")),
-            Value::String(format!("Atmaram 1")),
-            Value::Long(2),
-            Value::String(format!("Atmaram 10")),
-            Value::String(format!("Atmaram 11")),
-            Value::String(format!("Atmaram 2")),
-            Value::Long(2),
-            Value::String(format!("Atmaram 20")),
-            Value::String(format!("Atmaram 21"))
-            ])))
-        };
+    fn should_iterate_over_runtime() {
+        let rt = Environment::new_rc(MockProvider(0, vec![Value::Long(3),
+                                                          Value::String(format!("Atmaram 0")),
+                                                          Value::Long(2),
+                                                          Value::String(format!("Atmaram 00")),
+                                                          Value::String(format!("Atmaram 01")),
+                                                          Value::String(format!("Atmaram 1")),
+                                                          Value::Long(2),
+                                                          Value::String(format!("Atmaram 10")),
+                                                          Value::String(format!("Atmaram 11")),
+                                                          Value::String(format!("Atmaram 2")),
+                                                          Value::Long(2),
+                                                          Value::String(format!("Atmaram 20")),
+                                                          Value::String(format!("Atmaram 21"))
+        ]));
         let mch = Rc::clone(&rt.channel);
-        rt.iterate(Variable{
-            name:format!("hobby"),
-            data_type:Option::Some(VarType::String)
-        }, Variable{
-            name:format!("hobbies"),
-            data_type:Option::Some(VarType::List)
+        rt.iterate(Variable {
+            name: format!("hobby"),
+            data_type: Option::Some(VarType::Object)
+        }, Variable {
+            name: format!("hobbies"),
+            data_type: Option::Some(VarType::List)
         }, |i| {
-            assert_eq!(mch.borrow_mut().read(Variable{
-                name:format!("name"),
-                data_type:Option::Some(VarType::String)
-            }),Value::String(format!("Atmaram {}",i)));
-            rt.iterate(Variable{
-                name:format!("category"),
-                data_type:Option::Some(VarType::String)
-            }, Variable{
-                name:format!("categories"),
-                data_type:Option::Some(VarType::List)
+            assert_eq!(mch.borrow_mut().read(Variable {
+                name: format!("hobby.name"),
+                data_type: Option::Some(VarType::String)
+            }), Value::String(format!("Atmaram {}", i)));
+            rt.iterate(Variable {
+                name: format!("category"),
+                data_type: Option::Some(VarType::Object)
+            }, Variable {
+                name: format!("hobby.categories"),
+                data_type: Option::Some(VarType::List)
             }, |j| {
-                assert_eq!(mch.borrow_mut().read(Variable{
-                    name:format!("name"),
-                    data_type:Option::Some(VarType::String)
-                }),Value::String(format!("Atmaram {}{}",i,j)))
+                assert_eq!(mch.borrow_mut().read(Variable {
+                    name: format!("category.name"),
+                    data_type: Option::Some(VarType::String)
+                }), Value::String(format!("Atmaram {}{}", i, j)))
             });
         })
     }
 
     #[test]
-    fn should_read_same_variable_from_rc_provider_multiple_times(){
-        let mut rcp=RCValueProvider {
-            value_store:Vec::new(),
-            reference_store:Rc::new(RefCell::new(HashMap::new())),
-            fallback_provider:MockProvider(0,vec![
-            Value::String(format!("Atmaram"))
-            ]),
-            indexes:HashMap::new()
-        };
-        let var =  Variable {
-            name:format!("name"),
-            data_type:Option::Some(VarType::String)
-        };
-        assert_eq!(rcp.read(var.clone()),Value::String(format!("Atmaram")));
-        assert_eq!(rcp.read(var.clone()),Value::String(format!("Atmaram")));
-    }
-    #[test]
-    fn should_size_from_rc_provider(){
-        let mut rcp=RCValueProvider {
-            value_store:Vec::new(),
-            reference_store:Rc::new(RefCell::new(HashMap::new())),
-            fallback_provider:MockProvider(0,vec![
-                Value::Long(2),
+    fn should_read_same_variable_from_rc_provider_multiple_times() {
+        let mut rcp = RCValueProvider {
+            value_store: Vec::new(),
+            reference_store: Rc::new(RefCell::new(HashMap::new())),
+            fallback_provider: Box::new(MockProvider(0, vec![
                 Value::String(format!("Atmaram"))
-            ]),
-            indexes:HashMap::new()
+            ])),
+            indexes: HashMap::new()
         };
-        let var =  Variable {
-            name:format!("name.size"),
-            data_type:Option::Some(VarType::String)
+        let var = Variable {
+            name: format!("name"),
+            data_type: Option::Some(VarType::String)
         };
-        assert_eq!(rcp.read(var.clone()),Value::Long(2));
+        assert_eq!(rcp.read(var.clone()), Value::String(format!("Atmaram")));
+        assert_eq!(rcp.read(var.clone()), Value::String(format!("Atmaram")));
     }
 
     #[test]
-    fn should_iterate_over_runtime_reading_values(){
-        let mut rt=Environment{
+    fn should_size_from_rc_provider() {
+        let mut rcp = RCValueProvider {
+            value_store: Vec::new(),
+            reference_store: Rc::new(RefCell::new(HashMap::new())),
+            fallback_provider: Box::new(MockProvider(0, vec![
+                Value::Long(2),
+                Value::String(format!("Atmaram"))
+            ])),
+            indexes: HashMap::new()
+        };
+        let var = Variable {
+            name: format!("name.size"),
+            data_type: Option::Some(VarType::String)
+        };
+        assert_eq!(rcp.read(var.clone()), Value::Long(2));
+    }
+
+    #[test]
+    fn should_iterate_over_runtime_reading_values() {
+        let rt = Environment {
             channel: Rc::new(RefCell::new(
                 RCValueProvider {
-                    value_store:Vec::new(),
-                    reference_store:Rc::new(RefCell::new(HashMap::new())),
-                    fallback_provider:MockProvider(0,vec![
+                    value_store: Vec::new(),
+                    reference_store: Rc::new(RefCell::new(HashMap::new())),
+                    fallback_provider: Box::new(MockProvider(0, vec![
                         Value::Long(2),
                         Value::String(format!("Atmaram 0")),
                         Value::String(format!("Atmaram 1"))
-                    ]),
-                    indexes:HashMap::new()
+                    ])),
+                    indexes: HashMap::new()
                 }
             ))
         };
         let mch = Rc::clone(&rt.channel);
-        rt.iterate(Variable{
-            name:format!("hobby"),
-            data_type:Option::Some(VarType::String)
-        }, Variable{
-            name:format!("hobbies"),
-            data_type:Option::None
+        rt.iterate(Variable {
+            name: format!("hobby"),
+            data_type: Option::Some(VarType::String)
+        }, Variable {
+            name: format!("hobbies"),
+            data_type: Option::None
         }, |i| {
-            assert_eq!(mch.borrow_mut().read(Variable{
-                name:format!("hobby.name"),
-                data_type:Option::Some(VarType::String)
-            }),Value::String(format!("Atmaram {}",i)));
+            assert_eq!(mch.borrow_mut().read(Variable {
+                name: format!("hobby.name"),
+                data_type: Option::Some(VarType::String)
+            }), Value::String(format!("Atmaram {}", i)));
         });
-        rt.iterate(Variable{
-            name:format!("hobby"),
-            data_type:Option::Some(VarType::String)
-        }, Variable{
-            name:format!("hobbies"),
-            data_type:Option::None
+        rt.iterate(Variable {
+            name: format!("hobby"),
+            data_type: Option::Some(VarType::String)
+        }, Variable {
+            name: format!("hobbies"),
+            data_type: Option::None
         }, |i| {
             println!("helo");
-            assert_eq!(mch.borrow_mut().read(Variable{
-                name:format!("hobby.name"),
-                data_type:Option::Some(VarType::String)
-            }),Value::String(format!("Atmaram {}",i)));
+            assert_eq!(mch.borrow_mut().read(Variable {
+                name: format!("hobby.name"),
+                data_type: Option::Some(VarType::String)
+            }), Value::String(format!("Atmaram {}", i)));
         });
-
+    }
+    #[test]
+    fn should_convert_long() {
+        let val=serde_json::Value::from(12);
+        assert_eq!(Value::from(&val),Value::Long(12))
+    }
+    #[test]
+    fn should_convert_null() {
+        let val=serde_json::Value::Null;
+        assert_eq!(Value::from(&val),Value::Null)
     }
 }

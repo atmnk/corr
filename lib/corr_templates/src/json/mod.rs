@@ -27,16 +27,16 @@ pub enum Json {
     TemplatedDynamicArray(JsonArrayProducer),
     Object(HashMap<String,Json>)
 }
-pub trait Fillable<T,C> where C:ValueProvider{
-    fn fill(&self,runtime:&Environment<C>)->T;
+pub trait Fillable<T> {
+    fn fill(&self,runtime:&Environment)->T;
 }
-impl<C> Fillable<Value,C> for Value where C:ValueProvider{
-    fn fill(&self, _runtime: &Environment<C>) -> Value {
+impl Fillable<Value> for Value {
+    fn fill(&self, _runtime: &Environment) -> Value {
         self.clone()
     }
 }
-impl<C> Fillable<Value,C> for Producer where C:ValueProvider{
-    fn fill(&self, runtime:&Environment<C>) ->Value {
+impl Fillable<Value> for Producer{
+    fn fill(&self, runtime:&Environment) ->Value {
         match self {
             Producer::Json(json)=>{
                 Value::Array(vec![json.fill(runtime)])
@@ -47,8 +47,8 @@ impl<C> Fillable<Value,C> for Producer where C:ValueProvider{
         }
     }
 }
-impl<C> Fillable<Value,C> for JsonArrayProducer where C:ValueProvider{
-    fn fill(&self, runtime:&Environment<C>) ->Value {
+impl Fillable<Value> for JsonArrayProducer{
+    fn fill(&self, runtime:&Environment) ->Value {
         let res=Vec::new();
         let res=runtime.build_iterate(self.as_var.clone(), self.in_var.clone(),res, |_|{
             self.inner_producer.fill(&runtime)
@@ -61,8 +61,8 @@ impl<C> Fillable<Value,C> for JsonArrayProducer where C:ValueProvider{
         }).flatten().collect())
     }
 }
-impl<C> Fillable<Value,C> for Json where C:ValueProvider{
-    fn fill(&self, runtime:&Environment<C>) ->Value {
+impl Fillable<Value> for Json {
+    fn fill(&self, runtime:&Environment) ->Value {
         match self {
             Json::Constant(val)=>{
                 val.fill(runtime)
@@ -95,8 +95,6 @@ impl<C> Fillable<Value,C> for Json where C:ValueProvider{
 mod tests{
 
     use corr_core::runtime::{Environment, Value,ValueProvider,Variable, VarType};
-    use std::rc::Rc;
-    use std::cell::RefCell;
     use crate::json::{Json, Fillable, JsonArrayProducer, Producer};
     use std::collections::HashMap;
 
@@ -117,6 +115,10 @@ mod tests{
         fn drop(&mut self, _: std::string::String) { unimplemented!() }
 
         fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
+            unimplemented!()
+        }
+
+        fn save(&self, var: Variable, value: Value) {
             unimplemented!()
         }
     }

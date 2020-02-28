@@ -1,0 +1,8 @@
+`create sub category within category`{
+    post(url:@text`http://localhost:8080/api/subcategory`,
+            body:@json`{
+                "name" : {{subcat.name}},
+                "category":{{category_id}}
+            }`,
+            response:@nil);
+}

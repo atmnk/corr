@@ -15,6 +15,7 @@ uuid = { version = "0.8", features = ["serde", "v4"] }
 corr_core={path="../corr_core"}
 corr_templates={path="../corr_templates"}
 corr_journeys={path="../corr_journeys"}
+corr_journeys_builder={path="../corr_journeys_builder"}
 corr_websocket={path="../corr_websocket"}
 corr_rest={path="../corr_rest"}
 

@@ -3,21 +3,25 @@ extern crate websocket;
 extern crate corr_core;
 extern crate serde_json;
 extern crate corr_journeys;
+extern crate corr_journeys_builder;
 use std::thread;
 use websocket::sync::Server;
 use websocket::OwnedMessage;
 use websocket::sync::Client;
 use self::websocket::websocket_base::stream::sync::Splittable;
 use corr_journeys::Journey;
-use self::corr_journeys::{JourneyStore, Interactable};
+use self::corr_journeys::{JourneyStore, Interactable, PrintStep, LoopStep};
 use std::cell::RefCell;
 use std::rc::Rc;
 use corr_websocket::{Action, DesiredAction};
 use corr_core::runtime::{Variable, VarType, Value, RawVariableValue, VariableDesciption};
 use self::corr_core::runtime::{ValueProvider, Environment, RCValueProvider};
 use std::collections::HashMap;
-use serde::export::PhantomData;
 use corr_rest::{GetStep, PostStep};
+use corr_templates::json::parser::parse;
+use std::fs::File;
+use std::ffi::OsStr;
+
 #[derive(Debug)]
 pub struct SocketClient<T>(T) where T:IO;
 
@@ -66,7 +70,6 @@ impl<T> IO for Client<T> where T:std::io::Read+std::io::Write+Splittable{
 }
 impl<T> ValueProvider for SocketClient<T> where T:IO{
 
-
     fn read(&mut self, variable: Variable) -> Value {
         let desired_action = DesiredAction::Tell(VariableDesciption{
            name: variable.name.clone(),
@@ -86,7 +89,6 @@ impl<T> ValueProvider for SocketClient<T> where T:IO{
             match &client_action {
                 Action::Told(var)=>{
                     if var.is_valid() {
-                        println!("told me variable {:?}", var);
                         return var.to_value()
                     } else {
                         self.0.send(DesiredAction::Listen(format!("Not Valid {:?}", var.data_type)));
@@ -127,31 +129,60 @@ impl<T> ValueProvider for SocketClient<T> where T:IO{
 
     }
 
-    fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
+    fn load_ith_as(&mut self, _i: usize, _index_ref_var: Variable, _list_ref_var: Variable) {
             
     }
+
+    fn save(&self, _var: Variable, _value: Value) {
+        unimplemented!()
+    }
 }
-pub fn start<T>(io:SocketClient<T>) where T:IO{
-    let journeys=vec![
-        Journey{
-            name:format!("Post Step"),
-            steps:vec![Box::new(PostStep{})]
-        },
-        Journey{
-            name:format!("Get Step"),
-            steps:vec![Box::new(GetStep{})]
+
+pub fn start<T:'static>(io:SocketClient<T>) where T:IO{
+    let body=parse(r#"{"name":{{category:String}}}"#).unwrap();
+    let response=corr_templates::json::extractable::parser::parse(r#"{"id":{{id}}}"#);
+    // let lst=Box::new(LoopStep{
+    //     as_var:Variable{
+    //         name:format!("category"),
+    //         data_type:Option::Some(VarType::String)
+    //     },
+    //     in_var:Variable{
+    //         name:format!("categories"),
+    //         data_type:Option::Some(VarType::List)
+    //     },
+    //     inner_steps:vec![Box::new(PostStep{
+    //         url:corr_templates::text::parser::parse("http://localhost:8080/api/category").unwrap(),
+    //         body:body.clone(),
+    //         response:response.clone()
+    //     }),Box::new(PrintStep{
+    //         variable:Variable{
+    //             name:format!("id"),
+    //             data_type:Option::None
+    //         }
+    //     })]
+    // });
+    let mut journeys=Vec::new();
+    for dir_entry in std::fs::read_dir("static/journeys").unwrap(){
+        let dir_entry=dir_entry.unwrap().path();
+        if dir_entry.is_file() {
+            if let Some(extention) = dir_entry.extension() {
+                match extention.to_str() {
+                    Some("journey") => {
+                        println!("reading from file {:?}",dir_entry);
+                        let ctc=File::open(dir_entry).unwrap();
+                        let journey=corr_journeys_builder::parser::read_journey_from_file(ctc);
+                        journeys.push(journey);
+                    },
+                    _=>{}
+                }
+            }
+
         }
-    ];
+    }
     let js = JourneyStore {
         journeys
     };
-    let mut rc_channel=RCValueProvider {
-        value_store:Vec::new(),
-        reference_store:Rc::new(RefCell::new(HashMap::new())),
-        fallback_provider:io,
-        indexes:HashMap::new()
-    };
-    js.start_with(format!("hello"),Environment{ channel:Rc::new(RefCell::new(rc_channel))});
+    js.start_with(format!("hello"),Environment::new_rc(io));
 }
 pub fn create_server() {
     let server = Server::bind("127.0.0.1:9876").unwrap();

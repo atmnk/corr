@@ -10,4 +10,5 @@ edition = "2018"
 corr_core={path="../corr_core"}
 corr_templates={path="../corr_templates"}
 corr_journeys={path="../corr_journeys"}
-
+reqwest = { version= "0.10.2", features=["blocking"]}
+serde_json= "1.0.48"
