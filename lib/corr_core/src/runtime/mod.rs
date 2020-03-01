@@ -6,7 +6,6 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::result::Result;
 use crate::break_on;
-use std::collections::hash_map::RandomState;
 
 pub struct Messanger<T> where T:StringIO{
     pub string_io:Box<T>
@@ -228,6 +227,7 @@ pub trait ValueProvider{
     fn set_index_ref(&mut self,index_ref_var:Variable,list_ref_var:Variable);
     fn drop(&mut self,str:String);
     fn load_ith_as(&mut self,i:usize,index_ref_var:Variable,list_ref_var:Variable);
+    fn load_value_as(&mut self,ref_var: Variable, val:Value);
     fn close(&mut self);
 }
 pub struct Environment {
@@ -279,6 +279,17 @@ impl Environment {
             (*self.channel).borrow_mut().drop(refering_as.name.clone());
         }
     }
+    pub fn build_iterate_outside_building_inside<F,G>(&self, refering_as: Variable, to_list: Variable,size:usize, inner: F)->Vec<G> where F: Fn(usize)->G{
+        let mut res=Vec::new();
+        (*self.channel).borrow_mut().set_index_ref(refering_as.clone() ,to_list.clone());
+        (*self.channel).borrow_mut().create_object_at_path(to_list.name.clone(),Rc::new(Object::new_list_object()));
+        for i in 0..size {
+            (*self.channel).borrow_mut().load_ith_as(i,refering_as.clone() ,to_list.clone());
+            res.push(inner(i));
+            (*self.channel).borrow_mut().drop(refering_as.name.clone());
+        }
+        return res;
+    }
     pub fn build_iterate<F,G>(&self, refering_as: Variable, to_list: Variable,mut push_to:Vec<G>, inner: F)->Vec<G> where F: Fn(usize)->G{
         let length = (*self.channel).borrow_mut().read(Variable{
             name:format!("{}.size",to_list.name),
@@ -302,6 +313,7 @@ impl Environment {
 }
 
 impl ValueProvider for Environment{
+
 
     fn read(&mut self, variable: Variable) -> Value {
         (*self.channel).borrow_mut().read(variable)
@@ -327,6 +339,10 @@ impl ValueProvider for Environment{
 
     fn save(&self, var: Variable, value: Value) {
         (*self.channel).borrow_mut().save(var,value);
+    }
+
+    fn load_value_as(&mut self, ref_var: Variable, val: Value) {
+        (*self.channel).borrow_mut().load_value_as(ref_var,val);
     }
 }
 
@@ -447,7 +463,7 @@ impl RCValueProvider {
             if self.indexes.contains_key(&var.clone()){
                 let obj=self.get_object_at_path(self.indexes.get(&var.clone()).unwrap().clone()).unwrap().clone();
                 match &*obj {
-                    Object::Final(val)=>{
+                    Object::Final(_)=>{
                         unimplemented!()
                     },
                     Object::List(lst)=>{
@@ -526,8 +542,7 @@ impl ValueProvider for RCValueProvider{
     }
 
     fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
-        if (*self.reference_store).borrow().contains_key(&list_ref_var.name.clone()){
-            let val = (*self.reference_store).borrow().get(&list_ref_var.name.clone()).unwrap().clone();
+        if let Some(val)=self.get_object_at_path(list_ref_var.name.clone()){
             match &*val {
                 Object::List(lst)=>{
                     let mut temp=(*self.reference_store).borrow_mut();
@@ -568,9 +583,12 @@ impl ValueProvider for RCValueProvider{
                 _=>{unimplemented!()}
             }
         }
+    }
+    fn load_value_as(&mut self,ref_var: Variable, val:Value) {
+        let mut temp=(*self.reference_store).borrow_mut();
+        temp.insert(ref_var.name.clone(),Rc::new(Object::Final(val)));
 
     }
-
     fn save(&self, var: Variable, value: Value) {
         self.create_object_at_path(var.name.clone(),Rc::new(Object::Final(value)));
     }
@@ -624,6 +642,7 @@ mod tests {
     }
 
     impl ValueProvider for MockProvider {
+
         fn read(&mut self, _: Variable) -> Value {
             let ret = self.1[self.0].clone();
             self.0 += 1;
@@ -637,6 +656,10 @@ mod tests {
         fn load_ith_as(&mut self, _i: usize, _index_ref_var: Variable, _list_ref_var: Variable) {}
 
         fn save(&self, _var: Variable, _value: Value) {
+            unimplemented!()
+        }
+
+        fn load_value_as(&mut self, _ref_var: Variable, _val: Value) {
             unimplemented!()
         }
     }

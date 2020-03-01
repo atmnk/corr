@@ -1,7 +1,6 @@
 extern crate reqwest;
 extern crate serde_json;
-use corr_core::runtime::{Environment, ValueProvider, Value};
-use corr_templates::json::parser::parse;
+use corr_core::runtime::{Environment, Value};
 use corr_templates::json::{Json, Fillable};
 use corr_journeys::Executable;
 use corr_templates::json::extractable::{ExtractableJson, Extractable};
@@ -58,6 +57,7 @@ mod tests{
 
     struct MockChannel;
     impl ValueProvider for MockChannel{
+
         fn save(&self, _var: Variable, _value: Value) {
             unimplemented!()
         }
@@ -79,6 +79,10 @@ mod tests{
         }
 
         fn load_ith_as(&mut self, _i: usize, _index_ref_var: Variable, _list_ref_var: Variable) {
+            unimplemented!()
+        }
+
+        fn load_value_as(&mut self, _ref_var: Variable, _val: Value) {
             unimplemented!()
         }
 

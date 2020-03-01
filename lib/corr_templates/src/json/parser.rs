@@ -1,4 +1,4 @@
-use crate::json::{Json, JsonArrayProducer, Producer};
+use crate::json::{Json, JsonArrayProducer, Producer, Function, Argument, JsonTimesProducer};
 use nom::{IResult, InputTakeAtPosition, AsChar};
 use super::corr_core::runtime::{Value, Variable, VarType};
 use nom::combinator::{map, opt};
@@ -161,6 +161,43 @@ fn producer_jap(i: &[u8])-> IResult<&[u8], JsonArrayProducer>{
     };
     Ok((i,jap))
 }
+fn producer_jtp(i: &[u8])-> IResult<&[u8], JsonTimesProducer>{
+    let fun = tuple((
+        ws(tag("times")),
+        ws(tag("(")),
+        ws(long_lit),
+        ws(tag(",")),
+        ws(identifier),
+        ws(tag(",")),
+        ws(identifier),
+        ws(tag(":")),
+        ws(var_type),
+        ws(tag("in")),
+        ws(identifier),
+        ws(tag(")")),
+        ws(tag("{")),
+        ws(producer),
+        ws(tag("}")),
+    ));
+    let (i,(_,_,times,_,couner,_,with,_,vt,_,on,_,_,inner_producer,_)) = fun(i)?;
+    let jtp=JsonTimesProducer{
+        as_var:Variable{
+            name:with.to_string(),
+            data_type:vt
+        },
+        in_var:Variable{
+            name:on.to_string(),
+            data_type:Option::Some(VarType::List)
+        },
+        counterVar:Variable{
+            name:couner.to_string(),
+            data_type:Option::Some(VarType::Long)
+        },
+        times:times as usize,
+        inner_producer:inner_producer
+    };
+    Ok((i,jtp))
+}
 fn producer_json(i: &[u8])-> IResult<&[u8], Json>{
     let fun = tuple((
         ws(tag("%>")),
@@ -173,6 +210,7 @@ fn producer_json(i: &[u8])-> IResult<&[u8], Json>{
 fn producer(i: &[u8])-> IResult<&[u8], Box<Producer>>{
     alt((
         map(producer_jap,|jap|Box::new(Producer::JsonArrayProducer(jap))),
+        map(producer_jtp,|jtp|Box::new(Producer::JsonArrayTimesProducer(jtp))),
         map(producer_json, |js|Box::new(Producer::Json(js)))
     ))(i)
 }
@@ -206,8 +244,52 @@ fn loop_scriplet(i: &[u8]) -> IResult<&[u8], JsonArrayProducer>{
     };
     Ok((i,jap))
 }
+fn loop_times_scriplet(i: &[u8]) -> IResult<&[u8], JsonTimesProducer>{
+    let fun = tuple((
+        ws(tag("<%")),
+        ws(tag("times")),
+        ws(tag("(")),
+        ws(long_lit),
+        ws(tag(",")),
+        ws(identifier),
+        ws(tag(",")),
+        ws(identifier),
+        ws(tag(":")),
+        ws(var_type),
+        ws(tag("in")),
+        ws(identifier),
+        ws(tag(")")),
+        ws(tag("{")),
+        ws(producer),
+        ws(tag("}")),
+        ws(tag("%>"))
+    ));
+    let (i,(_,_,_,times,_,couner,_,with,_,vt,_,on,_,_,inner_producer,_,_)) = fun(i)?;
+    let jtp=JsonTimesProducer{
+        as_var:Variable{
+            name:with.to_string(),
+            data_type:vt
+        },
+        in_var:Variable{
+            name:on.to_string(),
+            data_type:Option::Some(VarType::List)
+        },
+        counterVar:Variable{
+            name:couner.to_string(),
+            data_type:Option::Some(VarType::Long)
+        },
+        times:times as usize,
+        inner_producer:inner_producer
+    };
+    Ok((i,jtp))
+}
 fn dynamic_array(i: &[u8]) -> IResult<&[u8], JsonArrayProducer> {
     let fun = tuple((ws(tag("[")),loop_scriplet,ws(tag("]"))));
+    let (i,(_,loop_s,_)) = fun(i)?;
+    Ok((i,loop_s))
+}
+fn dynamic_times_array(i: &[u8]) -> IResult<&[u8], JsonTimesProducer> {
+    let fun = tuple((ws(tag("[")),loop_times_scriplet,ws(tag("]"))));
     let (i,(_,loop_s,_)) = fun(i)?;
     Ok((i,loop_s))
 }
@@ -245,10 +327,65 @@ fn variable_expression(i: &[u8]) -> IResult<&[u8], Variable>{
         data_type
     }))
 }
+fn final_arg(i:&[u8])->IResult<&[u8],Argument> {
+    alt((
+            map(null_lit,|val|{Argument::Final(Value::Null)}),
+        map(boolean_lit,|val|{Argument::Final(Value::Boolean(val))}),
+        map(string_lit, |val|{Argument::Final(Value::String(val.to_string()))}),
+        map(double_lit, |val| Argument::Final(Value::Double(val))),
+        map(long_lit, |val|Argument::Final(Value::Long(val)))
+        ))(i)
+}
+fn function_arg(i:&[u8])->IResult<&[u8],Argument> {
+    let (i,func)=function_expression(i)?;
+    Ok((i,Argument::Function(func)))
+}
+fn variable_arg(i:&[u8])->IResult<&[u8],Argument> {
+    let (i,var)=variable_expression(i)?;
+    Ok((i,Argument::Variable(var)))
+}
+fn arg(i:&[u8])->IResult<&[u8],Argument> {
+    alt(
+        (final_arg,
+         function_arg,
+         variable_arg
+        )
+    )(i)
+}
+fn args(i:&[u8])->IResult<&[u8],Vec<Argument>>{
+    let fun = tuple((ws(tag("(")),many0(terminated(arg,ws(tag(",")))),opt(arg),ws(tag(")"))));
+    let (i,(_,start_pairs,opt_last_pair,_)) = fun(i)?;
+    let mut  vec=Vec::new();
+    for  val in start_pairs {
+        vec.push(val.clone());
+    }
+    if opt_last_pair.is_some() {
+        let value=opt_last_pair.unwrap();
+        vec.push(value.clone())
+    }
+    Ok((i,vec))
+
+}
+fn function_expression(i: &[u8]) -> IResult<&[u8], Function>{
+    let (i,(f_name,f_args))=tuple((identifier,args))(i)?;
+    Ok((i,Function{
+        name:f_name.to_string(),
+        args:f_args
+    }))
+}
 fn var_scriplet(i: &[u8]) -> IResult<&[u8], Variable> {
     let fun = tuple((
         ws(tag("{{")),
         ws(variable_expression),
+        ws(tag("}}"))
+    ));
+    let (i,(_,expr,_)) = fun(i)?;
+    Ok((i,expr))
+}
+fn function_scriplet(i: &[u8]) -> IResult<&[u8], Function> {
+    let fun = tuple((
+        ws(tag("{{")),
+        ws(function_expression),
         ws(tag("}}"))
     ));
     let (i,(_,expr,_)) = fun(i)?;
@@ -262,18 +399,20 @@ fn json<'a>(i: &[u8])->IResult<&[u8], Json>{
         map(double_lit, |val| Json::Constant(Value::Double(val))),
         map(long_lit, |val|Json::Constant(Value::Long(val))),
         map(dynamic_array, |jap|Json::TemplatedDynamicArray(jap)),
+        map(dynamic_times_array, |jta|Json::TemplatedTimesDynamicArray(jta)),
         map(array, |val|Json::TemplatedStaticArray(val)),
         map(object, |map|Json::Object(map)),
+        map(function_scriplet, |fun|Json::Function(fun)),
         map(var_scriplet, |var|Json::Variable(var)),
     ))(i)
 }
 #[cfg(test)]
 mod tests{
     use crate::json::parser::parse;
-    use crate::json::{Json, JsonArrayProducer, Producer};
+    use crate::json::{Json, JsonArrayProducer, Producer, Function, Argument, JsonTimesProducer};
     use super::super::corr_core::runtime::{Value, Variable, VarType};
     use std::collections::HashMap;
-    use crate::json::Json::{TemplatedDynamicArray};
+    use crate::json::Json::{TemplatedDynamicArray, TemplatedTimesDynamicArray};
     use super::super::corr_core::runtime::VarType::List;
 
     #[test]
@@ -332,5 +471,23 @@ mod tests{
             data_type: Some(VarType::String) }, in_var: Variable { name: format!("pqr"), data_type: Some(List) },
             inner_producer: Box::new(Producer::Json(Json::Variable(Variable { name: format!("abc"), data_type: None }))) }));
         assert_eq!(parse(r#"{"name":[<%for(abc:String in pqr){%>{{abc}}<%}%>]}"#).unwrap(),Json::Object(map));
+    }
+    #[test]
+    fn should_parse_function(){
+        assert_eq!(parse(r#"{{concat("Atmaram")}}"#).unwrap(),Json::Function(Function{
+            name:format!("concat"),
+            args:vec![Argument::Final(Value::String(format!("Atmaram")))]
+        }));
+    }
+    #[test]
+    fn should_parse_dynamic_times_array(){
+        let mut map=HashMap::new();
+        map.insert(format!("name"),TemplatedTimesDynamicArray(JsonTimesProducer {
+            counterVar:Variable{name:format!("i"),data_type:Option::Some(VarType::Long)},
+            times:2,
+            as_var: Variable { name: format!("abc"),
+                data_type: Some(VarType::Object) }, in_var: Variable { name: format!("pqr"), data_type: Some(List) },
+            inner_producer: Box::new(Producer::Json(Json::Variable(Variable { name: format!("i"), data_type: None }))) }));
+        assert_eq!(parse(r#"{"name":[<%times(2,i,abc:Object in pqr){%>{{i}}<%}%>]}"#).unwrap(),Json::Object(map));
     }
 }

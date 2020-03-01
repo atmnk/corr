@@ -74,6 +74,7 @@ mod tests{
     use crate::json::Fillable;
 
     impl ValueProvider for MockProvider {
+
         fn read(&mut self, _: Variable) -> Value {
             let ret = self.1[self.0].clone();
             self.0 += 1;
@@ -87,6 +88,10 @@ mod tests{
         fn load_ith_as(&mut self, _i: usize, _index_ref_var: Variable, _list_ref_var: Variable) {}
 
         fn save(&self, _var: Variable, _value: Value) {
+            unimplemented!()
+        }
+
+        fn load_value_as(&mut self, ref_var: Variable, val: Value) {
             unimplemented!()
         }
     }

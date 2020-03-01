@@ -84,6 +84,7 @@ mod tests{
 
     impl ValueProvider for MockProvider{
 
+
         fn read(&mut self, var: Variable) -> Value {
             for (val,value) in &self.0 {
                 if *val == var.name {
@@ -102,6 +103,10 @@ mod tests{
         }
 
         fn save(&self, var: Variable, value: Value) {
+            unimplemented!()
+        }
+
+        fn load_value_as(&mut self, ref_var: Variable, val: Value) {
             unimplemented!()
         }
     }

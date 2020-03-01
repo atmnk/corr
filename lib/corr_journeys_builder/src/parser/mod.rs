@@ -1,5 +1,5 @@
 use std::str;
-use nom::character::complete::{anychar, char, multispace0};
+use nom::character::complete::{anychar, char, multispace0, digit1};
 use nom::{IResult, InputTake, Compare, UnspecializedInput, InputTakeAtPosition, AsChar};
 use nom::error::ParseError;
 use nom::bytes::complete::{tag, is_not, escaped, escaped_transform};
@@ -10,7 +10,7 @@ use corr_core::runtime::{ValueProvider, Variable, VarType, Environment};
 use nom::multi::many0;
 use corr_templates::json::parser::parse;
 use corr_rest::{PostStep, GetStep};
-use corr_journeys::{Executable, Journey, LoopStep, PrintStep};
+use corr_journeys::{Executable, Journey, LoopStep, PrintStep, TimesStep};
 use std::fs::File;
 use std::io::Read;
 use nom::lib::std::collections::HashMap;
@@ -100,6 +100,50 @@ fn var_type(i: &[u8]) -> IResult<&[u8], Option<VarType>> {
         }
     })(i)
 }
+fn times_call(i:&[u8])->IResult<&[u8],Box<dyn Executable>>{
+    let fun = tuple((
+        ws(tag("times")),
+        ws(tag("(")),
+        ws(long_lit),
+        ws(tag(",")),
+        ws(identifier),
+        ws(tag(",")),
+        ws(identifier),
+        ws(tag(":")),
+        ws(var_type),
+        ws(tag("in")),
+        ws(identifier),
+        ws(tag(")")),
+        block
+    ));
+    let (i,(_,_,times,_,couner,_,with,_,vt,_,on,_,block)) = fun(i)?;
+    let tt=TimesStep{
+        as_var:Variable{
+            name:with.to_string(),
+            data_type:vt
+        },
+        in_var:Variable{
+            name:on.to_string(),
+            data_type:Option::Some(VarType::List)
+        },
+        counter_var:Variable{
+            name:couner.to_string(),
+            data_type:Option::Some(VarType::Long)
+        },
+        times:times as usize,
+        inner_steps:block
+    };
+    Ok((i,Box::new(tt)))
+}
+fn long_lit(i: &[u8]) -> IResult<&[u8], i64> {
+    let num = ws(tuple((opt(tag("-")),digit1)));
+    let (i,(sign,nums)) = num(i)?;
+    match sign.map(|s| str::from_utf8(s).unwrap()).unwrap_or("") {
+        "-"=>Ok((i,str::from_utf8(nums).unwrap().parse::<i64>().unwrap()*-1)),
+        _=>Ok((i,str::from_utf8(nums).unwrap().parse::<i64>().unwrap()))
+    }
+
+}
 fn loop_call(i:&[u8])->IResult<&[u8],Box<dyn Executable>>{
     let fun = tuple((
         ws(tag("for")),
@@ -129,6 +173,7 @@ fn loop_call(i:&[u8])->IResult<&[u8],Box<dyn Executable>>{
 fn step(i:&[u8])->IResult<&[u8],Box<dyn Executable>> {
     alt((
     loop_call,
+    times_call,
     function_call))(i)
 }
 fn text_template_arg(i:&[u8])->IResult<&[u8],Argument> {
@@ -318,6 +363,10 @@ mod tests{
         }
 
         fn save(&self, var: Variable, value: Value) {
+            unimplemented!()
+        }
+
+        fn load_value_as(&mut self, ref_var: Variable, val: Value) {
             unimplemented!()
         }
     }

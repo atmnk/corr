@@ -7,11 +7,14 @@ use corr_core::runtime::ValueProvider;
 use corr_core::runtime::Environment;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use serde_json::map::Entry::Vacant;
+use crate::{get_function, Func};
 
 #[derive(Clone,PartialEq,Debug)]
 pub enum Producer{
     Json(Json),
-    JsonArrayProducer(JsonArrayProducer)
+    JsonArrayProducer(JsonArrayProducer),
+    JsonArrayTimesProducer(JsonTimesProducer)
 }
 #[derive(Clone,PartialEq,Debug)]
 pub struct JsonArrayProducer{
@@ -20,11 +23,33 @@ pub struct JsonArrayProducer{
     inner_producer:Box<Producer>
 }
 #[derive(Clone,PartialEq,Debug)]
+pub struct JsonTimesProducer{
+    as_var:Variable,
+    in_var:Variable,
+    times:usize,
+    counterVar:Variable,
+    inner_producer:Box<Producer>
+}
+#[derive(Clone,PartialEq,Debug)]
+pub struct Function{
+    name:String,
+    args:Vec<Argument>
+}
+
+#[derive(Clone,PartialEq,Debug)]
+pub enum Argument{
+    Variable(Variable),
+    Function(Function),
+    Final(Value)
+}
+#[derive(Clone,PartialEq,Debug)]
 pub enum Json {
     Constant(Value),
     Variable(Variable),
+    Function(Function),
     TemplatedStaticArray(Vec<Json>),
     TemplatedDynamicArray(JsonArrayProducer),
+    TemplatedTimesDynamicArray(JsonTimesProducer),
     Object(HashMap<String,Json>)
 }
 pub trait Fillable<T> {
@@ -43,6 +68,9 @@ impl Fillable<Value> for Producer{
             },
             Producer::JsonArrayProducer(jap)=>{
                 jap.fill(runtime)
+            },
+            Producer::JsonArrayTimesProducer(jtp)=>{
+                jtp.fill(runtime)
             }
         }
     }
@@ -59,6 +87,45 @@ impl Fillable<Value> for JsonArrayProducer{
                 _=>vec![]
             }
         }).flatten().collect())
+    }
+}
+impl Fillable<Value> for JsonTimesProducer{
+    fn fill(&self, runtime:&Environment) ->Value {
+        let res=runtime.build_iterate_outside_building_inside(self.as_var.clone(), self.in_var.clone(),self.times.clone(), |i|{
+            let val=Value::Long(i as i64);
+            (*runtime.channel).borrow_mut().load_value_as(self.counterVar.clone() ,val);
+            self.inner_producer.fill(&runtime)
+        });
+        Value::Array(res.into_iter().map(|v|{
+            match v {
+                Value::Array(l)=>l,
+                _=>vec![]
+            }
+        }).flatten().collect())
+    }
+}
+impl Fillable<Value> for Function {
+    fn fill(&self, runtime:&Environment) ->Value {
+        let mut args=Vec::new();
+        for arg in &self.args{
+            args.push(arg.fill(runtime))
+        }
+        get_function(self.name.clone()).eval(args)
+    }
+}
+impl Fillable<Value> for Argument {
+    fn fill(&self, runtime:&Environment) ->Value {
+        match self {
+            Argument::Function(fun)=>{
+                fun.fill(runtime)
+            },
+            Argument::Variable(var)=>{
+                runtime.channel.borrow_mut().read(var.clone())
+            },
+            Argument::Final(val)=>{
+                val.clone()
+            }
+        }
     }
 }
 impl Fillable<Value> for Json {
@@ -81,12 +148,18 @@ impl Fillable<Value> for Json {
             Json::TemplatedDynamicArray(jap)=>{
                 jap.fill(runtime)
             },
+            Json::TemplatedTimesDynamicArray(jtp)=>{
+                jtp.fill(runtime)
+            },
             Json::Object(map)=>{
                 let mut res=HashMap::new();
                 for (key,value) in map{
-                    res.insert(key.clone(), value.fill(&runtime));
+                    res.insert(key.clone(), value.fill(runtime));
                 }
                 Value::Object(res)
+            },
+            Json::Function(fun)=>{
+                fun.fill(runtime)
             }
         }
     }
@@ -119,6 +192,10 @@ mod tests{
         }
 
         fn save(&self, var: Variable, value: Value) {
+            unimplemented!()
+        }
+
+        fn load_value_as(&mut self, ref_var: Variable, val: Value) {
             unimplemented!()
         }
     }

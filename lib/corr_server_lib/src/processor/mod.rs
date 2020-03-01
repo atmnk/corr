@@ -9,18 +9,11 @@ use websocket::sync::Server;
 use websocket::OwnedMessage;
 use websocket::sync::Client;
 use self::websocket::websocket_base::stream::sync::Splittable;
-use corr_journeys::Journey;
-use self::corr_journeys::{JourneyStore, Interactable, PrintStep, LoopStep};
-use std::cell::RefCell;
-use std::rc::Rc;
+use self::corr_journeys::{JourneyStore, Interactable};
 use corr_websocket::{Action, DesiredAction};
 use corr_core::runtime::{Variable, VarType, Value, RawVariableValue, VariableDesciption};
-use self::corr_core::runtime::{ValueProvider, Environment, RCValueProvider};
-use std::collections::HashMap;
-use corr_rest::{GetStep, PostStep};
-use corr_templates::json::parser::parse;
+use self::corr_core::runtime::{ValueProvider, Environment};
 use std::fs::File;
-use std::ffi::OsStr;
 
 #[derive(Debug)]
 pub struct SocketClient<T>(T) where T:IO;
@@ -69,6 +62,7 @@ impl<T> IO for Client<T> where T:std::io::Read+std::io::Write+Splittable{
     }
 }
 impl<T> ValueProvider for SocketClient<T> where T:IO{
+
 
     fn read(&mut self, variable: Variable) -> Value {
         let desired_action = DesiredAction::Tell(VariableDesciption{
@@ -134,33 +128,15 @@ impl<T> ValueProvider for SocketClient<T> where T:IO{
     }
 
     fn save(&self, _var: Variable, _value: Value) {
-        unimplemented!()
+
+    }
+
+    fn load_value_as(&mut self, _ref_var: Variable, _val: Value) {
+
     }
 }
 
 pub fn start<T:'static>(io:SocketClient<T>) where T:IO{
-    let body=parse(r#"{"name":{{category:String}}}"#).unwrap();
-    let response=corr_templates::json::extractable::parser::parse(r#"{"id":{{id}}}"#);
-    // let lst=Box::new(LoopStep{
-    //     as_var:Variable{
-    //         name:format!("category"),
-    //         data_type:Option::Some(VarType::String)
-    //     },
-    //     in_var:Variable{
-    //         name:format!("categories"),
-    //         data_type:Option::Some(VarType::List)
-    //     },
-    //     inner_steps:vec![Box::new(PostStep{
-    //         url:corr_templates::text::parser::parse("http://localhost:8080/api/category").unwrap(),
-    //         body:body.clone(),
-    //         response:response.clone()
-    //     }),Box::new(PrintStep{
-    //         variable:Variable{
-    //             name:format!("id"),
-    //             data_type:Option::None
-    //         }
-    //     })]
-    // });
     let mut journeys=Vec::new();
     for dir_entry in std::fs::read_dir("static/journeys").unwrap(){
         let dir_entry=dir_entry.unwrap().path();

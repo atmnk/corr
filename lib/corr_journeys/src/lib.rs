@@ -2,11 +2,8 @@ use corr_templates::json::Fillable;
 use corr_core::runtime::{Variable, ValueProvider, Environment};
 use corr_core::runtime::Value;
 use corr_core::runtime::VarType;
-use corr_templates::json::parser::parse;
 use corr_templates::text::Text;
 
-#[macro_use]
-extern crate nom;
 pub struct PrintStep{
     pub text:Text
 }
@@ -21,6 +18,13 @@ pub struct LoopStep{
     pub in_var:Variable,
     pub inner_steps:Vec<Box<dyn Executable>>
 }
+pub struct TimesStep{
+    pub as_var:Variable,
+    pub in_var:Variable,
+    pub counter_var:Variable,
+    pub times:usize,
+    pub inner_steps:Vec<Box<dyn Executable>>
+}
 impl Executable for LoopStep {
     fn execute(&self, runtime: &Environment) {
         runtime.iterate(self.as_var.clone(),self.in_var.clone(),|_i|{
@@ -28,6 +32,17 @@ impl Executable for LoopStep {
                 step.execute(runtime);
             }
         })
+    }
+}
+impl Executable for TimesStep {
+    fn execute(&self, runtime: &Environment) {
+        runtime.build_iterate_outside_building_inside(self.as_var.clone(),self.in_var.clone(),self.times,|i|{
+            let val=Value::Long(i as i64);
+            (*runtime.channel).borrow_mut().load_value_as(self.counter_var.clone() ,val);
+            for step in &self.inner_steps{
+                step.execute(runtime);
+            }
+        });
     }
 }
 pub struct JourneyStore{
@@ -104,6 +119,10 @@ use corr_core::runtime::{ValueProvider, Value,Environment};
         }
 
         fn save(&self, _var: Variable, _value: Value) {
+            unimplemented!()
+        }
+
+        fn load_value_as(&mut self, _ref_var: Variable, _val: Value) {
             unimplemented!()
         }
     }
