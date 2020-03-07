@@ -71,7 +71,6 @@ impl Extractable for ExtractableJson {
                 }
 
             }
-            _=>{unimplemented!()}
         }
     }
 }
@@ -98,15 +97,15 @@ mod tests{
         fn set_index_ref(&mut self, _: Variable, _: Variable) { unimplemented!() }
         fn drop(&mut self, _: std::string::String) { unimplemented!() }
 
-        fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
+        fn load_ith_as(&mut self, _i: usize, _index_ref_var: Variable, _list_ref_var: Variable) {
             unimplemented!()
         }
 
-        fn save(&self, var: Variable, value: Value) {
+        fn save(&self, _var: Variable, _value: Value) {
             unimplemented!()
         }
 
-        fn load_value_as(&mut self, ref_var: Variable, val: Value) {
+        fn load_value_as(&mut self, _ref_var: Variable, _val: Value) {
             unimplemented!()
         }
     }

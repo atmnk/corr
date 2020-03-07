@@ -91,7 +91,7 @@ mod tests{
             unimplemented!()
         }
 
-        fn load_value_as(&mut self, ref_var: Variable, val: Value) {
+        fn load_value_as(&mut self, _ref_var: Variable, _val: Value) {
             unimplemented!()
         }
     }

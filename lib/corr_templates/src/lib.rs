@@ -3,10 +3,7 @@ pub mod text;
 extern crate rand;
 #[macro_use]
 extern crate nom;
-#[macro_use]
-extern crate lazy_static;
 use corr_core::runtime::Value;
-use nom::lib::std::collections::HashMap;
 use uuid::Uuid;
 use rand::Rng;
 pub trait Func{
@@ -34,7 +31,7 @@ impl Func for Multiply{
                 _=>{continue}
             }
         }
-        if(double){
+        if double{
             return Value::Double(res)
         }
         return Value::Long(res as i64)
@@ -57,7 +54,7 @@ impl Func for Add{
                 _=>{continue}
             }
         }
-        if(double){
+        if double {
             return Value::Double(res)
         }
         return Value::Long(res as i64)
@@ -70,7 +67,7 @@ impl Func for Concat{
     }
 }
 impl Func for UUID{
-    fn eval(&self, args: Vec<Value>) -> Value {
+    fn eval(&self, _args: Vec<Value>) -> Value {
         Value::String(Uuid::new_v4().to_string())
     }
 }

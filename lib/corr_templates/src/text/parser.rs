@@ -194,24 +194,24 @@ mod tests{
 
     #[test]
     fn should_parse_plain_text(){
-        let (a,pp)=text("Atmaram".as_bytes()).unwrap();
+        let (_,pp)=text("Atmaram".as_bytes()).unwrap();
         assert_eq!(pp, Text{
             blocks:vec![TextBlock::Final("Atmaram".to_string())]
         });
     }
     #[test]
     fn should_parse_plain_text_until_control_char(){
-        let (a,pp)=text_lit("Atmaram{Naik".as_bytes()).unwrap();
+        let (_,pp)=text_lit("Atmaram{Naik".as_bytes()).unwrap();
         assert_eq!(pp, "Atmaram");
     }
     #[test]
     fn should_parse_plain_text_escaping_control_char(){
-        let (a,pp)=text_lit(r#"Atmaram\{Naik"#.as_bytes()).unwrap();
+        let (_,pp)=text_lit(r#"Atmaram\{Naik"#.as_bytes()).unwrap();
         assert_eq!(pp, "Atmaram{Naik");
     }
     #[test]
     fn should_parse_variable_scriplet(){
-        let (a,pp)=var_scriplet("{{atmaram : String}}".as_bytes()).unwrap();
+        let (_,pp)=var_scriplet("{{atmaram : String}}".as_bytes()).unwrap();
         assert_eq!(pp, Variable{
             name:format!("atmaram"),
             data_type:Option::Some(VarType::String)
@@ -219,7 +219,7 @@ mod tests{
     }
     #[test]
     fn should_parse_loop_scriplet(){
-        let (a,pp)=text(r#"<%for (abc:String in pqr){%>{{abc}}<%}%>"#.as_bytes()).unwrap();
+        let (_,pp)=text(r#"<%for (abc:String in pqr){%>{{abc}}<%}%>"#.as_bytes()).unwrap();
         println!("{:?}",pp)
     }
     #[test]

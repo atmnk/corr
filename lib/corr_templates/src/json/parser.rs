@@ -73,7 +73,7 @@ fn var_type(i: &[u8]) -> IResult<&[u8], Option<VarType>> {
     })(i)
 }
 fn null_lit(i: &[u8]) -> IResult<&[u8], ()> {
-    map(ws(alt((tag("null"),tag("Null"),tag("NULL")))), |s| ())(i)
+    map(ws(alt((tag("null"),tag("Null"),tag("NULL")))), |_s| ())(i)
 }
 fn string_lit(i: &[u8]) -> IResult<&[u8], &str> {
     map(
@@ -189,7 +189,7 @@ fn producer_jtp(i: &[u8])-> IResult<&[u8], JsonTimesProducer>{
             name:on.to_string(),
             data_type:Option::Some(VarType::List)
         },
-        counterVar:Variable{
+        counter_var:Variable{
             name:couner.to_string(),
             data_type:Option::Some(VarType::Long)
         },
@@ -274,7 +274,7 @@ fn loop_times_scriplet(i: &[u8]) -> IResult<&[u8], JsonTimesProducer>{
             name:on.to_string(),
             data_type:Option::Some(VarType::List)
         },
-        counterVar:Variable{
+        counter_var:Variable{
             name:couner.to_string(),
             data_type:Option::Some(VarType::Long)
         },
@@ -329,7 +329,7 @@ fn variable_expression(i: &[u8]) -> IResult<&[u8], Variable>{
 }
 fn final_arg(i:&[u8])->IResult<&[u8],Argument> {
     alt((
-            map(null_lit,|val|{Argument::Final(Value::Null)}),
+            map(null_lit,|_val|{Argument::Final(Value::Null)}),
         map(boolean_lit,|val|{Argument::Final(Value::Boolean(val))}),
         map(string_lit, |val|{Argument::Final(Value::String(val.to_string()))}),
         map(double_lit, |val| Argument::Final(Value::Double(val))),
@@ -393,7 +393,7 @@ fn function_scriplet(i: &[u8]) -> IResult<&[u8], Function> {
 }
 fn json<'a>(i: &[u8])->IResult<&[u8], Json>{
     alt((
-        map(null_lit,|val|{Json::Constant(Value::Null)}),
+        map(null_lit,|_val|{Json::Constant(Value::Null)}),
         map(boolean_lit,|val|{Json::Constant(Value::Boolean(val))}),
         map(string_lit, |val|{Json::Constant(Value::String(val.to_string()))}),
         map(double_lit, |val| Json::Constant(Value::Double(val))),
@@ -420,11 +420,11 @@ mod tests{
         assert_eq!(parse("null").unwrap(),Json::Constant(Value::Null));
     }
     #[test]
-    fn should_parse_Null(){
+    fn should_parse_null_with_first_capital(){
         assert_eq!(parse("Null").unwrap(),Json::Constant(Value::Null));
     }
     #[test]
-    fn should_parse_NULL(){
+    fn should_parse_null_with_all_capital(){
         assert_eq!(parse("NULL").unwrap(),Json::Constant(Value::Null));
     }
     #[test]
@@ -436,11 +436,11 @@ mod tests{
         assert_eq!(parse("false").unwrap(),Json::Constant(Value::Boolean(false)));
     }
     #[test]
-    fn should_parse_boolean_TRUE(){
+    fn should_parse_boolean_treu_with_all_capital(){
         assert_eq!(parse("TRUE").unwrap(),Json::Constant(Value::Boolean(true)));
     }
     #[test]
-    fn should_parse_boolean_FALSE(){
+    fn should_parse_boolean_false_with_all_capital(){
         assert_eq!(parse("FALSE").unwrap(),Json::Constant(Value::Boolean(false)));
     }
     #[test]
@@ -483,7 +483,7 @@ mod tests{
     fn should_parse_dynamic_times_array(){
         let mut map=HashMap::new();
         map.insert(format!("name"),TemplatedTimesDynamicArray(JsonTimesProducer {
-            counterVar:Variable{name:format!("i"),data_type:Option::Some(VarType::Long)},
+            counter_var:Variable{name:format!("i"),data_type:Option::Some(VarType::Long)},
             times:2,
             as_var: Variable { name: format!("abc"),
                 data_type: Some(VarType::Object) }, in_var: Variable { name: format!("pqr"), data_type: Some(List) },

@@ -1,14 +1,13 @@
 use std::str;
-use nom::character::complete::{anychar, char, multispace0, digit1};
-use nom::{IResult, InputTake, Compare, UnspecializedInput, InputTakeAtPosition, AsChar};
+use nom::character::complete::{char, multispace0, digit1};
+use nom::{IResult,  InputTakeAtPosition, AsChar};
 use nom::error::ParseError;
-use nom::bytes::complete::{tag, is_not, escaped, escaped_transform};
+use nom::bytes::complete::{tag, is_not, escaped_transform};
 use nom::branch::alt;
-use nom::sequence::{tuple, terminated, delimited, preceded, separated_pair};
+use nom::sequence::{tuple, terminated, delimited, separated_pair};
 use nom::combinator::{map, opt};
-use corr_core::runtime::{ValueProvider, Variable, VarType, Environment};
+use corr_core::runtime::{ Variable, VarType};
 use nom::multi::many0;
-use corr_templates::json::parser::parse;
 use corr_rest::{PostStep, GetStep};
 use corr_journeys::{Executable, Journey, LoopStep, PrintStep, TimesStep};
 use std::fs::File;
@@ -328,19 +327,18 @@ fn resolve(name:String,args:HashMap<String,Argument>)->Box<dyn Executable>{
 pub fn read_journey_from_file(mut file:File)->Journey{
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
-    let (i,val)=journey(contents.as_bytes()).unwrap();
+    let (_,val)=journey(contents.as_bytes()).unwrap();
     return val;
 }
 #[cfg(test)]
 mod tests{
-    use crate::parser::{identifier, name, journey, step, block_steps, block, text_template_arg, json_template_arg};
-    use nom::AsBytes;
+    use crate::parser::{name, journey, step, text_template_arg, json_template_arg};
     use corr_core::runtime::{ValueProvider, Environment, Variable, Value};
     use corr_journeys::Executable;
 
     #[test]
     fn should_parse_identifier(){
-        let (i,k)=name("`atmaram \\`naik`".as_bytes()).unwrap();
+        let (_,k)=name("`atmaram \\`naik`".as_bytes()).unwrap();
         assert_eq!(k,"atmaram `naik")
     }
     impl ValueProvider for MockProvider{
@@ -358,15 +356,15 @@ mod tests{
         fn set_index_ref(&mut self, _: Variable, _: Variable) { unimplemented!() }
         fn drop(&mut self, _: std::string::String) { unimplemented!() }
 
-        fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
+        fn load_ith_as(&mut self, _i: usize, _index_ref_var: Variable, _list_ref_var: Variable) {
             unimplemented!()
         }
 
-        fn save(&self, var: Variable, value: Value) {
+        fn save(&self, _var: Variable, _value: Value) {
             unimplemented!()
         }
 
-        fn load_value_as(&mut self, ref_var: Variable, val: Value) {
+        fn load_value_as(&mut self, _ref_var: Variable, _val: Value) {
             unimplemented!()
         }
     }
@@ -375,31 +373,31 @@ mod tests{
 
     #[test]
     fn should_parse_step(){
-        let (i,k)=step(r#"print(text:@text`hello`)"#.as_bytes()).unwrap();
+        let (_,k)=step(r#"print(text:@text`hello`)"#.as_bytes()).unwrap();
         k.execute(&Environment::new_rc(MockProvider(vec![(format!("hobbies.size"),Value::Long(3)),
                                                          (format!("category"),Value::String(format!("Atmaram")))]))
         );
     }
     #[test]
     fn should_parse_block(){
-        let (i,j)=journey(r#"abc{print(text:@text`hello`);}"#.as_bytes()).unwrap();
+        let (_,_)=journey(r#"abc{print(text:@text`hello`);}"#.as_bytes()).unwrap();
 
     }
 
     #[test]
     fn should_parse_text_template_arg(){
-        let (i,k)=text_template_arg(r#"@text`hello`"#.as_bytes()).unwrap();
+        let (_,k)=text_template_arg(r#"@text`hello`"#.as_bytes()).unwrap();
         println!("{:?}",k)
     }
     #[test]
     fn should_json_template_arg(){
-        let (i,k)=json_template_arg(r#"@json`{{abc}}`"#.as_bytes()).unwrap();
+        let (_,k)=json_template_arg(r#"@json`{{abc}}`"#.as_bytes()).unwrap();
         println!("{:?}",k)
     }
 
     #[test]
     fn should_parse_journey(){
-        let (i,k)=journey(r#"`create nested categories`{
+        let (_,_)=journey(r#"`create nested categories`{
     for(outer:Object in outers){
         for(category:String in outer.var){
             post(url:@text`http://localhost:8080/api/category`,
@@ -413,7 +411,7 @@ mod tests{
     }
     #[test]
     fn test_get_all_ids(){
-        let (i,k)=journey(r#"`get all ids`{
+        let (_,k)=journey(r#"`get all ids`{
     get(url:@text`http://localhost:8080/api/category`,
                     response:@ejson`[ <% for (id:Long in ids){%>
                                         {

@@ -7,8 +7,7 @@ use corr_core::runtime::ValueProvider;
 use corr_core::runtime::Environment;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use serde_json::map::Entry::Vacant;
-use crate::{get_function, Func};
+use crate::{get_function};
 
 #[derive(Clone,PartialEq,Debug)]
 pub enum Producer{
@@ -27,7 +26,7 @@ pub struct JsonTimesProducer{
     as_var:Variable,
     in_var:Variable,
     times:usize,
-    counterVar:Variable,
+    counter_var:Variable,
     inner_producer:Box<Producer>
 }
 #[derive(Clone,PartialEq,Debug)]
@@ -93,7 +92,7 @@ impl Fillable<Value> for JsonTimesProducer{
     fn fill(&self, runtime:&Environment) ->Value {
         let res=runtime.build_iterate_outside_building_inside(self.as_var.clone(), self.in_var.clone(),self.times.clone(), |i|{
             let val=Value::Long(i as i64);
-            (*runtime.channel).borrow_mut().load_value_as(self.counterVar.clone() ,val);
+            (*runtime.channel).borrow_mut().load_value_as(self.counter_var.clone() ,val);
             self.inner_producer.fill(&runtime)
         });
         Value::Array(res.into_iter().map(|v|{
@@ -187,15 +186,15 @@ mod tests{
         fn set_index_ref(&mut self, _: Variable, _: Variable) { unimplemented!() }
         fn drop(&mut self, _: std::string::String) { unimplemented!() }
 
-        fn load_ith_as(&mut self, i: usize, index_ref_var: Variable, list_ref_var: Variable) {
+        fn load_ith_as(&mut self, _i: usize, _index_ref_var: Variable, _list_ref_var: Variable) {
             unimplemented!()
         }
 
-        fn save(&self, var: Variable, value: Value) {
+        fn save(&self, _var: Variable, _value: Value) {
             unimplemented!()
         }
 
-        fn load_value_as(&mut self, ref_var: Variable, val: Value) {
+        fn load_value_as(&mut self, _ref_var: Variable, _val: Value) {
             unimplemented!()
         }
     }
