@@ -1,6 +1,6 @@
 [package]
 name = "corr"
-version = "0.1.1"
+version = "0.0.1"
 authors = ["ATM <naik.atmaram@gmail.com>"]
 description = "A cross platform client for correlated journeys"
 license = "MIT"
