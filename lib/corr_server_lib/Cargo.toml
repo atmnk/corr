@@ -22,3 +22,4 @@ corr_rest={path="../corr_rest"}
 websocket ="0.24.0"
 futures = "0.1.4"
 tokio = {version = "0.1.22"}
+app_dirs2 = "2"

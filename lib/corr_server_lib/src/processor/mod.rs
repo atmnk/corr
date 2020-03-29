@@ -4,6 +4,7 @@ extern crate corr_core;
 extern crate serde_json;
 extern crate corr_journeys;
 extern crate corr_journeys_builder;
+use app_dirs2::*;
 use std::thread;
 use websocket::sync::Server;
 use websocket::OwnedMessage;
@@ -14,7 +15,7 @@ use corr_websocket::{Action, DesiredAction};
 use corr_core::runtime::{Variable, VarType, Value, RawVariableValue, VariableDesciption};
 use self::corr_core::runtime::{ValueProvider, Environment};
 use std::fs::File;
-
+const APP_INFO: AppInfo = AppInfo{name: "corrs", author: "Atmaram Naik"};
 #[derive(Debug)]
 pub struct SocketClient<T>(T) where T:IO;
 
@@ -138,7 +139,10 @@ impl<T> ValueProvider for SocketClient<T> where T:IO{
 
 pub fn start<T:'static>(io:SocketClient<T>) where T:IO{
     let mut journeys=Vec::new();
-    for dir_entry in std::fs::read_dir("static/journeys").unwrap(){
+    let mut app_path=app_root(AppDataType::UserConfig, &APP_INFO).unwrap();
+    let path=app_path.join("journeys");
+    println!("{:?}",path);
+    for dir_entry in std::fs::read_dir(path).unwrap(){
         let dir_entry=dir_entry.unwrap().path();
         if dir_entry.is_file() {
             if let Some(extention) = dir_entry.extension() {

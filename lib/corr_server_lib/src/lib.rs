@@ -6,11 +6,15 @@ type_ascription
 )]
 #[macro_use]
 extern crate rocket;
-
+use serde::{Deserialize};
 use std::thread;
 mod route;
 mod processor;
 use crate::route::{get, static_files};
+#[derive(Deserialize)]
+pub struct Config {
+    wroot: String,
+}
 fn rocket() -> rocket::Rocket {
     let rocket_routes = routes![
         static_files::file,
@@ -20,10 +24,10 @@ fn rocket() -> rocket::Rocket {
     rocket::ignite()
         .mount("/", rocket_routes)
 }
-pub fn bootstrap_server() {
+pub fn bootstrap_server(config:Config) {
     thread::spawn(||{
         processor::create_server();
     });
-    rocket().launch();
+    rocket().manage(config).launch();
 }
 
