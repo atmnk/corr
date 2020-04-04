@@ -25,7 +25,7 @@ jobs:
       run: ./bundle_mac.sh
     - name: Compress corrs package
       uses: master-atul/tar-action@v1.0.2
-      id: compress
+      id: compress-corr
       with:
         command: c
         cwd: target/release
@@ -34,7 +34,7 @@ jobs:
         outPath: corr.tar.gz
     - name: Compress corrs package
       uses: master-atul/tar-action@v1.0.2
-      id: compress
+      id: compress-corrs
       with:
         command: c
         cwd: target/release
