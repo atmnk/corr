@@ -21,6 +21,7 @@ jobs:
         toolchain: nightly
         override: true
     - uses: actions-rs/cargo@v1
+      with:
         command: build
         args: --release --all-features --package corrs
     - name: Move Assets
