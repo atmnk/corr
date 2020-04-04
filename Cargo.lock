@@ -173,7 +173,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "corr"
-version = "0.0.2"
+version = "0.0.5"
 dependencies = [
  "app_dirs2 2.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -279,7 +279,7 @@ dependencies = [
 
 [[package]]
 name = "corrs"
-version = "0.0.2"
+version = "0.0.5"
 dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "corr_server_lib 0.1.0",
