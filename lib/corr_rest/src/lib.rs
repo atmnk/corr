@@ -1,47 +1,136 @@
 extern crate reqwest;
 extern crate serde_json;
 use corr_core::runtime::{Environment, Value};
-use corr_templates::json::{Json, Fillable};
+use corr_templates::json::{Json};
 use corr_journeys::Executable;
 use corr_templates::json::extractable::{ExtractableJson, Extractable};
 use reqwest::header::CONTENT_TYPE;
 use corr_templates::text::Text;
+use std::collections::HashMap;
+use corr_templates::Fillable;
 
-pub struct PostStep{
+pub struct RestData{
     pub url:Text,
+    pub response:Option<ExtractableJson>,
+    pub headers:HashMap<String,Text>
+}
+pub struct PostStep{
+    pub rest:RestData,
     pub body:Json,
-    pub response:Option<ExtractableJson>
 }
 impl Executable for PostStep {
     fn execute(&self, runtime: &Environment) {
         let client = reqwest::blocking::Client::new();
         let request_body=serde_json::to_string(&self.body.fill(runtime)).unwrap();
-        let body= client
-            .post(&self.url.fill(runtime).to_string())
-            .header(CONTENT_TYPE,"application/json")
-            .body(request_body).send().unwrap().text().unwrap();
-        let val=serde_json::from_str(&body).unwrap();
-        let corr_val=Value::from(&val);
-        if let Option::Some(resp)=&self.response{
+        let mut initial= client
+            .post(&self.rest.url.fill(runtime).to_string());
+
+        for key in self.rest.headers.keys() {
+            initial = initial.header(key,self.rest.headers.get(key).unwrap().fill(runtime).to_string())
+        }
+
+        let body=initial.body(request_body).send().unwrap().text().unwrap();
+
+
+        if let Option::Some(resp)=&self.rest.response{
+            let val=serde_json::from_str(body.as_str()).unwrap();
+            let corr_val=Value::from(&val);
             resp.extract(corr_val,runtime);
         }
     }
 }
+pub struct PutStep{
+    pub rest:RestData,
+    pub body:Json,
+}
+impl Executable for PutStep {
+    fn execute(&self, runtime: &Environment) {
+        let client = reqwest::blocking::Client::new();
+        let request_body=serde_json::to_string(&self.body.fill(runtime)).unwrap();
+        let mut initial= client
+            .put(&self.rest.url.fill(runtime).to_string());
 
+        for key in self.rest.headers.keys() {
+            initial = initial.header(key,self.rest.headers.get(key).unwrap().fill(runtime).to_string())
+        }
+
+        let body=initial.body(request_body).send().unwrap().text().unwrap();
+
+
+        if let Option::Some(resp)=&self.rest.response{
+            let val=serde_json::from_str(body.as_str()).unwrap();
+            let corr_val=Value::from(&val);
+            resp.extract(corr_val,runtime);
+        }
+    }
+}
+pub struct PatchStep{
+    pub rest:RestData,
+    pub body:Json,
+}
+impl Executable for PatchStep {
+    fn execute(&self, runtime: &Environment) {
+        let client = reqwest::blocking::Client::new();
+        let request_body=serde_json::to_string(&self.body.fill(runtime)).unwrap();
+        let mut initial= client
+            .patch(&self.rest.url.fill(runtime).to_string());
+
+        for key in self.rest.headers.keys() {
+            initial = initial.header(key,self.rest.headers.get(key).unwrap().fill(runtime).to_string())
+        }
+
+        let body=initial.body(request_body).send().unwrap().text().unwrap();
+
+
+        if let Option::Some(resp)=&self.rest.response{
+            let val=serde_json::from_str(body.as_str()).unwrap();
+            let corr_val=Value::from(&val);
+            resp.extract(corr_val,runtime);
+        }
+    }
+}
 pub struct GetStep{
-    pub url:Text,
-    pub response:Option<ExtractableJson>
+    pub rest:RestData
 }
 impl Executable for GetStep{
     fn execute(&self, runtime: &Environment) {
         let client = reqwest::blocking::Client::new();
-        let body= client
-            .get(&self.url.fill(runtime).to_string())
-            .header(CONTENT_TYPE,"application/json")
-            .send().unwrap().text().unwrap();
-        let val=serde_json::from_str(&body).unwrap();
-        let corr_val=Value::from(&val);
-        if let Option::Some(resp)=&self.response{
+        let mut initial= client
+            .get(&self.rest.url.fill(runtime).to_string());
+
+        for key in self.rest.headers.keys() {
+            initial = initial.header(key,self.rest.headers.get(key).unwrap().fill(runtime).to_string())
+        }
+
+        let body= initial.send().unwrap().text().unwrap();
+
+
+        if let Option::Some(resp)=&self.rest.response{
+            let val=serde_json::from_str(&body).unwrap();
+            let corr_val=Value::from(&val);
+            resp.extract(corr_val,runtime);
+        }
+
+    }
+}
+pub struct DeleteStep{
+    pub rest:RestData
+}
+impl Executable for DeleteStep{
+    fn execute(&self, runtime: &Environment) {
+        let client = reqwest::blocking::Client::new();
+        let mut initial= client
+            .delete(&self.rest.url.fill(runtime).to_string());
+
+        for key in self.rest.headers.keys() {
+            initial = initial.header(key,self.rest.headers.get(key).unwrap().fill(runtime).to_string())
+        }
+
+        let body= initial.send().unwrap().text().unwrap();
+
+        if let Option::Some(resp)=&self.rest.response{
+            let val=serde_json::from_str(&body).unwrap();
+            let corr_val=Value::from(&val);
             resp.extract(corr_val,runtime);
         }
 
@@ -49,11 +138,14 @@ impl Executable for GetStep{
 }
 #[cfg(test)]
 mod tests{
-    use crate::PostStep;
+    use crate::{PostStep, RestData, GetStep};
     use corr_templates;
     use corr_templates::json::parser::parse;
     use corr_core::runtime::{Environment, ValueProvider, Variable, Value};
     use corr_journeys::Executable;
+    use std::collections::HashMap;
+    use corr_templates::text::Text;
+    use reqwest::header::CONTENT_TYPE;
 
     struct MockChannel;
     impl ValueProvider for MockChannel{
@@ -94,10 +186,35 @@ mod tests{
     fn should_do_post() {
         let body=parse(r#"{"name":"PQR"}"#).unwrap();
         let response=corr_templates::json::extractable::parser::parse(r#"{"id":{{id}}}"#);
+        let mut headers:HashMap<String,Text>=HashMap::new();
+        headers.insert(format!("{}",CONTENT_TYPE),corr_templates::text::parser::parse("application/json").unwrap());
         let step=PostStep{
-            url:corr_templates::text::parser::parse("http://localhost:8080/api/category").unwrap(),
+            rest:RestData{
+                url:corr_templates::text::parser::parse("http://localhost:8080/api/category").unwrap(),
+                response,
+                headers
+            },
             body,
-            response
+
+        };
+        let runtime=Environment::new_rc(MockChannel);
+        step.execute(&runtime);
+        println!("{:?}",(*runtime.channel).borrow().reference_store)
+    }
+    #[test]
+    fn should_do_get() {
+        let response=corr_templates::json::extractable::parser::parse(r#"[ <% for (id:Long in ids){%>
+                                        {
+                                            "id": {{id}}
+                                        }
+                                    <%}%>]"#);
+        let mut headers:HashMap<String,Text>=HashMap::new();
+        let step=GetStep{
+            rest:RestData{
+                url:corr_templates::text::parser::parse("http://localhost:8080/api/category").unwrap(),
+                response,
+                headers
+            }
         };
         let runtime=Environment::new_rc(MockChannel);
         step.execute(&runtime);

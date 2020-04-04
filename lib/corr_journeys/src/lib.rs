@@ -1,4 +1,4 @@
-use corr_templates::json::Fillable;
+use corr_templates::Fillable;
 use corr_core::runtime::{Variable, ValueProvider, Environment};
 use corr_core::runtime::Value;
 use corr_core::runtime::VarType;

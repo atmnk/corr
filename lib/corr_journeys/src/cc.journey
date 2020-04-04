@@ -3,7 +3,9 @@
         post(
             url:@text"http://localhost:8080/api/category",
             body:@json"{"name":{{category.name:String}}}",
-            response:@json"{"id":{{category.id}}}");
+            response:@json"{"id":{{category.id}}}",
+            headers:@map{"ContentType":@text`application/json`,"Somethin":@text`Hello`}
+            );
         `create n categories`();
     };
     post(

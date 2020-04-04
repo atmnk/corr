@@ -11,13 +11,13 @@ use nom::multi::many0;
 use nom::error_position;
 use std::collections::HashMap;
 use crate::json::extractable::{ExtractableJson, CaptuarableArray};
+use crate::parser::{ws, identifier, var_scriplet, var_type, string_lit};
 
 #[derive(Debug,PartialEq)]
 pub struct Pair{
     key:String,
     value:ExtractableJson
 }
-type ParserError<'a, T> = Result<(&'a [u8], T), nom::Err<(&'a [u8], nom::error::ErrorKind)>>;
 pub fn parse<'a>(str:&'a str) ->Option<ExtractableJson>{
     let res=parse_bytes(str.as_bytes());
     match res {
@@ -28,39 +28,8 @@ pub fn parse<'a>(str:&'a str) ->Option<ExtractableJson>{
 fn parse_bytes<'a>(i: &[u8])->IResult<&[u8], ExtractableJson>{
     json(i)
 }
-#[inline]
-fn non_ascii(chr: u8) -> bool {
-    chr >= 0x80 && chr <= 0xFD
-}
-pub fn ws<I, O, E: ParseError<I>, F>(inner: F) -> impl Fn(I) -> IResult<I, O, E>
-    where
-        F: Fn(I) -> IResult<I, O, E>,
-        I: InputTakeAtPosition,
-        <I as InputTakeAtPosition>::Item: AsChar + Clone,
-{
-    move |input: I| {
-        let (input, _) = multispace0(input)?;
-        terminated(&inner,multispace0)(input)
-    }
-}
 
-fn var_type(i: &[u8]) -> IResult<&[u8], Option<VarType>> {
-    map(ws(alt((tag("List"),tag("Object"),tag("Long"), tag("Double"),tag("Boolean"),tag("String")))), |s| {
-        let val = str::from_utf8(s);
-        match  val {
-            Ok(inner_tag) => match inner_tag {
-                "Long" => Option::Some(VarType::Long),
-                "Double" => Option::Some(VarType::Double),
-                "Boolean" => Option::Some(VarType::Boolean),
-                "String" => Option::Some(VarType::String),
-                "List" => Option::Some(VarType::List),
-                "Object" => Option::Some(VarType::Object),
-                _=> Option::None
-            }
-            _ => Option::None
-        }
-    })(i)
-}
+
 fn array(i: &[u8]) -> IResult<&[u8], Vec<ExtractableJson>> {
     let fun = tuple((ws(tag("[")),many0(terminated(json,ws(tag(",")))),opt(json),ws(tag("]"))));
     let (i,(_,start_elems,opt_last_elem,_)) = fun(i)?;
@@ -74,21 +43,7 @@ fn array(i: &[u8]) -> IResult<&[u8], Vec<ExtractableJson>> {
     }
     Ok((i,vec))
 }
-fn identifier(input: &[u8]) -> ParserError<&str> {
-    if !nom::character::is_alphabetic(input[0]) && input[0] != b'_' && input[0] != b'.' && !non_ascii(input[0]) {
-        return Err(nom::Err::Error(error_position!(
-            input,
-            nom::error::ErrorKind::AlphaNumeric
-        )));
-    }
-    for (i, ch) in input.iter().enumerate() {
-        if i == 0 || nom::character::is_alphanumeric(*ch) || *ch == b'_'|| *ch == b'.' || non_ascii(*ch) {
-            continue;
-        }
-        return Ok((&input[i..], str::from_utf8(&input[..i]).unwrap()));
-    }
-    Ok((&input[1..], str::from_utf8(&input[..1]).unwrap()))
-}
+
 fn loop_scriplet(i: &[u8]) -> IResult<&[u8], CaptuarableArray>{
     let fun = tuple((
         ws(tag("<%")),
@@ -126,16 +81,7 @@ fn capturable_array(i: &[u8]) -> IResult<&[u8], CaptuarableArray> {
     let (i,(_,loop_s,_)) = fun(i)?;
     Ok((i,loop_s))
 }
-fn string_lit(i: &[u8]) -> IResult<&[u8], &str> {
-    map(
-        ws(delimited(
-            char('\"'),
-            opt(escaped(is_not("\\\""), '\\', anychar)),
-            char('\"'),
-        )),
-        |s| s.map(|s| str::from_utf8(s).unwrap()).unwrap_or(""),
-    )(i)
-}
+
 fn pair(i: &[u8]) -> IResult<&[u8], Pair>{
     let fun= tuple((string_lit,ws(tag(":")),json));
     let (i,(key,_,value)) = fun(i)?;
@@ -157,27 +103,6 @@ fn object(i: &[u8]) -> IResult<&[u8], HashMap<String,ExtractableJson>> {
         map.insert(last_pair.key,last_pair.value);
     }
     Ok((i,map))
-}
-fn variable_expression(i: &[u8]) -> IResult<&[u8], Variable>{
-    let fun=tuple((ws(identifier),ws(opt(tuple((ws(tag(":")),ws(var_type)))))));
-    let (i,(var_name,var_type))=fun(i)?;
-    let data_type= match var_type {
-        Option::Some((_,val))=> val,
-        Option::None=>Option::None
-    };
-    Ok((i,Variable{
-        name:var_name.to_string(),
-        data_type
-    }))
-}
-fn var_scriplet(i: &[u8]) -> IResult<&[u8], Variable> {
-    let fun = tuple((
-        ws(tag("{{")),
-        ws(variable_expression),
-        ws(tag("}}"))
-    ));
-    let (i,(_,expr,_)) = fun(i)?;
-    Ok((i,expr))
 }
 fn json<'a>(i: &[u8])->IResult<&[u8], ExtractableJson>{
     alt((

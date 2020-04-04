@@ -1,14 +1,14 @@
 use std::str;
-use nom::character::complete::{char, multispace0, digit1};
+use nom::character::complete::{char, multispace0, digit1, anychar};
 use nom::{IResult,  InputTakeAtPosition, AsChar};
 use nom::error::ParseError;
-use nom::bytes::complete::{tag, is_not, escaped_transform};
+use nom::bytes::complete::{tag, is_not, escaped_transform, escaped};
 use nom::branch::alt;
 use nom::sequence::{tuple, terminated, delimited, separated_pair};
 use nom::combinator::{map, opt};
 use corr_core::runtime::{ Variable, VarType};
 use nom::multi::many0;
-use corr_rest::{PostStep, GetStep};
+use corr_rest::{PostStep, GetStep, RestData, PutStep, PatchStep, DeleteStep};
 use corr_journeys::{Executable, Journey, LoopStep, PrintStep, TimesStep};
 use std::fs::File;
 use std::io::Read;
@@ -80,7 +80,8 @@ pub enum Argument{
     Text(Text),
     Json(Json),
     ExtractableJson(ExtractableJson),
-    Nil
+    Nil,
+    Map(HashMap<String,Argument>)
 }
 fn var_type(i: &[u8]) -> IResult<&[u8], Option<VarType>> {
     map(ws(alt((tag("List"),tag("Object"),tag("Long"), tag("Double"),tag("Boolean"),tag("String")))), |s| {
@@ -188,6 +189,32 @@ fn json_template_arg(i:&[u8])->IResult<&[u8],Argument> {
 
     return Ok((i,Argument::Json(corr_templates::json::parser::parse(&tmpl).unwrap())));
 }
+fn map_arg(i:&[u8])->IResult<&[u8],Argument> {
+    let fun= tuple(
+        (
+            tag("@map{"),
+            ws(tuple((
+                many0(terminated(tuple((
+                    ws(string_lit),
+                    ws(tag(":")),
+                    ws(arg)
+                )),ws(tag(",")))),
+                opt(tuple((
+                    ws(string_lit),
+                    ws(tag(":")),
+                    ws(arg))))))),
+            tag("}")));
+    let (i,(_,(pairs,opt_last_pair),_))=fun(i)?;
+    let mut map=HashMap::new();
+    for (key,_,value)  in pairs  {
+        map.insert(String::from(key),value);
+    }
+    if let Some((key,_,value))=opt_last_pair{
+        map.insert(String::from(key),value);
+    }
+
+    return Ok((i,Argument::Map(map)));
+}
 fn ejson_template_arg(i:&[u8])->IResult<&[u8],Argument> {
     let fun= tuple((tag("@ejson`"),map(escaped_transform(is_not(r#"\`"#), '\\', |i: &[u8]| alt((tag("`"),tag("\\")))(i)),
                                        |abc| str::from_utf8(&abc).unwrap().to_string()),tag("`")));
@@ -205,7 +232,7 @@ fn arg(i:&[u8])->IResult<&[u8],Argument> {
         json_template_arg,
          ejson_template_arg,
          nil_arg,
-
+         map_arg
         )
     )(i)
 }
@@ -230,6 +257,54 @@ fn function_call(i:&[u8])->IResult<&[u8],Box<dyn Executable>>{
     let (i,(f_name,f_args))=tuple((name,args))(i)?;
     Ok((i,resolve(f_name,f_args)))
 }
+fn get_restData(args:HashMap<String,Argument>)->RestData{
+    let response=match args.get(&format!("response")) {
+        Option::Some(arg_val)=>{
+            match arg_val {
+                Argument::ExtractableJson(val)=>{
+                    Option::Some(val.clone())
+                },
+                _=>{Option::None}
+            }
+        }
+        _=>unimplemented!()
+    };
+    let url=match args.get(&format!("url")) {
+        Option::Some(arg_val)=>{
+            match arg_val {
+                Argument::Text(val)=>{
+                    val.clone()
+                },
+                _=>{unimplemented!()}
+            }
+        }
+        _=>unimplemented!()
+    };
+    let opt_header_args=match args.get(&format!("headers")) {
+        Option::Some(arg_val)=>{
+            match arg_val {
+                Argument::Map(val)=>{
+                    Option::Some(val.clone())
+                },
+                _=>{unimplemented!()}
+            }
+        }
+        Option::None=> Option::None
+    };
+    let mut headers=HashMap::new();
+    if let Some(header_args) = opt_header_args {
+        for (key,value) in header_args {
+            if let Argument::Text(text_val) = value{
+                headers.insert(key.clone(),text_val.clone());
+            }
+        }
+    }
+    return RestData{
+            url,
+            response,
+            headers
+        }
+}
 fn resolve_post(args:HashMap<String,Argument>)->Box<dyn Executable>{
     let body=match args.get(&format!("body")) {
         Option::Some(arg_val)=>{
@@ -243,61 +318,66 @@ fn resolve_post(args:HashMap<String,Argument>)->Box<dyn Executable>{
         _=>unimplemented!()
 
     };
-    let response=match args.get(&format!("response")) {
+    Box::new(PostStep{
+        rest:get_restData(args),
+        body
+    })
+}
+fn resolve_put(args:HashMap<String,Argument>)->Box<dyn Executable>{
+    let body=match args.get(&format!("body")) {
         Option::Some(arg_val)=>{
             match arg_val {
-                Argument::ExtractableJson(val)=>{
-                    Option::Some(val.clone())
-                },
-                _=>{Option::None}
-            }
-        }
-        _=>unimplemented!()
-    };
-    let url=match args.get(&format!("url")) {
-        Option::Some(arg_val)=>{
-            match arg_val {
-                Argument::Text(val)=>{
+                Argument::Json(val)=>{
                     val.clone()
                 },
                 _=>{unimplemented!()}
             }
         }
         _=>unimplemented!()
+
     };
-    Box::new(PostStep{
-        url,
-        body,
-        response
+    Box::new(PutStep{
+        rest:get_restData(args),
+        body
+    })
+}
+fn resolve_patch(args:HashMap<String,Argument>)->Box<dyn Executable>{
+    let body=match args.get(&format!("body")) {
+        Option::Some(arg_val)=>{
+            match arg_val {
+                Argument::Json(val)=>{
+                    val.clone()
+                },
+                _=>{unimplemented!()}
+            }
+        }
+        _=>unimplemented!()
+
+    };
+    Box::new(PatchStep{
+        rest:get_restData(args),
+        body
     })
 }
 fn resolve_get(args:HashMap<String,Argument>)->Box<dyn Executable>{
-    let response=match args.get(&format!("response")) {
-        Option::Some(arg_val)=>{
-            match arg_val {
-                Argument::ExtractableJson(val)=>{
-                    Option::Some(val.clone())
-                },
-                _=>{Option::None}
-            }
-        }
-        _=>unimplemented!()
-    };
-    let url=match args.get(&format!("url")) {
-        Option::Some(arg_val)=>{
-            match arg_val {
-                Argument::Text(val)=>{
-                    val.clone()
-                },
-                _=>{unimplemented!()}
-            }
-        }
-        _=>unimplemented!()
-    };
     Box::new(GetStep{
-        url,
-        response
+        rest:get_restData(args)
     })
+}
+fn resolve_delete(args:HashMap<String,Argument>)->Box<dyn Executable>{
+    Box::new(DeleteStep{
+        rest:get_restData(args)
+    })
+}
+fn string_lit(i: &[u8]) -> IResult<&[u8], &str> {
+    map(
+        ws(delimited(
+            char('\"'),
+            opt(escaped(is_not("\\\""), '\\', anychar)),
+            char('\"'),
+        )),
+        |s| s.map(|s| str::from_utf8(s).unwrap()).unwrap_or(""),
+    )(i)
 }
 fn resolve_print(args:HashMap<String,Argument>)->Box<dyn Executable>{
     let text=match args.get(&format!("text")) {
@@ -320,6 +400,9 @@ fn resolve(name:String,args:HashMap<String,Argument>)->Box<dyn Executable>{
     match &name[..] {
         "post"=>resolve_post(args),
         "get"=>resolve_get(args),
+        "put"=>resolve_put(args),
+        "patch"=>resolve_patch(args),
+        "delete"=>resolve_delete(args),
         "print"=>resolve_print(args),
         _=>unimplemented!()
     }
@@ -410,6 +493,24 @@ mod tests{
 }"#.as_bytes()).unwrap();
     }
     #[test]
+    fn should_parse_journey_with_headers(){
+        let (_,_)=journey(r#"`create nested categories`{
+    for(outer:Object in outers){
+        for(category:String in outer.var){
+            post(url:@text`http://localhost:8080/api/category`,
+                body:@json`{
+                    "name":{{category}}
+                }`,
+                response:@nil,
+                headers:@map{
+                    "Content-Type":@text`application/json`
+                }
+                );
+        };
+    };
+}"#.as_bytes()).unwrap();
+    }
+    #[test]
     fn test_get_all_ids(){
         let (_,k)=journey(r#"`get all ids`{
     get(url:@text`http://localhost:8080/api/category`,
@@ -423,6 +524,15 @@ mod tests{
                                                                  "id": {{id}}
                                                              }
                                                          <%}%>]`);
+}"#.as_bytes()).unwrap();
+        k.execute(&Environment::new_rc(MockProvider(vec![])))
+    }
+
+    #[test]
+    fn test_delete(){
+        let (_,k)=journey(r#"`get all ids`{
+    delete(url:@text`http://localhost:8080/api/category/1`,
+                    response:@nil);
 }"#.as_bytes()).unwrap();
         k.execute(&Environment::new_rc(MockProvider(vec![])))
     }

@@ -1,9 +1,10 @@
 pub mod json;
 pub mod text;
+pub mod parser;
 extern crate rand;
 #[macro_use]
 extern crate nom;
-use corr_core::runtime::Value;
+use corr_core::runtime::{Value, Environment, ValueProvider, Variable};
 use uuid::Uuid;
 use rand::Rng;
 pub trait Func{
@@ -68,7 +69,7 @@ impl Func for Concat{
 }
 impl Func for UUID{
     fn eval(&self, _args: Vec<Value>) -> Value {
-        Value::String(Uuid::new_v4().to_string())
+        return Value::String(Uuid::new_v4().to_string());
     }
 }
 impl Func for Random{
@@ -114,6 +115,49 @@ impl Func for Round{
             },
             _=>unimplemented!()
         }
+    }
+}
+#[derive(Clone,PartialEq,Debug)]
+pub enum Argument{
+    Variable(Variable),
+    Function(Function),
+    Final(Value)
+}
+impl Fillable<Value> for Argument {
+    fn fill(&self, runtime:&Environment) ->Value {
+        match self {
+            Argument::Function(fun)=>{
+                fun.fill(runtime)
+            },
+            Argument::Variable(var)=>{
+                runtime.channel.borrow_mut().read(var.clone())
+            },
+            Argument::Final(val)=>{
+                val.clone()
+            }
+        }
+    }
+}
+#[derive(Clone,PartialEq,Debug)]
+pub struct Function{
+    name:String,
+    args:Vec<Argument>
+}
+pub trait Fillable<T> {
+    fn fill(&self,runtime:&Environment)->T;
+}
+impl Fillable<Value> for Value {
+    fn fill(&self, _runtime: &Environment) -> Value {
+        self.clone()
+    }
+}
+impl Fillable<Value> for Function {
+    fn fill(&self, runtime:&Environment) ->Value {
+        let mut args=Vec::new();
+        for arg in &self.args{
+            args.push(arg.fill(runtime))
+        }
+        get_function(self.name.clone()).eval(args)
     }
 }
 pub fn get_function(name:String)->Box<dyn Func>{

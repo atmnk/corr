@@ -1,5 +1,5 @@
 use corr_core::runtime::{Variable, Value, ValueProvider, Environment};
-use crate::json::Fillable;
+use crate::{Function, Fillable};
 
 pub mod parser;
 #[derive(Clone,PartialEq,Debug)]
@@ -17,6 +17,7 @@ pub struct TextProducer{
 pub enum TextBlock{
     Final(String),
     Variable(Variable),
+    Function(Function),
     Loop(TextProducer)
 }
 #[derive(Clone,PartialEq,Debug)]
@@ -63,6 +64,7 @@ impl Fillable<Value> for TextBlock{
         match self {
             TextBlock::Final(val)=>Value::String(val.clone()),
             TextBlock::Variable(var)=>runtime.channel.borrow_mut().read(var.clone()),
+            TextBlock::Function(func)=>func.fill(runtime),
             TextBlock::Loop(tp)=>tp.fill(runtime)
         }
     }
@@ -71,7 +73,7 @@ impl Fillable<Value> for TextBlock{
 mod tests{
     use corr_core::runtime::{Environment, Value, ValueProvider, Variable};
     use super::parser::parse;
-    use crate::json::Fillable;
+    use crate::Fillable;
 
     impl ValueProvider for MockProvider {
 

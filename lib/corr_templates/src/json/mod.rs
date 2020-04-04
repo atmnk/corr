@@ -7,7 +7,7 @@ use corr_core::runtime::ValueProvider;
 use corr_core::runtime::Environment;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use crate::{get_function};
+use crate::{get_function, Function, Fillable};
 
 #[derive(Clone,PartialEq,Debug)]
 pub enum Producer{
@@ -29,18 +29,9 @@ pub struct JsonTimesProducer{
     counter_var:Variable,
     inner_producer:Box<Producer>
 }
-#[derive(Clone,PartialEq,Debug)]
-pub struct Function{
-    name:String,
-    args:Vec<Argument>
-}
 
-#[derive(Clone,PartialEq,Debug)]
-pub enum Argument{
-    Variable(Variable),
-    Function(Function),
-    Final(Value)
-}
+
+
 #[derive(Clone,PartialEq,Debug)]
 pub enum Json {
     Constant(Value),
@@ -51,14 +42,7 @@ pub enum Json {
     TemplatedTimesDynamicArray(JsonTimesProducer),
     Object(HashMap<String,Json>)
 }
-pub trait Fillable<T> {
-    fn fill(&self,runtime:&Environment)->T;
-}
-impl Fillable<Value> for Value {
-    fn fill(&self, _runtime: &Environment) -> Value {
-        self.clone()
-    }
-}
+
 impl Fillable<Value> for Producer{
     fn fill(&self, runtime:&Environment) ->Value {
         match self {
@@ -103,30 +87,8 @@ impl Fillable<Value> for JsonTimesProducer{
         }).flatten().collect())
     }
 }
-impl Fillable<Value> for Function {
-    fn fill(&self, runtime:&Environment) ->Value {
-        let mut args=Vec::new();
-        for arg in &self.args{
-            args.push(arg.fill(runtime))
-        }
-        get_function(self.name.clone()).eval(args)
-    }
-}
-impl Fillable<Value> for Argument {
-    fn fill(&self, runtime:&Environment) ->Value {
-        match self {
-            Argument::Function(fun)=>{
-                fun.fill(runtime)
-            },
-            Argument::Variable(var)=>{
-                runtime.channel.borrow_mut().read(var.clone())
-            },
-            Argument::Final(val)=>{
-                val.clone()
-            }
-        }
-    }
-}
+
+
 impl Fillable<Value> for Json {
     fn fill(&self, runtime:&Environment) ->Value {
         match self {
