@@ -44,5 +44,5 @@ jobs:
       with:
         homebrew-tap: atmnk/homebrew-corr
         formula-name: corr
-        download-url:  ${{format('{0}{1}{2}', 'https://github.com/atmnk/hwrust/releases/download/', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
+        download-url:  ${{format('{0}{1}{2}', 'https://github.com/atmnk/corr/releases/download/', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
         commit-message: 'Bump up {{formulaName}} formula to v{{version}} version'
