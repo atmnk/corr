@@ -16,12 +16,28 @@ pub struct RestData{
 }
 pub struct PostStep{
     pub rest:RestData,
-    pub body:Json,
+    pub body:BodyData,
+}
+pub enum BodyData{
+    Json(Json),
+    Text(Text)
+}
+impl BodyData {
+    fn fill(&self,runtime: &Environment)->String{
+        match self {
+            Json(json)=>{
+                serde_json::to_string(json.fill(runtime)).unwrap()
+            },
+            Text(text)=>{
+                text.fill(runtime).to_string()
+            }
+        }
+    }
 }
 impl Executable for PostStep {
     fn execute(&self, runtime: &Environment) {
         let client = reqwest::blocking::Client::new();
-        let request_body=serde_json::to_string(&self.body.fill(runtime)).unwrap();
+        let request_body=&self.body.fill(runtime);
         let mut initial= client
             .post(&self.rest.url.fill(runtime).to_string());
 
@@ -41,12 +57,12 @@ impl Executable for PostStep {
 }
 pub struct PutStep{
     pub rest:RestData,
-    pub body:Json,
+    pub body:BodyData,
 }
 impl Executable for PutStep {
     fn execute(&self, runtime: &Environment) {
         let client = reqwest::blocking::Client::new();
-        let request_body=serde_json::to_string(&self.body.fill(runtime)).unwrap();
+        let request_body=&self.body.fill(runtime);
         let mut initial= client
             .put(&self.rest.url.fill(runtime).to_string());
 
@@ -66,12 +82,12 @@ impl Executable for PutStep {
 }
 pub struct PatchStep{
     pub rest:RestData,
-    pub body:Json,
+    pub body:BodyData,
 }
 impl Executable for PatchStep {
     fn execute(&self, runtime: &Environment) {
         let client = reqwest::blocking::Client::new();
-        let request_body=serde_json::to_string(&self.body.fill(runtime)).unwrap();
+        let request_body=&self.body.fill(runtime);
         let mut initial= client
             .patch(&self.rest.url.fill(runtime).to_string());
 

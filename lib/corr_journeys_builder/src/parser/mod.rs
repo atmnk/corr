@@ -8,7 +8,7 @@ use nom::sequence::{tuple, terminated, delimited, separated_pair};
 use nom::combinator::{map, opt};
 use corr_core::runtime::{ Variable, VarType};
 use nom::multi::many0;
-use corr_rest::{PostStep, GetStep, RestData, PutStep, PatchStep, DeleteStep};
+use corr_rest::{PostStep, GetStep, RestData, PutStep, PatchStep, DeleteStep, BodyData};
 use corr_journeys::{Executable, Journey, LoopStep, PrintStep, TimesStep};
 use std::fs::File;
 use std::io::Read;
@@ -229,6 +229,7 @@ fn nil_arg(i:&[u8])->IResult<&[u8],Argument> {
 fn arg(i:&[u8])->IResult<&[u8],Argument> {
     alt(
         (text_template_arg,
+         text_template_arg,
         json_template_arg,
          ejson_template_arg,
          nil_arg,
@@ -310,9 +311,14 @@ fn resolve_post(args:HashMap<String,Argument>)->Box<dyn Executable>{
         Option::Some(arg_val)=>{
             match arg_val {
                 Argument::Json(val)=>{
-                    val.clone()
+                    BodyData::Json(val.clone())
                 },
-                _=>{unimplemented!()}
+                Argument::Text(val)=>{
+                    BodyData::Text(val.clone())
+                },
+                _=>{
+
+                }
             }
         }
         _=>unimplemented!()
@@ -328,9 +334,14 @@ fn resolve_put(args:HashMap<String,Argument>)->Box<dyn Executable>{
         Option::Some(arg_val)=>{
             match arg_val {
                 Argument::Json(val)=>{
-                    val.clone()
+                    BodyData::Json(val.clone())
                 },
-                _=>{unimplemented!()}
+                Argument::Text(val)=>{
+                    BodyData::Text(val.clone())
+                },
+                _=>{
+
+                }
             }
         }
         _=>unimplemented!()
@@ -346,9 +357,14 @@ fn resolve_patch(args:HashMap<String,Argument>)->Box<dyn Executable>{
         Option::Some(arg_val)=>{
             match arg_val {
                 Argument::Json(val)=>{
-                    val.clone()
+                    BodyData::Json(val.clone())
                 },
-                _=>{unimplemented!()}
+                Argument::Text(val)=>{
+                    BodyData::Text(val.clone())
+                },
+                _=>{
+
+                }
             }
         }
         _=>unimplemented!()
@@ -536,4 +552,18 @@ mod tests{
 }"#.as_bytes()).unwrap();
         k.execute(&Environment::new_rc(MockProvider(vec![])))
     }
+
+    #[test]
+    fn test_stripe(){
+        let (_,k)=journey(r#"`post for token`{
+    post(url:@text`https://api.stripe.com/v1/tokens`,
+        body:@text`card[number]=5555555555554444&card[exp_month]=4&card[exp_year]=2021&card[cvc]=314&card[name]=atmaram+3@technogise.com`,
+                    headers:@map{
+                    "Content-Type":@text`application/x-www-form-urlencoded`
+                    },
+                    response:@nil);
+}"#.as_bytes()).unwrap();
+        k.execute(&Environment::new_rc(MockProvider(vec![])))
+    }
+
 }
