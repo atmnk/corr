@@ -37,7 +37,7 @@ impl BodyData {
 impl Executable for PostStep {
     fn execute(&self, runtime: &Environment) {
         let client = reqwest::blocking::Client::new();
-        let request_body=&self.body.fill(runtime);
+        let request_body=self.body.fill(runtime);
         let mut initial= client
             .post(&self.rest.url.fill(runtime).to_string());
 
@@ -62,7 +62,7 @@ pub struct PutStep{
 impl Executable for PutStep {
     fn execute(&self, runtime: &Environment) {
         let client = reqwest::blocking::Client::new();
-        let request_body=&self.body.fill(runtime);
+        let request_body=self.body.fill(runtime);
         let mut initial= client
             .put(&self.rest.url.fill(runtime).to_string());
 
@@ -87,7 +87,7 @@ pub struct PatchStep{
 impl Executable for PatchStep {
     fn execute(&self, runtime: &Environment) {
         let client = reqwest::blocking::Client::new();
-        let request_body=&self.body.fill(runtime);
+        let request_body=self.body.fill(runtime);
         let mut initial= client
             .patch(&self.rest.url.fill(runtime).to_string());
 

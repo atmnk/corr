@@ -317,7 +317,7 @@ fn resolve_post(args:HashMap<String,Argument>)->Box<dyn Executable>{
                     BodyData::Text(val.clone())
                 },
                 _=>{
-
+                    unimplemented!()
                 }
             }
         }
@@ -340,7 +340,7 @@ fn resolve_put(args:HashMap<String,Argument>)->Box<dyn Executable>{
                     BodyData::Text(val.clone())
                 },
                 _=>{
-
+                    unimplemented!()
                 }
             }
         }
@@ -363,7 +363,7 @@ fn resolve_patch(args:HashMap<String,Argument>)->Box<dyn Executable>{
                     BodyData::Text(val.clone())
                 },
                 _=>{
-
+                    unimplemented!()
                 }
             }
         }
