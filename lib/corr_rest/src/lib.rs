@@ -25,10 +25,10 @@ pub enum BodyData{
 impl BodyData {
     fn fill(&self,runtime: &Environment)->String{
         match self {
-            Json(json)=>{
-                serde_json::to_string(json.fill(runtime)).unwrap()
+            BodyData::Json(json)=>{
+                serde_json::to_string(&json.fill(runtime)).unwrap()
             },
-            Text(text)=>{
+            BodyData::Text(text)=>{
                 text.fill(runtime).to_string()
             }
         }
@@ -154,7 +154,7 @@ impl Executable for DeleteStep{
 }
 #[cfg(test)]
 mod tests{
-    use crate::{PostStep, RestData, GetStep};
+    use crate::{PostStep, RestData, GetStep, BodyData};
     use corr_templates;
     use corr_templates::json::parser::parse;
     use corr_core::runtime::{Environment, ValueProvider, Variable, Value};
@@ -200,7 +200,7 @@ mod tests{
     }
     #[test]
     fn should_do_post() {
-        let body=parse(r#"{"name":"PQR"}"#).unwrap();
+        let body=BodyData::Json(parse(r#"{"name":"PQR"}"#).unwrap());
         let response=corr_templates::json::extractable::parser::parse(r#"{"id":{{id}}}"#);
         let mut headers:HashMap<String,Text>=HashMap::new();
         headers.insert(format!("{}",CONTENT_TYPE),corr_templates::text::parser::parse("application/json").unwrap());
@@ -210,7 +210,8 @@ mod tests{
                 response,
                 headers
             },
-            body,
+            body
+        ,
 
         };
         let runtime=Environment::new_rc(MockChannel);
