@@ -19,6 +19,7 @@ pub trait Extractable{
 }
 impl Extractable for ExtractableJson {
     fn extract(&self, val: Value, runtime: &Environment) {
+        println!("{}",val.to_string());
         match self {
             ExtractableJson::Variable(var)=>{
                 runtime.save(var.clone(),val)

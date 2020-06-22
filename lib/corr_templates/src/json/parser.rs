@@ -231,7 +231,7 @@ fn object(i: &[u8]) -> IResult<&[u8], HashMap<String,Json>> {
     Ok((i,map))
 }
 
-fn json<'a>(i: &[u8])->IResult<&[u8], Json>{
+pub fn json<'a>(i: &[u8])->IResult<&[u8], Json>{
     alt((
         map(null_lit,|_val|{Json::Constant(Value::Null)}),
         map(boolean_lit,|val|{Json::Constant(Value::Boolean(val))}),

@@ -4,7 +4,7 @@ use nom::{IResult,  InputTakeAtPosition, AsChar};
 use nom::error::ParseError;
 use nom::bytes::complete::{tag, is_not, escaped_transform, escaped};
 use nom::branch::alt;
-use nom::sequence::{tuple, terminated, delimited, separated_pair};
+use nom::sequence::{tuple, terminated, delimited, separated_pair,preceded};
 use nom::combinator::{map, opt};
 use corr_core::runtime::{ Variable, VarType};
 use nom::multi::many0;
@@ -177,17 +177,11 @@ fn step(i:&[u8])->IResult<&[u8],Box<dyn Executable>> {
     function_call))(i)
 }
 fn text_template_arg(i:&[u8])->IResult<&[u8],Argument> {
-    let fun= tuple((tag("@text`"),map(escaped_transform(is_not(r#"\`"#), '\\', |i: &[u8]| alt((tag("`"),tag("\\")))(i)),
-                                      |abc| str::from_utf8(&abc).unwrap().to_string()),tag("`")));
-    let (i,(_,tmpl,_))=fun(i)?;
-    return Ok((i,Argument::Text(corr_templates::text::parser::parse(&tmpl).unwrap())));
+    map(preceded(tag("@text\""),terminated(corr_templates::text::parser::text,tag("\""))),|val|{
+        Argument::Text(val)})(i)
 }
 fn json_template_arg(i:&[u8])->IResult<&[u8],Argument> {
-    let fun= tuple((tag("@json`"),map(escaped_transform(is_not(r#"\`"#), '\\', |i: &[u8]| alt((tag("`"),tag("\\")))(i)),
-                                      |abc| str::from_utf8(&abc).unwrap().to_string()),tag("`")));
-    let (i,(_,tmpl,_))=fun(i)?;
-
-    return Ok((i,Argument::Json(corr_templates::json::parser::parse(&tmpl).unwrap())));
+    map(preceded(tag("@json"),corr_templates::json::parser::json),|val|Argument::Json(val))(i)
 }
 fn map_arg(i:&[u8])->IResult<&[u8],Argument> {
     let fun= tuple(
@@ -216,11 +210,7 @@ fn map_arg(i:&[u8])->IResult<&[u8],Argument> {
     return Ok((i,Argument::Map(map)));
 }
 fn ejson_template_arg(i:&[u8])->IResult<&[u8],Argument> {
-    let fun= tuple((tag("@ejson`"),map(escaped_transform(is_not(r#"\`"#), '\\', |i: &[u8]| alt((tag("`"),tag("\\")))(i)),
-                                       |abc| str::from_utf8(&abc).unwrap().to_string()),tag("`")));
-    let (i,(_,tmpl,_))=fun(i)?;
-
-    return Ok((i,Argument::ExtractableJson(corr_templates::json::extractable::parser::parse(&tmpl).unwrap())));
+    map(preceded(tag("@ejson"),corr_templates::json::extractable::parser::json),|val|Argument::ExtractableJson(val))(i)
 }
 fn nil_arg(i:&[u8])->IResult<&[u8],Argument> {
     let (i,_)=tag("@nil")(i)?;
@@ -431,9 +421,10 @@ pub fn read_journey_from_file(mut file:File)->Journey{
 }
 #[cfg(test)]
 mod tests{
-    use crate::parser::{name, journey, step, text_template_arg, json_template_arg};
+    use crate::parser::{name, journey, step, text_template_arg, json_template_arg, nil_arg, Argument, ejson_template_arg};
     use corr_core::runtime::{ValueProvider, Environment, Variable, Value};
     use corr_journeys::Executable;
+    use nom::AsBytes;
 
     #[test]
     fn should_parse_identifier(){
@@ -472,25 +463,25 @@ mod tests{
 
     #[test]
     fn should_parse_step(){
-        let (_,k)=step(r#"print(text:@text`hello`)"#.as_bytes()).unwrap();
+        let (_,k)=step(r#"print(text:@text"hello")"#.as_bytes()).unwrap();
         k.execute(&Environment::new_rc(MockProvider(vec![(format!("hobbies.size"),Value::Long(3)),
                                                          (format!("category"),Value::String(format!("Atmaram")))]))
         );
     }
     #[test]
     fn should_parse_block(){
-        let (_,_)=journey(r#"abc{print(text:@text`hello`);}"#.as_bytes()).unwrap();
+        let (_,_)=journey(r#"abc{print(text:@text"hello");}"#.as_bytes()).unwrap();
 
     }
 
     #[test]
     fn should_parse_text_template_arg(){
-        let (_,k)=text_template_arg(r#"@text`hello`"#.as_bytes()).unwrap();
+        let (_,k)=text_template_arg(r#"@text"hello""#.as_bytes()).unwrap();
         println!("{:?}",k)
     }
     #[test]
     fn should_json_template_arg(){
-        let (_,k)=json_template_arg(r#"@json`{{abc}}`"#.as_bytes()).unwrap();
+        let (_,k)=json_template_arg(r#"@json{{abc}}"#.as_bytes()).unwrap();
         println!("{:?}",k)
     }
 
@@ -499,10 +490,10 @@ mod tests{
         let (_,_)=journey(r#"`create nested categories`{
     for(outer:Object in outers){
         for(category:String in outer.var){
-            post(url:@text`http://localhost:8080/api/category`,
-                body:@json`{
+            post(url:@text"http://localhost:8080/api/category",
+                body:@json{
                     "name":{{category}}
-                }`,
+                },
                 response:@nil);
         };
     };
@@ -513,13 +504,13 @@ mod tests{
         let (_,_)=journey(r#"`create nested categories`{
     for(outer:Object in outers){
         for(category:String in outer.var){
-            post(url:@text`http://localhost:8080/api/category`,
-                body:@json`{
+            post(url:@text"http://localhost:8080/api/category",
+                body:@json{
                     "name":{{category}}
-                }`,
+                },
                 response:@nil,
                 headers:@map{
-                    "Content-Type":@text`application/json`
+                    "Content-Type":@text"application/json"
                 }
                 );
         };
@@ -527,43 +518,68 @@ mod tests{
 }"#.as_bytes()).unwrap();
     }
     #[test]
-    fn test_get_all_ids(){
-        let (_,k)=journey(r#"`get all ids`{
-    get(url:@text`http://localhost:8080/api/category`,
-                    response:@ejson`[ <% for (id:Long in ids){%>
-                                        {
-                                            "id": {{id}}
-                                        }
-                                    <%}%>]`);
-    print(text:@text`<% for (id:Long in ids){%>
-                                                             {
-                                                                 "id": {{id}}
-                                                             }
-                                                         <%}%>]`);
-}"#.as_bytes()).unwrap();
-        k.execute(&Environment::new_rc(MockProvider(vec![])))
+    #[test]
+    fn test_get(){
+        let (_,k)=journey(r#"`post for token`{
+            get(url:@text"https://api.stripe.com/{{version}}/tokens",
+                response:@ejson[<% for (id:Long in ids)
+                                    {%>
+                                                {
+                                                    "id": {{id}}
+                                                }
+                                            <%}%>]);
+        }"#.as_bytes()).unwrap();
+
     }
 
     #[test]
     fn test_delete(){
         let (_,k)=journey(r#"`get all ids`{
-    delete(url:@text`http://localhost:8080/api/category/1`,
+    delete(url:@text"http://localhost:8080/api/category/1",
                     response:@nil);
 }"#.as_bytes()).unwrap();
-        k.execute(&Environment::new_rc(MockProvider(vec![])))
     }
 
     #[test]
+    fn check_parsing_text_argument(){
+        let (_,k)=text_template_arg(r#"@text"<% for (id:Long in ids){%>
+                                                             \{
+                                                                 \"id\": {{id}}
+                                                             }
+                                                         <%}%>""#.as_bytes()).unwrap();
+    }
+    #[test]
+    fn check_parsing_plain_text_argument(){
+        let (_,k)=text_template_arg(r#"@text"http://localhost:8080/api/category""#.as_bytes()).unwrap();
+    }
+    #[test]
+    fn check_parsing_json_argument(){
+        let (_,k)=json_template_arg(r#"@json{"name":{{atmaram}}}"#.as_bytes()).unwrap();
+    }
+    #[test]
+    fn check_parsing_ejson_argument(){
+        let (_,k)=ejson_template_arg(r#"@ejson[<% for (id:Long in ids){%>
+                                        {
+                                            "id": {{id}}
+                                        }
+                                    <%}%>]"#.as_bytes()).unwrap();
+        println!("{:?}",k)
+    }
+    #[test]
     fn test_stripe(){
         let (_,k)=journey(r#"`post for token`{
-    post(url:@text`https://api.stripe.com/v1/tokens`,
-        body:@text`card[number]=5555555555554444&card[exp_month]=4&card[exp_year]=2021&card[cvc]=314&card[name]=atmaram+3@technogise.com`,
+    post(url:@text"https://api.stripe.com/v1/tokens",
+        body:@text"card[number]=5555555555554444&card[exp_month]=4&card[exp_year]=2021&card[cvc]=314&card[name]=atmaram+3@technogise.com",
                     headers:@map{
-                    "Content-Type":@text`application/x-www-form-urlencoded`
+                    "Content-Type":@text"application/x-www-form-urlencoded"
                     },
-                    response:@nil);
+                    response:@ejson[<% for (id:Long in ids){%>
+                                        {
+                                            "id": {{id}}
+                                        }
+                                    <%}%>]);
 }"#.as_bytes()).unwrap();
-        k.execute(&Environment::new_rc(MockProvider(vec![])))
+        // k.execute(&Environment::new_rc(MockProvider(vec![])))
     }
 
 }

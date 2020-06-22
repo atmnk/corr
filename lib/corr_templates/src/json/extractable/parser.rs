@@ -104,7 +104,7 @@ fn object(i: &[u8]) -> IResult<&[u8], HashMap<String,ExtractableJson>> {
     }
     Ok((i,map))
 }
-fn json<'a>(i: &[u8])->IResult<&[u8], ExtractableJson>{
+pub fn json<'a>(i: &[u8])->IResult<&[u8], ExtractableJson>{
     alt((
         map(capturable_array, |ca|ExtractableJson::TemplatedDynamicArray(ca)),
         map(array, |val|ExtractableJson::TemplatedStaticArray(val)),

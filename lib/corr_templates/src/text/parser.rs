@@ -26,7 +26,7 @@ pub fn parse<'a>(str:&'a str) ->Option<Text>{
         _ => Option::None
     }
 }
-fn text(i: &[u8])->IResult<&[u8], Text>{
+pub fn text(i: &[u8])->IResult<&[u8], Text>{
     let (i,(val,opt_last))=tuple((many0(tuple((opt(text_lit),coded_block))),opt(text_lit)))(i)?;
     let mut blocks=Vec::new();
     for (text,coded) in val{
@@ -43,7 +43,7 @@ fn text(i: &[u8])->IResult<&[u8], Text>{
     }))
 }
 fn text_lit(i: &[u8]) -> IResult<&[u8], String> {
-    map(escaped_transform(is_not("\\{<"), '\\', |i: &[u8]| alt((tag("{"),tag("<"),tag("\\")))(i)),
+    map(escaped_transform(is_not(r#"\{<""#), '\\', |i: &[u8]| alt((tag("{"),tag("<"),tag("\\"),tag("\"")))(i)),
         |abc| str::from_utf8(&abc).unwrap().to_string())(i)
 }
 
@@ -125,6 +125,7 @@ mod tests{
     use corr_core::runtime::{Variable, VarType};
     use crate::text::parser::{text_lit, var_scriplet, text, identifier};
     use crate::text::{TextBlock, Text};
+    use nom::AsBytes;
 
     #[test]
     fn should_parse_plain_text(){
@@ -159,9 +160,19 @@ mod tests{
     #[test]
     fn should_parse_loop(){
         let a=text(r#"Abc<%for (abc:String in pqr){%>{{abc}}<%}%>"#.as_bytes());
-        println!("{:?}",a)
+        let (_,k)=a.unwrap();
+        println!("{:?}",k)
     }
-
+    #[test]
+    fn should_parse_complex(){
+        let a= text(r#"ABC<%for (id:Long in ids){%>
+                                                             \{
+                                                                 \"id\": {{id}}
+                                                             }
+                                                         <%}%>"#.as_bytes());
+        let (_,k)=a.unwrap();
+        println!("{:?}",k)
+    }
     #[test]
     fn should_parse_identifier(){
         println!("{:?}",identifier("atmaram".as_bytes()));

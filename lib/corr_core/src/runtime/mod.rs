@@ -72,8 +72,11 @@ impl Value {
                 }
                 str
             },
-            Value::Object(_)=>{
-                unimplemented!();
+            Value::Object(a)=>{
+                for key in a.keys() {
+                    println!("{}:{}",key,a.get(key).unwrap().to_string())
+                }
+                "Unkown".to_string()
             },
         }
     }
