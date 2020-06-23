@@ -181,12 +181,12 @@ fn text_template_arg(i:&[u8])->IResult<&[u8],Argument> {
         Argument::Text(val)})(i)
 }
 fn json_template_arg(i:&[u8])->IResult<&[u8],Argument> {
-    map(preceded(tag("@json"),corr_templates::json::parser::json),|val|Argument::Json(val))(i)
+    map(preceded(tag("@json"),ws(corr_templates::json::parser::json)),|val|Argument::Json(val))(i)
 }
 fn map_arg(i:&[u8])->IResult<&[u8],Argument> {
     let fun= tuple(
         (
-            tag("@map{"),
+            tuple((ws(tag("@map")),ws(tag("{")))),
             ws(tuple((
                 many0(terminated(tuple((
                     ws(string_lit),
@@ -197,7 +197,7 @@ fn map_arg(i:&[u8])->IResult<&[u8],Argument> {
                     ws(string_lit),
                     ws(tag(":")),
                     ws(arg))))))),
-            tag("}")));
+            ws(tag("}"))));
     let (i,(_,(pairs,opt_last_pair),_))=fun(i)?;
     let mut map=HashMap::new();
     for (key,_,value)  in pairs  {
@@ -210,7 +210,7 @@ fn map_arg(i:&[u8])->IResult<&[u8],Argument> {
     return Ok((i,Argument::Map(map)));
 }
 fn ejson_template_arg(i:&[u8])->IResult<&[u8],Argument> {
-    map(preceded(tag("@ejson"),corr_templates::json::extractable::parser::json),|val|Argument::ExtractableJson(val))(i)
+    map(preceded(tag("@ejson"),ws(corr_templates::json::extractable::parser::json)),|val|Argument::ExtractableJson(val))(i)
 }
 fn nil_arg(i:&[u8])->IResult<&[u8],Argument> {
     let (i,_)=tag("@nil")(i)?;
