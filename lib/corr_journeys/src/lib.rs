@@ -18,11 +18,15 @@ pub struct LoopStep{
     pub in_var:Variable,
     pub inner_steps:Vec<Box<dyn Executable>>
 }
+pub enum Times{
+    Long(i64),
+    Variable(Variable)
+}
 pub struct TimesStep{
     pub as_var:Variable,
     pub in_var:Variable,
     pub counter_var:Variable,
-    pub times:usize,
+    pub times:Times,
     pub inner_steps:Vec<Box<dyn Executable>>
 }
 impl Executable for LoopStep {
@@ -36,7 +40,17 @@ impl Executable for LoopStep {
 }
 impl Executable for TimesStep {
     fn execute(&self, runtime: &Environment) {
-        runtime.build_iterate_outside_building_inside(self.as_var.clone(),self.in_var.clone(),self.times,|i|{
+        let t=match &self.times {
+            Times::Long(val)=>val.clone(),
+            Times::Variable(var)=> {
+                let value=(*runtime.channel).borrow_mut().read(var.clone());
+                match value {
+                    Value::Long(val)=>val,
+                    _=> 0
+                }
+            }
+        };
+        runtime.build_iterate_outside_building_inside(self.as_var.clone(),self.in_var.clone(),t as usize,|i|{
             let val=Value::Long(i as i64);
             (*runtime.channel).borrow_mut().load_value_as(self.counter_var.clone() ,val);
             for step in &self.inner_steps{

@@ -9,13 +9,14 @@ use nom::combinator::{map, opt};
 use corr_core::runtime::{ Variable, VarType};
 use nom::multi::many0;
 use corr_rest::{PostStep, GetStep, RestData, PutStep, PatchStep, DeleteStep, BodyData};
-use corr_journeys::{Executable, Journey, LoopStep, PrintStep, TimesStep};
+use corr_journeys::{Executable, Journey, LoopStep, PrintStep, TimesStep, Times};
 use std::fs::File;
 use std::io::Read;
 use nom::lib::std::collections::HashMap;
 use corr_templates::text::Text;
 use corr_templates::json::Json;
 use corr_templates::json::extractable::ExtractableJson;
+use corr_templates::parser::{variable_arg, variable_expression};
 
 type ParserError<'a, T> = Result<(&'a [u8], T), nom::Err<(&'a [u8], nom::error::ErrorKind)>>;
 fn non_ascii(chr: u8) -> bool {
@@ -104,7 +105,11 @@ fn times_call(i:&[u8])->IResult<&[u8],Box<dyn Executable>>{
     let fun = tuple((
         ws(tag("times")),
         ws(tag("(")),
-        ws(long_lit),
+        ws(
+        alt((
+                map(long_lit,|val|Times::Long(val)),
+                map(variable_expression,|val|Times::Variable(val))
+            ))),
         ws(tag(",")),
         ws(identifier),
         ws(tag(",")),
@@ -130,7 +135,7 @@ fn times_call(i:&[u8])->IResult<&[u8],Box<dyn Executable>>{
             name:couner.to_string(),
             data_type:Option::Some(VarType::Long)
         },
-        times:times as usize,
+        times,
         inner_steps:block
     };
     Ok((i,Box::new(tt)))
@@ -558,28 +563,42 @@ mod tests{
     }
     #[test]
     fn check_parsing_ejson_argument(){
-        let (_,k)=ejson_template_arg(r#"@ejson[<% for (id:Long in ids){%>
-                                        {
-                                            "id": {{id}}
-                                        }
-                                    <%}%>]"#.as_bytes()).unwrap();
+
+    }
+
+    #[test]
+    fn check_ejson_with_array(){
+        let (_,k)=ejson_template_arg(r#"@ejson{
+            "results": [<% for(person:Object in persons){%>{
+        "id": {{person.id}},
+        "name": {{person.name}},
+        "gender": {{person.gender}}
+        }<%}%>]
+        }"#.as_bytes()).unwrap();
         println!("{:?}",k)
+
     }
     #[test]
-    fn test_stripe(){
-        let (_,k)=journey(r#"`post for token`{
-    post(url:@text"https://api.stripe.com/v1/tokens",
-        body:@text"card[number]=5555555555554444&card[exp_month]=4&card[exp_year]=2021&card[cvc]=314&card[name]=atmaram+3@technogise.com",
-                    headers:@map{
-                    "Content-Type":@text"application/x-www-form-urlencoded"
-                    },
-                    response:@ejson[<% for (id:Long in ids){%>
-                                        {
-                                            "id": {{id}}
-                                        }
-                                    <%}%>]);
+    fn test_times_for_get(){
+        let (_,k)=journey(r#"print{
+    times(10,i,loop:Object in  data){
+        print(text:@text"Hello-{{i}}");
+    };
+    get(url:@text"https://atmnk-swapi.herokuapp.com/api/people",
+        response:@nil
+                       );
 }"#.as_bytes()).unwrap();
-        // k.execute(&Environment::new_rc(MockProvider(vec![])))
+        k.execute(&Environment::new_rc(MockProvider(vec![])))
+    }
+
+    #[test]
+    fn test_times_for_variable(){
+        let (_,k)=journey(r#"print{
+    times(many,i,loop:Object in  data){
+        print(text:@text"Hello-{{i}}");
+    };
+}"#.as_bytes()).unwrap();
+        k.execute(&Environment::new_rc(MockProvider(vec![("many".to_string(),Value::Long(5))])))
     }
 
 }

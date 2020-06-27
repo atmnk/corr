@@ -39,6 +39,8 @@ impl Extractable for ExtractableJson {
                             }
                         }
 
+                    } else {
+                        runtime.error(format!("Expected Array found {:?}",val))
                     }
 
                 }
@@ -53,9 +55,13 @@ impl Extractable for ExtractableJson {
                                    (&ca.inner_json).extract(val_at_index.clone(),runtime);
                                 }
                             });
+                        } else {
+                            runtime.error(format!("Expected Array found {:?}",val))
                         }
                     }
 
+                } else {
+                    runtime.error(format!("Expected Array found {:?}",val))
                 }
 
             },
@@ -64,9 +70,18 @@ impl Extractable for ExtractableJson {
                     if val_type == VarType::Object{
                         if let Value::Object(map) = val {
                             for key in extract_map.keys(){
-                                extract_map.get(key).unwrap().extract(map.get(key).unwrap().clone(),runtime);
+                                if let Some(value) = map.get(key){
+                                    extract_map.get(key).unwrap().extract(
+                                        value.clone(),runtime);
+                                } else {
+                                    runtime.error(format!("Expected Object {:?} to have key {:?}", map,key))
+                                }
                             }
+                        } else {
+                            runtime.error(format!("Expected Object found {:?}",val))
                         }
+                    } else {
+                        runtime.error(format!("Expected Object found {:?}",val))
                     }
 
                 }
@@ -94,7 +109,7 @@ mod tests{
             return Value::Null
         }
         fn write(&mut self, str: String) { println!("{}",str) }
-        fn close(&mut self) { unimplemented!() }
+        fn close(&mut self) {  }
         fn set_index_ref(&mut self, _: Variable, _: Variable) { unimplemented!() }
         fn drop(&mut self, _: std::string::String) { unimplemented!() }
 
@@ -147,6 +162,33 @@ mod tests{
         let mut map=HashMap::new();
         map.insert(format!("name"),Value::String(format!("Atmaram")));
         map.insert(format!("age"),Value::Double(34.12));
+        tmp.extract(Value::Object(map),&rt);
+        println!("{:?}",(*rt.channel).borrow().reference_store);
+    }
+    #[test]
+    fn should_print_error_when_key_not_present(){
+        let tmp=parse(r#"{"name":{{name}},"age":{{age}}}"#).unwrap();
+        let rt=Environment::new_rc(MockProvider(vec![]));
+        let mut map=HashMap::new();
+        map.insert(format!("name"),Value::String(format!("Atmaram")));
+        tmp.extract(Value::Object(map),&rt);
+        println!("{:?}",(*rt.channel).borrow().reference_store);
+    }
+    #[test]
+    fn should_print_error_when_object_not_present(){
+        let tmp=parse(r#"{"name":{{name}},"age":{{age}}}"#).unwrap();
+        let rt=Environment::new_rc(MockProvider(vec![]));
+        let mut map=HashMap::new();
+        map.insert(format!("name"),Value::String(format!("Atmaram")));
+        tmp.extract(Value::Array(vec![]),&rt);
+        println!("{:?}",(*rt.channel).borrow().reference_store);
+    }
+    #[test]
+    fn should_print_error_when_array_not_present(){
+        let tmp=parse(r#"[{{name}}]"#).unwrap();
+        let rt=Environment::new_rc(MockProvider(vec![]));
+        let mut map=HashMap::new();
+        map.insert(format!("name"),Value::String(format!("Atmaram")));
         tmp.extract(Value::Object(map),&rt);
         println!("{:?}",(*rt.channel).borrow().reference_store);
     }

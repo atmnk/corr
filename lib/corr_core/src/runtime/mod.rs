@@ -249,6 +249,10 @@ impl Environment {
     }
 }
 impl Environment {
+    pub fn error(&self, text: String) {
+        (*self.channel).borrow_mut().write(text);
+        (*self.channel).borrow_mut().close();
+    }
     pub fn save(&self,var:Variable,val:Value){
         (*self.channel).borrow_mut().save(var,val);
     }
@@ -316,7 +320,6 @@ impl Environment {
 }
 
 impl ValueProvider for Environment{
-
 
     fn read(&mut self, variable: Variable) -> Value {
         (*self.channel).borrow_mut().read(variable)
