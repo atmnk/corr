@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>WebSocket Test</title>
+</head>
+<body>
+<script>
+    var socket = new WebSocket("ws://127.0.0.1:9876", "rust-websocket");
+    var asked="init";
+    socket.onmessage = function (event) {
+        var received = document.getElementById("received");
+        var br = document.createElement("BR");
+        var desired_action=JSON.parse(event.data);
+        console.log(desired_action);
+        if(desired_action.Listen){
+            var text = document.createTextNode(desired_action.Listen);
+            received.appendChild(br);
+            received.appendChild(text);
+        } else if(desired_action == "Quit"){
+            socket.close();
+        } else{
+            var text = document.createTextNode("Please provide value for " + desired_action.Tell.name + " of type "+desired_action.Tell.data_type);
+            asked=desired_action.Tell;
+            received.appendChild(br);
+            received.appendChild(text);
+        }
+
+    };
+
+    function send(element) {
+        var input = document.getElementById(element);
+        let ss={value:input.value,name:asked.name,"data_type":asked.data_type}
+        socket.send(JSON.stringify(ss));
+        input.value = "";
+    }
+</script>
+<p id="received">
+    <strong>Received Messages:</strong>
+</p>
+<form onsubmit="send('message'); return false">
+    <input type="text" id="message">
+    <input type="submit" value="Send">
+</form>
+</body>
+</html>
