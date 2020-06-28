@@ -1,0 +1,26 @@
+name: Dev Workflow - Test and check thing
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build:
+    name: Publish Binaries
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features --package corr
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features --package corrs
