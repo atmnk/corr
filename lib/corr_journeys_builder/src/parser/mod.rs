@@ -17,6 +17,7 @@ use corr_templates::text::Text;
 use corr_templates::json::Json;
 use corr_templates::json::extractable::ExtractableJson;
 use corr_templates::parser::{variable_arg, variable_expression};
+use corr_templates::text::parser::text;
 
 type ParserError<'a, T> = Result<(&'a [u8], T), nom::Err<(&'a [u8], nom::error::ErrorKind)>>;
 fn non_ascii(chr: u8) -> bool {
@@ -82,7 +83,8 @@ pub enum Argument{
     Json(Json),
     ExtractableJson(ExtractableJson),
     Nil,
-    Map(HashMap<String,Argument>)
+    RequestHeaderMap(HashMap<String,Text>),
+    ResponseHeaderMap(HashMap<String,Variable>)
 }
 fn var_type(i: &[u8]) -> IResult<&[u8], Option<VarType>> {
     map(ws(alt((tag("List"),tag("Object"),tag("Long"), tag("Double"),tag("Boolean"),tag("String")))), |s| {
@@ -185,34 +187,96 @@ fn text_template_arg(i:&[u8])->IResult<&[u8],Argument> {
     map(preceded(tag("@text\""),terminated(corr_templates::text::parser::text,tag("\""))),|val|{
         Argument::Text(val)})(i)
 }
+fn text_template_text(i:&[u8])->IResult<&[u8],Text> {
+    map(preceded(tag("@text\""),terminated(corr_templates::text::parser::text,tag("\""))),|val|{
+        val})(i)
+}
+fn var_template_var(i:&[u8])->IResult<&[u8],Variable> {
+    map(preceded(tag("@var"),tuple((ws(tag("{{")),variable_expression,ws(tag("}}"))))),|(_,val,_)|{
+        val})(i)
+}
 fn json_template_arg(i:&[u8])->IResult<&[u8],Argument> {
     map(preceded(tag("@json"),ws(corr_templates::json::parser::json)),|val|Argument::Json(val))(i)
 }
-fn map_arg(i:&[u8])->IResult<&[u8],Argument> {
+// fn map_arg(i:&[u8])->IResult<&[u8],Argument> {
+//     let fun= tuple(
+//         (
+//             tuple((ws(tag("@map")),ws(tag("{")))),
+//             ws(tuple((
+//                 many0(terminated(tuple((
+//                     ws(string_lit),
+//                     ws(tag(":")),
+//                     ws(arg)
+//                 )),ws(tag(",")))),
+//                 opt(tuple((
+//                     ws(string_lit),
+//                     ws(tag(":")),
+//                     ws(arg))))))),
+//             ws(tag("}"))));
+//     let (i,(_,(pairs,opt_last_pair),_))=fun(i)?;
+//     let mut map=HashMap::new();
+//     for (key,_,value)  in pairs  {
+//         map.insert(String::from(key),value);
+//     }
+//     if let Some((key,_,value))=opt_last_pair{
+//         map.insert(String::from(key),value);
+//     }
+//
+//     return Ok((i,Argument::Map(map)));
+// }
+fn request_headers_arg(i:&[u8])->IResult<&[u8],Argument> {
     let fun= tuple(
         (
-            tuple((ws(tag("@map")),ws(tag("{")))),
+            tuple((ws(tag("@reqHeaders")),ws(tag("{")))),
             ws(tuple((
                 many0(terminated(tuple((
                     ws(string_lit),
                     ws(tag(":")),
-                    ws(arg)
+                    text_template_text
                 )),ws(tag(",")))),
                 opt(tuple((
                     ws(string_lit),
                     ws(tag(":")),
-                    ws(arg))))))),
+                    text_template_text
+                )))))),
             ws(tag("}"))));
     let (i,(_,(pairs,opt_last_pair),_))=fun(i)?;
     let mut map=HashMap::new();
-    for (key,_,value)  in pairs  {
-        map.insert(String::from(key),value);
+    for (key,_,ve)  in pairs  {
+        map.insert(String::from(key),ve);
     }
-    if let Some((key,_,value))=opt_last_pair{
-        map.insert(String::from(key),value);
+    if let Some((key,_,ve))=opt_last_pair{
+        map.insert(String::from(key),ve);
     }
 
-    return Ok((i,Argument::Map(map)));
+    return Ok((i,Argument::RequestHeaderMap(map)));
+}
+fn response_headers_arg(i:&[u8])->IResult<&[u8],Argument> {
+    let fun= tuple(
+        (
+            tuple((ws(tag("@resHeaders")),ws(tag("{")))),
+            ws(tuple((
+                many0(terminated(tuple((
+                    ws(string_lit),
+                    ws(tag(":")),
+                    var_template_var
+                )),ws(tag(",")))),
+                opt(tuple((
+                    ws(string_lit),
+                    ws(tag(":")),
+                    var_template_var
+                )))))),
+            ws(tag("}"))));
+    let (i,(_,(pairs,opt_last_pair),_))=fun(i)?;
+    let mut map=HashMap::new();
+    for ((key,_,var))  in pairs  {
+        map.insert(String::from(key),var);
+    }
+    if let Some((key,_,var))=opt_last_pair{
+        map.insert(String::from(key),var);
+    }
+
+    return Ok((i,Argument::ResponseHeaderMap(map)));
 }
 fn ejson_template_arg(i:&[u8])->IResult<&[u8],Argument> {
     map(preceded(tag("@ejson"),ws(corr_templates::json::extractable::parser::json)),|val|Argument::ExtractableJson(val))(i)
@@ -228,7 +292,8 @@ fn arg(i:&[u8])->IResult<&[u8],Argument> {
         json_template_arg,
          ejson_template_arg,
          nil_arg,
-         map_arg
+         request_headers_arg,
+         response_headers_arg
         )
     )(i)
 }
@@ -276,29 +341,34 @@ fn get_restData(args:HashMap<String,Argument>)->RestData{
         }
         _=>unimplemented!()
     };
-    let opt_header_args=match args.get(&format!("headers")) {
+    let headers=match args.get(&format!("reqHeaders")) {
         Option::Some(arg_val)=>{
             match arg_val {
-                Argument::Map(val)=>{
-                    Option::Some(val.clone())
+                Argument::RequestHeaderMap(val)=>{
+                    val.clone()
                 },
-                _=>{unimplemented!()}
+                _=>{HashMap::new()}
             }
         }
-        Option::None=> Option::None
+        Option::None=> HashMap::new()
     };
-    let mut headers=HashMap::new();
-    if let Some(header_args) = opt_header_args {
-        for (key,value) in header_args {
-            if let Argument::Text(text_val) = value{
-                headers.insert(key.clone(),text_val.clone());
+    let responseHeaders=match args.get(&format!("resHeaders")) {
+        Option::Some(arg_val)=>{
+            match arg_val {
+                Argument::ResponseHeaderMap(val)=>{
+                    val.clone()
+                },
+                _=>{HashMap::new()}
             }
         }
-    }
+        Option::None=> HashMap::new()
+    };
+
     return RestData{
             url,
             response,
-            headers
+            headers,
+            responseHeaders
         }
 }
 fn resolve_post(args:HashMap<String,Argument>)->Box<dyn Executable>{
@@ -505,7 +575,7 @@ mod tests{
 }"#.as_bytes()).unwrap();
     }
     #[test]
-    fn should_parse_journey_with_headers(){
+    fn should_parse_journey_with_req_headers(){
         let (_,_)=journey(r#"`create nested categories`{
     for(outer:Object in outers){
         for(category:String in outer.var){
@@ -514,15 +584,32 @@ mod tests{
                     "name":{{category}}
                 },
                 response:@nil,
-                headers:@map{
+                reqHeaders:@reqHeaders {
                     "Content-Type":@text"application/json"
-                }
+                    }
                 );
         };
     };
 }"#.as_bytes()).unwrap();
     }
     #[test]
+    fn should_parse_journey_with_res_headers(){
+        let (_,_)=journey(r#"`create nested categories`{
+    for(outer:Object in outers){
+        for(category:String in outer.var){
+            post(url:@text"http://localhost:8080/api/category",
+                body:@json{
+                    "name":{{category}}
+                },
+                response:@nil,
+                resHeaders:@resHeaders {
+                    "Content-Type":@var{{ct}}
+                    }
+                );
+        };
+    };
+}"#.as_bytes()).unwrap();
+    }
     #[test]
     fn test_get(){
         let (_,k)=journey(r#"`post for token`{
@@ -560,10 +647,6 @@ mod tests{
     #[test]
     fn check_parsing_json_argument(){
         let (_,k)=json_template_arg(r#"@json{"name":{{atmaram}}}"#.as_bytes()).unwrap();
-    }
-    #[test]
-    fn check_parsing_ejson_argument(){
-
     }
 
     #[test]

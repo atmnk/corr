@@ -1,5 +1,7 @@
 use super::corr_core::runtime::{Variable, Value, Environment, VarType};
 use std::collections::HashMap;
+use crate::Extractable;
+
 pub mod parser;
 #[derive(Clone,PartialEq,Debug)]
 pub struct CaptuarableArray{
@@ -14,15 +16,13 @@ pub enum ExtractableJson {
     TemplatedDynamicArray(CaptuarableArray),
     Object(HashMap<String,ExtractableJson>),
 }
-pub trait Extractable{
-    fn extract(&self,val:Value,runtime:&Environment);
-}
+
 impl Extractable for ExtractableJson {
     fn extract(&self, val: Value, runtime: &Environment) {
         println!("{}",val.to_string());
         match self {
             ExtractableJson::Variable(var)=>{
-                runtime.save(var.clone(),val)
+                var.extract(val,runtime)
             },
             ExtractableJson::TemplatedStaticArray(arr)=>{
                 if let Option::Some(val_type)=val.get_associated_var_type(){
@@ -93,9 +93,9 @@ impl Extractable for ExtractableJson {
 #[cfg(test)]
 mod tests{
     use crate::json::extractable::parser::parse;
-    use crate::json::extractable::Extractable;
     use super::super::corr_core::runtime::{ValueProvider, Variable, Value, Environment};
     use nom::lib::std::collections::HashMap;
+    use crate::Extractable;
 
     impl ValueProvider for MockProvider{
 

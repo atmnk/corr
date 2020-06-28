@@ -10,6 +10,14 @@ use rand::Rng;
 pub trait Func{
     fn eval(&self,args:Vec<Value>)->Value;
 }
+pub trait Extractable{
+    fn extract(&self,val:Value,runtime:&Environment);
+}
+impl Extractable for Variable{
+    fn extract(&self, val: Value, runtime: &Environment) {
+        runtime.save(self.clone(),val)
+    }
+}
 pub struct Round;
 pub struct Random;
 pub struct UUID;
