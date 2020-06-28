@@ -38,7 +38,6 @@ pub trait ExecutableRestStep{
         }
 
         if resp.ok() {
-            println!("success: {:?}", resp.headers_names());
             let headers=self.get_response_headers();
             for (key,value) in headers {
                 if let Some(header_value) = resp.header(key){
@@ -48,7 +47,6 @@ pub trait ExecutableRestStep{
                 } else {
                     runtime.error(format!("Header {:?} not found in response",key))
                 }
-
             }
 
             let resp_string = resp.into_string().unwrap_or("".to_string());
@@ -58,12 +56,11 @@ pub trait ExecutableRestStep{
                 let corr_val=Value::from(&val);
                 resp_t.extract(corr_val,runtime);
             }
-
-
         } else {
-            // This can include errors like failure to parse URL or connect timeout.
-            // They are treated as synthetic HTTP-level error statuses.
-            println!("error {}: {}", resp.status(), resp.into_string().unwrap());
+            let url=resp.get_url().to_string();
+            let status=resp.status();
+            let body=resp.into_string().unwrap();
+            runtime.error(format!("Error reported by api {} with status {} and response {}",url,status,body));
         }
     }
 }
@@ -204,155 +201,24 @@ impl BodyData {
     }
 }
 
-    // impl Executable for PostStep{
-    //     fn execute(&self, runtime: &Environment) {
-    //         let req=ureq::post(filled.path.clone());
-    //         let body = match &self.body {
-    //             BodyData::Json(json)=>{
-    //                 serde_json::to_string(&json.fill(runtime)).unwrap()
-    //             },
-    //             BodyData::Text(text)=>{
-    //                 text.fill(runtime).to_string()
-    //             }
-    //         };
-    //         req.send_bytes(body.as_bytes())
-    //     }
-    // }
-// impl Executable for PostStep {
-//     fn execute(&self, runtime: &Environment) {
-//         let client = reqwest::blocking::Client::new();
-//         let request_body=self.body.fill(runtime);
-//         let mut initial= client
-//             .post(&self.rest.url.fill(runtime).to_string());
-//
-//         for key in self.rest.headers.keys() {
-//             initial = initial.header(key,self.rest.headers.get(key).unwrap().fill(runtime).to_string())
-//         }
-//
-//         let body=initial.body(request_body).send().unwrap().text().unwrap();
-//
-//
-//         if let Option::Some(resp)=&self.rest.response{
-//             let val=serde_json::from_str(body.as_str()).unwrap();
-//             let corr_val=Value::from(&val);
-//             resp.extract(corr_val,runtime);
-//         }
-//     }
-// }
 pub struct PutStep{
     pub rest:RestData,
     pub body:BodyData,
 }
-// impl Executable for PutStep {
-//     fn execute(&self, runtime: &Environment) {
-//         let client = reqwest::blocking::Client::new();
-//         let request_body=self.body.fill(runtime);
-//         let mut initial= client
-//             .put(&self.rest.url.fill(runtime).to_string());
-//
-//         for key in self.rest.headers.keys() {
-//             initial = initial.header(key,self.rest.headers.get(key).unwrap().fill(runtime).to_string())
-//         }
-//
-//         let body=initial.body(request_body).send().unwrap().text().unwrap();
-//
-//
-//         if let Option::Some(resp)=&self.rest.response{
-//             let val=serde_json::from_str(body.as_str()).unwrap();
-//             let corr_val=Value::from(&val);
-//             resp.extract(corr_val,runtime);
-//         }
-//     }
-// }
+
 pub struct PatchStep{
     pub rest:RestData,
     pub body:BodyData,
 }
-// impl Executable for PatchStep {
-//     fn execute(&self, runtime: &Environment) {
-//         let client = reqwest::blocking::Client::new();
-//         let request_body=self.body.fill(runtime);
-//         let mut initial= client
-//             .patch(&self.rest.url.fill(runtime).to_string());
-//
-//         for key in self.rest.headers.keys() {
-//             initial = initial.header(key,self.rest.headers.get(key).unwrap().fill(runtime).to_string())
-//         }
-//
-//         let body=initial.body(request_body).send().unwrap().text().unwrap();
-//
-//
-//         if let Option::Some(resp)=&self.rest.response{
-//             let val=serde_json::from_str(body.as_str()).unwrap();
-//             let corr_val=Value::from(&val);
-//             resp.extract(corr_val,runtime);
-//         }
-//     }
-// }
+
 pub struct GetStep{
     pub rest:RestData
 }
-// fn toValue(resp:&reqwest::blocking::Response)->Value{
-//     for header in resp.headers().keys() {
-//         println!("{:?}",header)
-//     }
-//     return Value::Null;
-// }
 
-// impl Executable for GetStep{
-//     fn execute(&self, runtime: &Environment) {
-//         let client = reqwest::blocking::Client::new();
-//         let mut initial= client
-//             .get(&self.rest.url.fill(runtime).to_string());
-//
-//         for key in self.rest.headers.keys() {
-//             initial = initial.header(key,self.rest.headers.get(key).unwrap().fill(runtime).to_string())
-//         }
-//
-//         let resp = initial.send().unwrap();
-//
-//
-//
-//         let rh = toValue(&resp);
-//         let body= resp.text().unwrap();
-//
-//
-//         if let Option::Some(resp)=&self.rest.response{
-//             let val=serde_json::from_str(&body).unwrap();
-//             let corr_val=Value::from(&val);
-//             resp.extract(corr_val,runtime);
-//         }
-//         if let Option::Some(resp)=&self.rest.responseHeaders{
-//             let val=serde_json::from_str(&body).unwrap();
-//             let corr_val=Value::from(&val);
-//             resp.extract(corr_val,runtime);
-//         }
-//
-//     }
-// }
 pub struct DeleteStep{
     pub rest:RestData
 }
-// impl Executable for DeleteStep{
-//     fn execute(&self, runtime: &Environment) {
-//         let client = reqwest::blocking::Client::new();
-//         let mut initial= client
-//             .delete(&self.rest.url.fill(runtime).to_string());
-//
-//         for key in self.rest.headers.keys() {
-//             initial = initial.header(key,self.rest.headers.get(key).unwrap().fill(runtime).to_string())
-//         }
-//
-//         let body= initial.send().unwrap().text().unwrap();
-//
-//         if let Option::Some(resp)=&self.rest.response{
-//             let val=serde_json::from_str(&body).unwrap();
-//             let corr_val=Value::from(&val);
-//             resp.extract(corr_val,runtime);
-//         }
-//
-//     }
-// }
+
 #[cfg(test)]
 mod tests{
     use crate::{PostStep, RestData, GetStep, BodyData, ExecutableRestStep};
@@ -376,8 +242,8 @@ mod tests{
             unimplemented!()
         }
 
-        fn write(&mut self, _text: String) {
-            unimplemented!()
+        fn write(&mut self, text: String) {
+
         }
 
         fn set_index_ref(&mut self, _index_ref_var: Variable, _list_ref_var: Variable) {
@@ -397,68 +263,81 @@ mod tests{
         }
 
         fn close(&mut self) {
-            unimplemented!()
+
         }
     }
     #[test]
     fn should_do_post() {
-        let body=BodyData::Json(parse(r#"{"name":"PQR"}"#).unwrap());
-        let response=corr_templates::json::extractable::parser::parse(r#"{"id":{{id}}}"#);
+        let body=BodyData::Json(parse(r#"{"username":"admin","password":"test123$"}"#).unwrap());
+        let response=corr_templates::json::extractable::parser::parse(r#"{"token":{{token}},}"#);
         let mut headers:HashMap<String,Text>=HashMap::new();
         headers.insert(format!("{}",CONTENT_TYPE),corr_templates::text::parser::parse("application/json").unwrap());
         let step=PostStep{
             rest:RestData{
-                url:corr_templates::text::parser::parse("http://localhost:8080/api/category").unwrap(),
+                url:corr_templates::text::parser::parse("https://atmnk-swapi.herokuapp.com/api/login").unwrap(),
                 response,
                 headers,
                 responseHeaders:HashMap::new()
             },
-            body
-        ,
+            body,
 
         };
-        let runtime=Environment::new_rc(MockChannel);
+        let mut runtime=Environment::new_rc(MockChannel);
         step.execute(&runtime);
-        println!("{:?}",(*runtime.channel).borrow().reference_store)
+        assert_ne!(runtime.read(Variable{
+            name:format!("token"),
+            data_type:Option::None
+        }),Value::Null);
     }
     #[test]
     fn should_do_get() {
-        let response=corr_templates::json::extractable::parser::parse(r#"[ <% for (id:Long in ids){%>
-                                        {
-                                            "id": {{id}}
-                                        }
-                                    <%}%>]"#);
-        let mut headers:HashMap<String,Text>=HashMap::new();
-        let step=GetStep{
-            rest:RestData{
-                url:corr_templates::text::parser::parse("http://localhost:8080/api/category").unwrap(),
-                response,
-                headers,
-                responseHeaders:HashMap::new()
-            }
-        };
-        let runtime=Environment::new_rc(MockChannel);
-        step.execute(&runtime);
-        println!("{:?}",(*runtime.channel).borrow().reference_store)
-    }
-    #[test]
-    fn should_do_get_capturing_headers() {
-        let response=Option::None;
+        let response=corr_templates::json::extractable::parser::parse(r#"{
+                       	"results": [<% for (person:Object in persons){%>{
+                       		"id": {{person.id}},
+                       		"name": {{person.name}},
+                       		"gender": {{person.gender}},
+                       		}<%}%>]}"#);
         let mut headers:HashMap<String,Variable>=HashMap::new();
-        headers.insert(format!("token"),Variable{
-            name:format!("token"),
+        headers.insert(format!("Content-Type"),Variable{
+            name:format!("ct"),
             data_type:Option::Some(VarType::String)
         });
         let step=GetStep{
             rest:RestData{
-                url:corr_templates::text::parser::parse("http://localhost:9000/api/test").unwrap(),
+                url:corr_templates::text::parser::parse("https://atmnk-swapi.herokuapp.com/api/people").unwrap(),
                 response,
                 headers:HashMap::new(),
                 responseHeaders:headers
             }
         };
-        let runtime=Environment::new_rc(MockChannel);
+        let mut runtime=Environment::new_rc(MockChannel);
         step.execute(&runtime);
-        println!("{:?}",(*runtime.channel).borrow().reference_store)
+        assert_eq!(runtime.read(Variable{
+            name:format!("persons.size"),
+            data_type:Option::None
+        }),Value::Long(82));
+    }
+    #[test]
+    fn should_do_get_capturing_headers() {
+        let response=Option::None;
+        let mut headers:HashMap<String,Variable>=HashMap::new();
+        headers.insert(format!("Content-Type"),Variable{
+            name:format!("ct"),
+            data_type:Option::Some(VarType::String)
+        });
+        let step=GetStep{
+            rest:RestData{
+                url:corr_templates::text::parser::parse("https://atmnk-swapi.herokuapp.com/api/people").unwrap(),
+                response,
+                headers:HashMap::new(),
+                responseHeaders:headers
+            }
+        };
+        let mut runtime=Environment::new_rc(MockChannel);
+        step.execute(&runtime);
+        assert_eq!(runtime.read(Variable{
+            name:format!("ct"),
+            data_type:Option::None
+        }),Value::String("application/json; charset=utf-8".to_string()));
     }
 }
