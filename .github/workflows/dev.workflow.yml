@@ -9,7 +9,6 @@ jobs:
   build:
     name: Build Binaries
     runs-on: macos-latest
-
     steps:
       - uses: actions/checkout@v2
         with:
@@ -22,18 +21,19 @@ jobs:
         with:
           command: test
           args: --all
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --all-features --package corr
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --all-features --package corrs
+    outputs:
+      job-status: ${{ job.status }}
+  notify:
+  needs:
+    - build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: exit 1
       - name: Slack Failure
         if: always()
         uses: kpritam/slack-job-status-action@v1
         with:
-          job-status: ${{ job.status }}
+          job-status: ${{ needs.build.outputs.job-status }}
           slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
           channel: corr-health
