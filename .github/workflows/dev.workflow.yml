@@ -30,3 +30,10 @@ jobs:
         with:
           command: build
           args: --release --all-features --package corrs
+      - name: Slack Failure
+        if: always()
+        uses: kpritam/slack-job-status-action@v1
+        with:
+          job-status: ${{ job.status }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          channel: corr-health
