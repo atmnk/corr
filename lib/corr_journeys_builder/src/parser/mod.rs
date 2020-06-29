@@ -668,8 +668,7 @@ mod tests{
         print(text:@text"Hello-{{i}}");
     };
     get(url:@text"https://atmnk-swapi.herokuapp.com/api/people",
-        response:@nil
-                       );
+        response:@nil);
 }"#.as_bytes()).unwrap();
         k.execute(&Environment::new_rc(MockProvider(vec![])))
     }
