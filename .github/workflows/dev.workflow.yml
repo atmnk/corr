@@ -23,9 +23,8 @@ jobs:
           args: --all
     outputs:
       job-status: ${{ job.status }}
-  notify:
-  needs:
-    - build
+  notify-slack:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
