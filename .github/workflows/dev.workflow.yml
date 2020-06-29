@@ -16,6 +16,10 @@ jobs:
           ref: dev
       - uses: actions-rs/cargo@v1
         with:
+          command: test
+          args: --all
+      - uses: actions-rs/cargo@v1
+        with:
           command: build
           args: --release --all-features --package corr
       - uses: actions-rs/toolchain@v1
