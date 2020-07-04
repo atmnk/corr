@@ -3,9 +3,12 @@ use serde::{Serialize, Deserialize, Serializer};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::result::Result;
 use crate::break_on;
+use std::any::Any;
+use std::error::Error;
+use std::fmt;
 
 pub struct Messanger<T> where T:StringIO{
     pub string_io:Box<T>
@@ -46,8 +49,9 @@ pub enum VarType{
     Double,
     Object,
     List,
+    Reference
 }
-#[derive(Debug,PartialEq,Clone)]
+#[derive(Debug,Clone)]
 pub enum Value{
     String(String),
     Long(i64),
@@ -55,7 +59,70 @@ pub enum Value{
     Double(f64),
     Object(HashMap<String,Value>),
     Array(Vec<Value>),
-    Null
+    Null,
+    Reference(Rc<dyn Any>)
+}
+impl PartialEq for Value{
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Value::Null=>match other {
+                Value::Null=>true,
+                _=>false
+            },
+            Value::Double(left)=>match other {
+                Value::Double(right)=>if left==right {
+                    true
+                } else {
+                    false
+                },
+                _=>false
+            },
+            Value::String(left)=>match other {
+                Value::String(right)=>if left==right {
+                    true
+                } else {
+                    false
+                },
+                _=>false
+            },
+            Value::Long(left)=>match other {
+                Value::Long(right)=>if left==right {
+                    true
+                } else {
+                    false
+                },
+                _=>false
+            },
+            Value::Object(left)=>match other {
+                Value::Object(right)=>if left==right {
+                    true
+                } else {
+                    false
+                },
+                _=>false
+            },
+            Value::Array(left)=>match other {
+                Value::Array(right)=>if left==right {
+                    true
+                } else {
+                    false
+                },
+                _=>false
+            },
+            Value::Boolean(left)=>match other {
+                Value::Boolean(right)=>if left==right {
+                    true
+                } else {
+                    false
+                },
+                _=>false
+            },
+            Value::Reference(left)=>match other {
+                Value::Reference(right)=>true,
+                _=>false
+            }
+        }
+    }
 }
 impl Value {
     pub fn to_string(&self)->String{
@@ -78,6 +145,9 @@ impl Value {
                 }
                 "Unkown".to_string()
             },
+            Value::Reference(val)=>{
+                "Unkown".to_string()
+            }
         }
     }
     pub fn from(value:&serde_json::Value)->Value{
@@ -133,6 +203,7 @@ impl Value {
             Value::Null=>{
                 Option::None
             },
+            Value::Reference(_)=>Option::Some(VarType::Reference)
         }
     }
 }
@@ -163,6 +234,9 @@ impl Serialize for Value {
             },
             Value::Array(val)=>{
                 serializer.serialize_some(val)
+            },
+            Value::Reference(_)=>{
+                serializer.serialize_none()
             }
         }
     }
@@ -357,7 +431,8 @@ pub struct Variable{
     pub name:String,
     pub data_type:Option<VarType>
 }
-#[derive(Debug,PartialEq,Clone)]
+
+#[derive(Debug,Clone)]
 pub enum Object{
     Final(Value),
     Object(Rc<RefCell<HashMap<String,Rc<Object>>>>),
@@ -388,7 +463,7 @@ impl Object {
                 map.insert(key.clone(),val.to_value());
             }
             Value::Object(map)
-            },
+            }
         }
     }
 }
@@ -398,7 +473,17 @@ pub struct RCValueProvider{
     pub reference_store:Rc<RefCell<HashMap<String,Rc<Object>>>>,
     pub indexes:HashMap<String,String>,
 }
-
+#[derive(Debug)]
+pub struct JourneyError{
+    message:String
+}
+impl Error for JourneyError{
+}
+impl Display for JourneyError{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
 impl RCValueProvider {
     pub fn get_object_at_path(&self,var:String)->Option<Rc<Object>>{
         if var.contains('.'){
@@ -441,7 +526,7 @@ impl RCValueProvider {
         }
 
     }
-    pub fn create_object_at_path(&self,var:String,object:Rc<Object>){
+    pub fn create_object_at_path(&self,var:String,object:Rc<Object>)->Result<(),JourneyError>{
         if var.contains('.'){
             let (left,right)=break_on(var.clone(),'.').unwrap();
             let rc=self.get_object_at_path(left.clone());
@@ -450,9 +535,13 @@ impl RCValueProvider {
                     match &*rc_object {
                         Object::Object(obj)=>{
                             (**obj).borrow_mut().insert(right,object);
+                            Ok(())
                         },
                         _=>{
-                            unimplemented!()
+                            Err(JourneyError{
+                                message:format!("{} not an object",left.clone())
+                            })
+
                         }
                     }
                 },
@@ -469,23 +558,24 @@ impl RCValueProvider {
             if self.indexes.contains_key(&var.clone()){
                 let obj=self.get_object_at_path(self.indexes.get(&var.clone()).unwrap().clone()).unwrap().clone();
                 match &*obj {
-                    Object::Final(_)=>{
-                        unimplemented!()
-                    },
                     Object::List(lst)=>{
                         (**lst).borrow_mut().push(Rc::clone(&object));
+                        Ok(())
                     },
-                    Object::Object(_)=>{
-                        unimplemented!()
+                    _=>{
+                        Err(JourneyError{
+                            message:format!("{} not an object",var.clone())
+                        })
                     }
-
                 }
+            } else {
+                Err(JourneyError{
+                    message:format!("{} not found",var.clone())
+                })
             }
         }
 
     }
-
-
 
 }
 impl ValueProvider for RCValueProvider{

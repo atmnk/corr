@@ -13,7 +13,7 @@ use nom::error_position;
 use std::collections::HashMap;
 use crate::parser::{identifier, ws, var_type, function_scriplet, var_scriplet, long_lit, string_lit, null_lit, double_lit, boolean_lit};
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug,PartialEq,Clone)]
 pub struct Pair{
     key:String,
     value:Json
