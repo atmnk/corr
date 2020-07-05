@@ -92,7 +92,7 @@ fn producer(i: &[u8])-> IResult<&[u8], Box<Producer>>{
 }
 fn loop_scriplet(i: &[u8]) -> IResult<&[u8], TextProducer>{
     let fun = tuple((
-        ws(tag("<%")),
+        tag("<%"),
         ws(tag("for")),
         ws(tag("(")),
         ws(identifier),

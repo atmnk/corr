@@ -112,9 +112,9 @@ pub fn function_expression(i: &[u8]) -> IResult<&[u8], Function>{
 
 pub fn function_scriplet(i: &[u8]) -> IResult<&[u8], Function> {
     let fun = tuple((
-        ws(tag("{{")),
+        tag("{{"),
         ws(function_expression),
-        ws(tag("}}"))
+        tag("}}")
     ));
     let (i,(_,expr,_)) = fun(i)?;
     Ok((i,expr))
