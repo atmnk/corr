@@ -28,11 +28,27 @@ pub struct Multiply;
 pub struct Add;
 pub struct Either;
 pub struct LPad;
+pub struct Env;
+impl Func for Env{
+    fn eval(&self, args: Vec<Value>) -> Value {
+        if let Some(Value::String(var_name))=args.get(0){
+            if let Ok(var_value)=std::env::var(var_name.as_str()) {
+                Value::String(var_value)
+            } else {
+                Value::Null
+            }
+        } else {
+            Value::Null
+        }
+
+    }
+}
 impl Func for Either{
     fn eval(&self,args: Vec<Value>)->Value {
         args.choose(&mut rand::thread_rng()).unwrap().clone()
     }
 }
+
 impl Func for LPad{
     fn eval(&self,args: Vec<Value>)->Value {
         let val1=args.get(0).unwrap();
@@ -215,6 +231,7 @@ pub fn get_function(name:String)->Box<dyn Func>{
         "round"=>Box::new(Round),
         "either"=>Box::new(Either),
         "lpad"=>Box::new(LPad),
+        "env"=>Box::new(Env),
         _=>{unimplemented!()}
     }
 }

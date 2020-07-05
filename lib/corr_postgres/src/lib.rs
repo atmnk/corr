@@ -14,7 +14,9 @@ pub struct DBStep {
 }
 impl Executable for DBStep {
     fn execute(&self, runtime: &Environment) {
-        let mut client = &mut Client::connect(self.connection.fill(runtime).to_string().as_str(), NoTls).unwrap();
+        let conn_str=self.connection.fill(runtime).to_string();
+        println!("{}",conn_str);
+        let mut client = &mut Client::connect(conn_str.as_str(), NoTls).unwrap();
             let filled= self.query.fill(runtime).to_string();
             println!("{}",filled);
             client.execute(
@@ -72,7 +74,7 @@ mod tests{
     fn should_run_db_query() {
         let step= DBStep {
             query:parse("SELECT 'hello'::TEXT").unwrap(),
-            connection:parse("host=localhost user=postgres").unwrap(),
+            connection:parse("user=postgres host={{env(\"PG_HOST\")}}").unwrap(),
         };
         let mut runtime=Environment::new_rc(MockChannel);
         step.execute(&runtime);
