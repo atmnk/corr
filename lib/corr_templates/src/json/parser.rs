@@ -242,8 +242,8 @@ pub fn json<'a>(i: &[u8])->IResult<&[u8], Json>{
         map(dynamic_times_array, |jta|Json::TemplatedTimesDynamicArray(jta)),
         map(array, |val|Json::TemplatedStaticArray(val)),
         map(object, |map|Json::Object(map)),
-        map(function_scriplet, |fun|Json::Function(fun)),
-        map(var_scriplet, |var|Json::Variable(var)),
+        map(ws(function_scriplet), |fun|Json::Function(fun)),
+        map(ws(var_scriplet), |var|Json::Variable(var)),
     ))(i)
 }
 #[cfg(test)]
