@@ -18,6 +18,7 @@ use corr_templates::json::Json;
 use corr_templates::json::extractable::ExtractableJson;
 use corr_templates::parser::{variable_arg, variable_expression};
 use corr_templates::text::parser::text;
+use corr_postgres::DBStep;
 
 type ParserError<'a, T> = Result<(&'a [u8], T), nom::Err<(&'a [u8], nom::error::ErrorKind)>>;
 fn non_ascii(chr: u8) -> bool {
@@ -79,6 +80,7 @@ fn journey(i:&[u8])->IResult<&[u8],Journey> {
 }
 #[derive(Debug)]
 pub enum Argument{
+    Variable(Variable),
     Text(Text),
     Json(Json),
     ExtractableJson(ExtractableJson),
@@ -187,6 +189,10 @@ fn text_template_arg(i:&[u8])->IResult<&[u8],Argument> {
     map(preceded(tag("@text\""),terminated(corr_templates::text::parser::text,tag("\""))),|val|{
         Argument::Text(val)})(i)
 }
+pub fn variable_arg_arg(i:&[u8])->IResult<&[u8],Argument> {
+    let (i,var)=variable_expression(i)?;
+    Ok((i,Argument::Variable(var)))
+}
 fn text_template_text(i:&[u8])->IResult<&[u8],Text> {
     map(preceded(tag("@text\""),terminated(corr_templates::text::parser::text,tag("\""))),|val|{
         val})(i)
@@ -198,32 +204,6 @@ fn var_template_var(i:&[u8])->IResult<&[u8],Variable> {
 fn json_template_arg(i:&[u8])->IResult<&[u8],Argument> {
     map(preceded(tag("@json"),ws(corr_templates::json::parser::json)),|val|Argument::Json(val))(i)
 }
-// fn map_arg(i:&[u8])->IResult<&[u8],Argument> {
-//     let fun= tuple(
-//         (
-//             tuple((ws(tag("@map")),ws(tag("{")))),
-//             ws(tuple((
-//                 many0(terminated(tuple((
-//                     ws(string_lit),
-//                     ws(tag(":")),
-//                     ws(arg)
-//                 )),ws(tag(",")))),
-//                 opt(tuple((
-//                     ws(string_lit),
-//                     ws(tag(":")),
-//                     ws(arg))))))),
-//             ws(tag("}"))));
-//     let (i,(_,(pairs,opt_last_pair),_))=fun(i)?;
-//     let mut map=HashMap::new();
-//     for (key,_,value)  in pairs  {
-//         map.insert(String::from(key),value);
-//     }
-//     if let Some((key,_,value))=opt_last_pair{
-//         map.insert(String::from(key),value);
-//     }
-//
-//     return Ok((i,Argument::Map(map)));
-// }
 fn request_headers_arg(i:&[u8])->IResult<&[u8],Argument> {
     let fun= tuple(
         (
@@ -293,7 +273,8 @@ fn arg(i:&[u8])->IResult<&[u8],Argument> {
          ejson_template_arg,
          nil_arg,
          request_headers_arg,
-         response_headers_arg
+         response_headers_arg,
+        variable_arg_arg,
         )
     )(i)
 }
@@ -477,6 +458,36 @@ fn resolve_print(args:HashMap<String,Argument>)->Box<dyn Executable>{
         text
     })
 }
+fn resolve_insert(args:HashMap<String,Argument>)->Box<dyn Executable>{
+    let query=match args.get(&format!("query")) {
+        Option::Some(arg_val)=>{
+            match arg_val {
+                Argument::Text(val)=>{
+                    val.clone()
+                },
+                _=>{unimplemented!()}
+            }
+        }
+        _=>unimplemented!()
+
+    };
+    let connection=match args.get(&format!("connection")) {
+        Option::Some(arg_val)=>{
+            match arg_val {
+                Argument::Text(val)=>{
+                    val.clone()
+                },
+                _=>{unimplemented!()}
+            }
+        }
+        _=>unimplemented!()
+
+    };
+    Box::new(DBStep {
+        query,
+        connection
+    })
+}
 fn resolve(name:String,args:HashMap<String,Argument>)->Box<dyn Executable>{
     match &name[..] {
         "post"=>resolve_post(args),
@@ -485,6 +496,7 @@ fn resolve(name:String,args:HashMap<String,Argument>)->Box<dyn Executable>{
         "patch"=>resolve_patch(args),
         "delete"=>resolve_delete(args),
         "print"=>resolve_print(args),
+        "insert"=>resolve_insert(args),
         _=>unimplemented!()
     }
 }
@@ -668,8 +680,7 @@ mod tests{
         print(text:@text"Hello-{{i}}");
     };
     get(url:@text"https://atmnk-swapi.herokuapp.com/api/people",
-        response:@nil
-                       );
+        response:@nil);
 }"#.as_bytes()).unwrap();
         k.execute(&Environment::new_rc(MockProvider(vec![])))
     }

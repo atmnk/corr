@@ -7,6 +7,8 @@ extern crate nom;
 use corr_core::runtime::{Value, Environment, ValueProvider, Variable};
 use uuid::Uuid;
 use rand::Rng;
+use rand::seq::SliceRandom;
+
 pub trait Func{
     fn eval(&self,args:Vec<Value>)->Value;
 }
@@ -24,6 +26,41 @@ pub struct UUID;
 pub struct Concat;
 pub struct Multiply;
 pub struct Add;
+pub struct Either;
+pub struct LPad;
+impl Func for Either{
+    fn eval(&self,args: Vec<Value>)->Value {
+        args.choose(&mut rand::thread_rng()).unwrap().clone()
+    }
+}
+impl Func for LPad{
+    fn eval(&self,args: Vec<Value>)->Value {
+        let val1=args.get(0).unwrap();
+        let val2=args.get(1).unwrap();
+        let val3=if let Some(val3)=args.get(2){
+            val3.clone()
+        } else {
+            Value::String("0".to_string())
+        };
+        let padd_this=match val3 {
+            Value::String(str_val)=>str_val,
+            _=>"0".to_string()
+        };
+        let mut buffer="".to_string();
+        match val2 {
+            Value::Long(val)=>{
+                let initial= val1.to_string();
+                let size = (val - initial.len() as i64) as usize;
+                for i in 0..size {
+                    buffer.push_str(padd_this.as_str())
+                }
+                buffer.push_str(initial.as_str());
+                Value::String(buffer)
+            },
+            _=> val1.clone()
+        }
+    }
+}
 impl Func for Multiply{
     fn eval(&self,args: Vec<Value>)->Value {
         let mut res=1.0;
@@ -176,6 +213,8 @@ pub fn get_function(name:String)->Box<dyn Func>{
         "uuid"=>Box::new(UUID),
         "random"=>Box::new(Random),
         "round"=>Box::new(Round),
+        "either"=>Box::new(Either),
+        "lpad"=>Box::new(LPad),
         _=>{unimplemented!()}
     }
 }
