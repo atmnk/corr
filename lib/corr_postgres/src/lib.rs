@@ -74,7 +74,7 @@ mod tests{
     fn should_run_db_query() {
         let step= DBStep {
             query:parse("SELECT 'hello'::TEXT").unwrap(),
-            connection:parse("user=postgres host={{env(\"PG_HOST\")}}").unwrap(),
+            connection:parse("user=postgres host={{env(\"PG_HOST\",\"postgres\")}}").unwrap(),
         };
         let mut runtime=Environment::new_rc(MockChannel);
         step.execute(&runtime);

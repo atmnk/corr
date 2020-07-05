@@ -31,11 +31,16 @@ pub struct LPad;
 pub struct Env;
 impl Func for Env{
     fn eval(&self, args: Vec<Value>) -> Value {
+        let alt_value=if let Some(Value::String(value))=args.get(1){
+            Value::String(value.clone())
+        } else {
+            Value::Null
+        };
         if let Some(Value::String(var_name))=args.get(0){
             if let Ok(var_value)=std::env::var(var_name.as_str()) {
                 Value::String(var_value)
             } else {
-                Value::Null
+                alt_value
             }
         } else {
             Value::Null
