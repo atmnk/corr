@@ -7,8 +7,8 @@ on:
 
 jobs:
   build:
-    name: Build Binaries
-    runs-on: macos-latest
+    name: Test Commit
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:10.8
