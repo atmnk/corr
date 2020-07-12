@@ -695,4 +695,9 @@ mod tests{
         k.execute(&Environment::new_rc(MockProvider(vec![("many".to_string(),Value::Long(5))])))
     }
 
+    #[test]
+    fn should_parse_db_journey(){
+
+    }
+
 }
