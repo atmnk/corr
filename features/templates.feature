@@ -11,3 +11,13 @@ Feature: templates
     Given one
     When two
     Then three
+
+  @CORR-2 @OPEN
+  Scenario Outline: Something
+    Given he is "<nature>"
+    When he drives
+    Then he will be hit if "<nature>" is "calm"
+    Examples:
+      |nature     |
+      | calm      |
+      | passionate|
