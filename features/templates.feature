@@ -5,3 +5,9 @@ Feature: templates
     Given i provide template
     When i provide runtime for evaluation
     Then Template results in value
+
+  @CORR-1 @OPEN
+  Scenario: one two three
+    Given one
+    When two
+    Then three
