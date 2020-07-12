@@ -20,6 +20,32 @@ impl Extractable for Variable{
         runtime.save(self.clone(),val)
     }
 }
+fn luhn_from(num:i64,bias:i64)->String{
+    let mut pos_num = num;
+    let mut take = pos_num % 10;
+    let mut odd=true;
+    let mut sum = 0;
+    while(pos_num!=0 || take!=0){
+
+        let mut add=if(odd){
+            (((take*2)/10) + ((take*2)%10))
+        } else {
+            take
+        };
+        sum=sum+add;
+        odd = !odd;
+
+        pos_num = pos_num / 10;
+        take = pos_num % 10;
+    }
+    sum = 10-((sum+bias) % 10);
+    if(sum==10){
+        sum = 0
+    }
+    sum= sum + (num*10);
+    format!("{:010}", sum)
+}
+
 pub struct Round;
 pub struct Random;
 pub struct UUID;
@@ -29,6 +55,59 @@ pub struct Add;
 pub struct Either;
 pub struct LPad;
 pub struct Env;
+pub struct Luhn;
+pub struct FakeValues;
+use fake::faker::name::raw::*;
+use fake::faker::lorem::raw::*;
+use fake::faker::company::raw::*;
+use fake::faker::address::raw::*;
+use fake::locales::*;
+use fake::Fake;
+
+fn fake(fake_type:String)->Value{
+    match fake_type.as_str() {
+        "Name"=> Value::String(Name(EN).fake()),
+        "FirstName"=>Value::String(FirstName(EN).fake()),
+        "LastName"=>Value::String(LastName(EN).fake()),
+        "Title"=>Value::String(Title(EN).fake()),
+        "Suffix"=>Value::String(Suffix(EN).fake()),
+        "NameWithTitle"=>Value::String(NameWithTitle(EN).fake()),
+        "CompanySuffix"=>Value::String(CompanySuffix(EN).fake()),
+        "CompanyName"=>Value::String(CompanyName(EN).fake()),
+        "Profession"=>Value::String(Profession(EN).fake()),
+        "CityName"=>Value::String(CityName(EN).fake()),
+        "StreetName"=>Value::String(StreetName(EN).fake()),
+        "StateName"=>Value::String(StateName(EN).fake()),
+        "ZipCode"=>Value::String(ZipCode(EN).fake()),
+        _=>Value::Null
+    }
+}
+impl  Func for FakeValues {
+    fn eval(&self, args: Vec<Value>) -> Value {
+        let fake_type=if let Some(Value::String(value))=args.get(0){
+            value.clone()
+        } else {
+            "Name".to_string()
+        };
+        fake(fake_type)
+    }
+}
+impl Func for Luhn{
+    fn eval(&self, args: Vec<Value>) -> Value {
+        let from=if let Some(Value::Long(value))=args.get(0){
+            value.clone()
+        } else {
+            0
+        };
+        let bias=if let Some(Value::Long(value))=args.get(1){
+            value.clone()
+        } else {
+            0
+        };
+        Value::String(luhn_from(from,bias))
+
+    }
+}
 impl Func for Env{
     fn eval(&self, args: Vec<Value>) -> Value {
         let alt_value=if let Some(Value::String(value))=args.get(1){
@@ -237,6 +316,17 @@ pub fn get_function(name:String)->Box<dyn Func>{
         "either"=>Box::new(Either),
         "lpad"=>Box::new(LPad),
         "env"=>Box::new(Env),
+        "luhn"=>Box::new(Luhn),
+        "fake"=>Box::new(FakeValues),
         _=>{unimplemented!()}
     }
+}
+#[cfg(test)]
+mod tests{
+    use crate::{luhn_from};
+    #[test]
+    fn check_luhn(){
+        assert_eq!(luhn_from(113429602,24),"1134296023");
+    }
+
 }
