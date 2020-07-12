@@ -6,7 +6,7 @@ Feature: templates
     When i provide runtime for evaluation
     Then Template results in value
 
-  @CORR-1 @OPEN
+  @CORR-1 @CORR-2 @OPEN
   Scenario: one two three
     Given one
     When two
