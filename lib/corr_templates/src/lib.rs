@@ -57,6 +57,7 @@ pub struct LPad;
 pub struct Env;
 pub struct Luhn;
 pub struct FakeValues;
+pub struct SSTR;
 use fake::faker::name::raw::*;
 use fake::faker::lorem::raw::*;
 use fake::faker::company::raw::*;
@@ -90,6 +91,19 @@ impl  Func for FakeValues {
             "Name".to_string()
         };
         fake(fake_type)
+    }
+}
+impl  Func for SSTR {
+    fn eval(&self, args: Vec<Value>) -> Value {
+        let value=if let Some(value)=args.get(0){
+            value.clone()
+        } else {
+            Value::Null
+        };
+        match value{
+            Value::Null=>Value::String("null".to_string()),
+            _=>Value::String(format!("'{}'",value.clone().to_string().replace("'","''")))
+        }
     }
 }
 impl Func for Luhn{
@@ -318,6 +332,7 @@ pub fn get_function(name:String)->Box<dyn Func>{
         "env"=>Box::new(Env),
         "luhn"=>Box::new(Luhn),
         "fake"=>Box::new(FakeValues),
+        "sstr"=>Box::new(SSTR),
         _=>{unimplemented!()}
     }
 }
