@@ -1,9 +1,0 @@
-`create multiple categories`{
-    for(category:String in categories){
-        post(url:@text`http://localhost:8080/api/category`,
-            body:@json`{
-                "name":{{category}}
-            }`,
-            response:@nil);
-    };
-}
