@@ -24,7 +24,12 @@ pub trait Executable{
     async fn execute(&self,context:&Context);
 }
 pub struct Context{
-    pub user:Arc<Mutex<User>>
+    pub user:Arc<Mutex<Client>>
+}
+#[async_trait]
+pub trait Client:Send{
+    fn send(&self,output:Output);
+    async fn get_message(&mut self)->Input;
 }
 #[async_trait]
 impl IO for Context {

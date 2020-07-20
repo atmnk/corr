@@ -8,6 +8,7 @@ use warp::Filter;
 use warp::ws::WebSocket;
 use futures::{FutureExt, StreamExt};
 use crate::proto::{Output};
+use crate::journey::Client;
 
 /// Our global unique user id counter.
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);

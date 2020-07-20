@@ -4,7 +4,7 @@ use futures::stream::SplitStream;
 use futures::{StreamExt};
 use crate::proto::{Input, Output, StartInput};
 use crate::proto::Result;
-use crate::journey::{JourneyController, Journey, Context, IO, Executable};
+use crate::journey::{JourneyController, Journey, Context, IO, Executable, Client};
 use async_trait::async_trait;
 use crate::core::{DataType, Variable, Value};
 use std::sync::{Arc};
@@ -25,27 +25,31 @@ impl User {
             user_ws_rx
         }
     }
-    pub fn send(&self,output:Output){
+
+}
+#[async_trait]
+impl Client for User{
+    fn send(&self,output:Output){
         if let Err(_disconnected) = self.tx.send(Ok(Message::text(serde_json::to_string(&output).unwrap()))) {
 
         }
     }
-    pub async fn get_message(&mut self)->Input{
-            let mut ret=Input::Start(StartInput{filter:format!("hello")});
-            ret=if let Some(result) = self.user_ws_rx.next().await {
-                    let message = match result {
-                        Ok(msg) => msg,
-                        Err(e) => {
-                            unimplemented!()
-                        }
-                    };
-                    eprintln!("{:?}",message);
-                    let input:Input = serde_json::from_str(message.to_str().unwrap()).unwrap();
-                    eprintln!("Got Message{:?}",input);
-                    input
-                } else {
-                ret
+    async fn get_message(&mut self)->Input{
+        let mut ret=Input::Start(StartInput{filter:format!("hello")});
+        ret=if let Some(result) = self.user_ws_rx.next().await {
+            let message = match result {
+                Ok(msg) => msg,
+                Err(e) => {
+                    unimplemented!()
+                }
             };
+            eprintln!("{:?}",message);
+            let input:Input = serde_json::from_str(message.to_str().unwrap()).unwrap();
+            eprintln!("Got Message{:?}",input);
+            input
+        } else {
+            ret
+        };
         return ret;
     }
 }
