@@ -1,10 +1,15 @@
 export enum ApiActionType {
     Write = 'api/write',
     Read = 'api/read',
+    Wrote = 'api/wrote'
 }
 
 export type WriteApiAction = {
     type: ApiActionType.Write;
+    payload: Input;
+};
+export type WroteApiAction = {
+    type: ApiActionType.Wrote;
     payload: Input;
 };
 
@@ -14,9 +19,7 @@ export type ReadApiAction = {
     payload: Output;
 };
 
-
-
-export type ApiAction = WriteApiAction | ReadApiAction;
+export type ApiAction = WriteApiAction | ReadApiAction | WroteApiAction;
 
 export type Input = StartInput | ContinueInput;
 export enum InputType {
@@ -29,20 +32,33 @@ export type StartInput = {
 };
 export type ContinueInput = {
     type: InputType.Continue;
-    payload: { name:string,value:String};
+    payload: { name:string,value:String,dataType:DataType};
 };
 
-export type Output = KnowThatOutput | TellMeOutput;
+export type Output = KnowThatOutput | TellMeOutput | ConnectedOutput;
 export enum OutputType {
     KnowThat = 'knowThat',
     TellMe = 'tellMe',
+    Connected = 'connected'
 }
 export type KnowThatOutput = {
     type: OutputType.KnowThat;
-    payload: { phrase: string; };
+    payload: { message: string; };
+};
+export type ConnectedOutput = {
+    type: OutputType.Connected;
+    payload: { message: string; };
 };
 export type TellMeOutput = {
     type: OutputType.TellMe;
-    payload: { name:string,data_type:String};
+    payload: { name:string,dataType:DataType};
 };
+export type DataType  = {type : JourneyDataType};
+export enum JourneyDataType {
+    Long =  'long',
+    String = 'string',
+    Boolean = 'boolean',
+    Double = 'double'
+}
+    
 

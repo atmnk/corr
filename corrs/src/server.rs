@@ -68,7 +68,7 @@ impl Server {
             }
         }));
         let user = User::new(tx,user_ws_rx);
-        user.send(Output::new_know_that(format!("You are now connected to corrs server!!")));
+        user.send(Output::new_connected(format!("You are now connected to corrs server!!")));
         hub.start(user).await
     }
 }

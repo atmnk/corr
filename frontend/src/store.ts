@@ -5,10 +5,12 @@ import createSagaMiddleware from 'redux-saga';
 import { runnerSaga } from './runner/saga';
 import apiSaga from './wsapi/saga';
 import { composeWithDevTools } from 'redux-devtools-extension';
+import runnerReducer from './runner/reducer';
 export const history = createBrowserHistory();
 
 const rootReducer = combineReducers({
     router: connectRouter(history),
+    runner: runnerReducer
 });
 
 export type AppState = ReturnType<typeof rootReducer>;

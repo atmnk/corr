@@ -5,3 +5,4 @@ pub mod hub;
 pub mod proto;
 pub mod journey;
 pub mod core;
+pub mod template;

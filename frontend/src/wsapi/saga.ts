@@ -36,9 +36,9 @@ function* write(webSocket: WebSocket): Generator<StrictEffect> {
     while (true) {
         const action = (yield take(ApiActionType.Write)) as WriteApiAction;
         webSocket.send(JSON.stringify(action.payload));
+        yield put(apiActions.wrote(action.payload))
     }
 }
-
 export default function* apiSaga(): Generator<StrictEffect> {
     yield takeEvery(RunnerActionType.Connect, connectWebSocket);
 }

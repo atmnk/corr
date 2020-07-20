@@ -1,11 +1,11 @@
-import { InputType,StartInput, ContinueInput } from './types';
+import { InputType,StartInput, ContinueInput, DataType } from './types';
 
 function start(filter: string): StartInput {
     return { type: InputType.Start, payload: { filter } };
 }
 
-function continueWith(name:string, value: string): ContinueInput {
-    return { type: InputType.Continue, payload: { name,value } };
+function continueWith(name:string, value: string,dataType:DataType): ContinueInput {
+    return { type: InputType.Continue, payload: { name,value,dataType } };
 }
 
 const apiProto = {

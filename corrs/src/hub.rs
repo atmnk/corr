@@ -4,9 +4,13 @@ use futures::stream::SplitStream;
 use futures::{StreamExt};
 use crate::proto::{Input, Output, StartInput};
 use crate::proto::Result;
-use crate::journey::{JourneyController, Journey};
+use crate::journey::{JourneyController, Journey, Context, IO, Executable};
 use async_trait::async_trait;
-use crate::core::{Value, DataType};
+use crate::core::{DataType, Variable, Value};
+use std::sync::{Arc};
+use futures::lock::Mutex;
+use crate::journey::step::Step;
+use crate::journey::step::system::SystemStep;
 
 pub struct Hub{
 }
@@ -28,20 +32,19 @@ impl User {
     }
     pub async fn get_message(&mut self)->Input{
             let mut ret=Input::Start(StartInput{filter:format!("hello")});
-            loop{
-                if let Some(result) = self.user_ws_rx.next().await {
+            ret=if let Some(result) = self.user_ws_rx.next().await {
                     let message = match result {
                         Ok(msg) => msg,
                         Err(e) => {
-                            eprintln!("websocket error( {}", e);
-                            break;
+                            unimplemented!()
                         }
                     };
+                    eprintln!("{:?}",message);
                     let input:Input = serde_json::from_str(message.to_str().unwrap()).unwrap();
                     eprintln!("Got Message{:?}",input);
-                    ret=input;
-                    break;
-                }
+                    input
+                } else {
+                ret
             };
         return ret;
     }
@@ -51,49 +54,40 @@ impl Hub {
         Hub {
         }
     }
-    pub async fn start(&self,mut user:User) {
-        let message=user.get_message().await;
-        let filter =match message {
-            Input::Start(start_input)=>start_input.filter,
-            _=>format!("")
-        };
-        let mut user_journey_controller=UserJourneyContoller{
-            user
-        };
-        user_journey_controller.start(&vec![Journey{name:format!("Wonderfull")}],filter).await
-    }
-}
-struct UserJourneyContoller{
-    user:User
-}
-#[async_trait]
-impl JourneyController for UserJourneyContoller{
-    async fn write_message(&self, message: String) {
-        self.user.send(Output::new_know_that(message));
-    }
-
-    async fn start(&mut self,journies:&Vec<Journey>,_filter: String) {
-        self.user.send(Output::new_know_that(format!("Please Enter value between 0 to {}",journies.len()-1)));
-        self.user.send(Output::new_tell_me(format!("choice"),DataType::Long));
-        loop{
-            let message=self.user.get_message().await;
-            if let Some(var) =match message {
-                Input::Continue(continue_input)=>continue_input.convert(),
-                _=>unimplemented!()
-            }{
-                match &var.value {
-                    Value::Long(val)=>{
-                        self.user.send(Output::new_know_that(format!("Executing Journey {}",journies.get(val.clone()).unwrap().name)));
-                        self.execute(journies.get(val.clone()).unwrap().clone()).await;
-                        break;
-                    },
-                    _=>continue
-                }
-
-            }
+    pub async fn start(&self,user:User) {
+        let shared_user = Arc::new(Mutex::new(user));
+        loop {
+            let message=shared_user.lock().await.get_message().await;
+            let filter =match message {
+                Input::Start(start_input)=>start_input.filter,
+                _=>format!("")
+            };
+            let mut user_journey_controller=UserJourneyContoller{};
+            let context = Context {
+                user:shared_user.clone()
+            };
+            user_journey_controller.start(&vec![Journey{name:format!("Wonderfull"),steps:vec![Step::System(SystemStep::Print)]}],filter,context).await
         }
 
     }
-    async fn execute(&mut self,journey:Journey){
+}
+struct UserJourneyContoller;
+#[async_trait]
+impl JourneyController for UserJourneyContoller{
+    async fn start(&mut self,journies:&Vec<Journey>,_filter: String,context:Context) {
+        loop{
+            context.write(format!("Please Enter value between 0 to {}",journies.len()-1)).await;
+            let choice=context.read(Variable{
+                name:format!("choice"),
+                data_type:DataType::Long
+            }).await;
+            if let Value::Long(val) = choice.value.clone(){
+                if val < journies.len(){
+                    journies.get(val).unwrap().execute(&context).await;
+                } else {
+                    continue;
+                }
+            }
+        }
     }
 }

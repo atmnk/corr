@@ -1,23 +1,20 @@
-import { Box, Button, TextField } from '@material-ui/core';
-import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
+import { Box, Button, TextField, Typography } from '@material-ui/core';
 import React, {ChangeEvent, FormEvent, useState } from 'react';
 import runnerActions from './actions';
-import { useDispatch } from 'react-redux';
-
-const useStyles = makeStyles((theme: Theme) => createStyles({
-    connectButton: {
-        marginLeft: theme.spacing(1),
-    },
-}));
+import { useDispatch, useSelector } from 'react-redux';
+import InteractionList from './Interactions';
+import { AppState } from '../store';
+import { Redirect, useLocation } from 'react-router-dom';
 
 type RunnerScreenState = {
     value:string
 };
 
 const RunnerScreen: React.FC = () => {
-    const classes = useStyles();
     const [state, setState] = useState<RunnerScreenState>({ value: ''});
     const dispatch = useDispatch();
+    const {interactions} = useSelector((state:AppState)=>state.runner.journey??{interactions:[]})
+    const {name,dataType} = useSelector((state:AppState)=>state.runner.journey??{name:null,dataType:null})
     const handleValueChange = (event: ChangeEvent<HTMLInputElement>) => {
         const value = event.target.value;
         setState((prevState) => ({
@@ -25,21 +22,42 @@ const RunnerScreen: React.FC = () => {
             value
         }));
     };
-    const handleStartWith = (e: FormEvent) => {
+    const handleSend = (e: FormEvent) => {
         e.preventDefault();
-        dispatch(runnerActions.startWith(state.value));
+        if(interactions.length === 0){
+            dispatch(runnerActions.startWith(state.value));
+        } else {
+            dispatch(runnerActions.continueWith(name!!,state.value,dataType!!));
+        }
+        
     };
-    return (
-        <Box display="flex" flexDirection="column" textAlign="center" flexGrow={1} pt={4}>
+    const location = useLocation();
+    const {connectionMessage} = useSelector((state:AppState)=>state.runner)
+    return !!connectionMessage?
+     (
+            <Box display="flex" flexDirection="column" flexGrow={1} minHeight={0}>
+                <Box>
+                {/* <Typography variant="body1">{interaction.type}</Typography> */}
+                <Typography
+                    component="span"
+                    variant="body1"
+                    color="textSecondary"
+                >
+                    {connectionMessage??"You are not connected to server"}
+                </Typography>
+            </Box>
+            <Box display="flex" width="100%">
+                <InteractionList interactions={interactions}/>
+            </Box>
             <Box component="form" display="flex" justifyContent="center" alignItems="baseline"
                  mt={2}>
                 <TextField label="Filter" value={state.value} onChange={handleValueChange}/>
-                <Button className={classes.connectButton} variant="contained" color="primary" onClick={handleStartWith}>
+                <Button variant="contained" color="primary" onClick={handleSend}>
                     Start
                 </Button>
             </Box>
         </Box>
-    );
+    ):<Redirect to={{ pathname: '/', state: { from: location } }}/>;
 };
 
 export default RunnerScreen;
