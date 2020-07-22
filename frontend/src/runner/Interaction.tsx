@@ -22,6 +22,9 @@ const InteractionInfo: React.FC<InteractionProps> = ({ className, interaction }:
         case OutputType.TellMe:
             inner = <div>Please provide value for {interaction.payload.name} of type {interaction.payload.dataType.type} </div>;
             break;
+        case OutputType.Done:
+            inner = <div>{interaction.payload.message}</div>;
+            break;
     }
     return (
     <Box className={className} display="flex" p={1}>

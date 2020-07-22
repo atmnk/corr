@@ -1,8 +1,9 @@
 pub mod system;
 use serde::{Deserialize, Serialize};
-use crate::journey::{Executable, Context};
+use crate::journey::{Executable};
 use crate::journey::step::system::SystemStep;
 use async_trait::async_trait;
+use crate::core::Context;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Step{

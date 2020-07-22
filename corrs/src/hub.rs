@@ -2,15 +2,15 @@ use tokio::sync::{mpsc};
 use warp::ws::{Message, WebSocket};
 use futures::stream::SplitStream;
 use futures::{StreamExt};
-use crate::proto::{Input, Output, StartInput};
-use crate::proto::Result;
-use crate::journey::{JourneyController, Journey, Context, IO, Executable, Client};
+use corr_lib::core::proto::{Input, Output, StartInput};
+use corr_lib::core::proto::Result;
+use corr_lib::journey::{JourneyController, Journey, Executable};
 use async_trait::async_trait;
-use crate::core::{DataType, Variable, Value};
+use corr_lib::core::{DataType, Variable, Value, Client, Context, IO, ReferenceStore};
 use std::sync::{Arc};
 use futures::lock::Mutex;
-use crate::journey::step::Step;
-use crate::journey::step::system::SystemStep;
+use corr_lib::journey::step::Step;
+use corr_lib::journey::step::system::SystemStep;
 
 pub struct Hub{
 }
@@ -68,9 +68,11 @@ impl Hub {
             };
             let mut user_journey_controller=UserJourneyContoller{};
             let context = Context {
-                user:shared_user.clone()
+                user:shared_user.clone(),
+                store:ReferenceStore::new(),
             };
-            user_journey_controller.start(&vec![Journey{name:format!("Wonderfull"),steps:vec![Step::System(SystemStep::Print)]}],filter,context).await
+            user_journey_controller.start(&vec![Journey{name:format!("Wonderfull"),steps:vec![Step::System(SystemStep::Print)]}],filter,context).await;
+            shared_user.lock().await.send(Output::new_done("Done Executing Journey".to_string()));
         }
 
     }
@@ -79,7 +81,6 @@ struct UserJourneyContoller;
 #[async_trait]
 impl JourneyController for UserJourneyContoller{
     async fn start(&mut self,journies:&Vec<Journey>,_filter: String,context:Context) {
-        loop{
             context.write(format!("Please Enter value between 0 to {}",journies.len()-1)).await;
             let choice=context.read(Variable{
                 name:format!("choice"),
@@ -88,10 +89,7 @@ impl JourneyController for UserJourneyContoller{
             if let Value::Long(val) = choice.value.clone(){
                 if val < journies.len(){
                     journies.get(val).unwrap().execute(&context).await;
-                } else {
-                    continue;
                 }
             }
-        }
     }
 }

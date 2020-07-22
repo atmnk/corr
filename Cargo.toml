@@ -3,5 +3,6 @@ codegen-units = 4
 
 [workspace]
 members = [
-    "corrs"
+    "corrs",
+    "corr-lib"
 ]

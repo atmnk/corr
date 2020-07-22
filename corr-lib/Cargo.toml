@@ -1,8 +1,10 @@
 [package]
-name = "corrs"
-version = "0.0.1"
-authors = ["Atmaram Naik <naik.atmaram@gmail.com>"]
+name = "corr-lib"
+version = "0.0.18"
+authors = ["ATM <naik.atmaram@gmail.com>"]
 edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 serde = { version = "1.0.114", features = ["derive"] }
@@ -17,4 +19,3 @@ futures = "0.3.5"
 tokio = { version = "0.2.21", features = ["full"] }
 warp = "0.2.3"
 async-trait = "0.1.36"
-corr-lib={path="../corr-lib"}

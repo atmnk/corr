@@ -30,7 +30,9 @@ pub enum Output {
     #[serde(rename = "tellMe")]
     TellMe(TellMeOutput),
     #[serde(rename = "connected")]
-    Connected(ConnectedOutput)
+    Connected(ConnectedOutput),
+    #[serde(rename = "done")]
+    Done(DoneOutput)
 }
 impl Output{
     pub fn new_know_that(message:String)->Self{
@@ -41,6 +43,9 @@ impl Output{
     }
     pub fn new_connected(message:String)->Self{
         Output::Connected(ConnectedOutput{message})
+    }
+    pub fn new_done(message:String)->Self{
+        Output::Done(DoneOutput{message})
     }
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -63,6 +68,11 @@ impl ContinueInput {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KnowThatOutput {
+    pub message: String,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DoneOutput {
     pub message: String,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

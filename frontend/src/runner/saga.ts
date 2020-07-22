@@ -21,6 +21,9 @@ function* handleRead(action: ReadApiAction): Generator<StrictEffect> {
         case OutputType.KnowThat:
             yield put(runnerActions.gotMessage(action.payload))
             break;
+        case OutputType.Done:
+            yield put(runnerActions.gotMessage(action.payload))
+            break;
         case OutputType.TellMe:
             yield put(runnerActions.gotMessage(action.payload))
             break;

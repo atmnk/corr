@@ -44,8 +44,15 @@ export default function runnerReducer(
                             interactions:[...state.journey!!.interactions,action.payload.output]
                         }
                     };
-            }
-            
+                case OutputType.Done:
+                    return {
+                        ...state,
+                        journey: {
+                            ...state.journey!!,
+                            interactions:[...state.journey!!.interactions,action.payload.output]
+                        }
+                    };
+            }            
         case RunnerActionType.SentMessage:
             return {
                 ...state,

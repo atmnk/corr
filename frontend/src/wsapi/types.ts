@@ -35,14 +35,19 @@ export type ContinueInput = {
     payload: { name:string,value:String,dataType:DataType};
 };
 
-export type Output = KnowThatOutput | TellMeOutput | ConnectedOutput;
+export type Output = KnowThatOutput | TellMeOutput | ConnectedOutput | DoneOutput;
 export enum OutputType {
     KnowThat = 'knowThat',
     TellMe = 'tellMe',
-    Connected = 'connected'
+    Connected = 'connected',
+    Done = 'done'
 }
 export type KnowThatOutput = {
     type: OutputType.KnowThat;
+    payload: { message: string; };
+};
+export type DoneOutput = {
+    type: OutputType.Done;
     payload: { message: string; };
 };
 export type ConnectedOutput = {
