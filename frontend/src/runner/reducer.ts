@@ -3,7 +3,7 @@ import { OutputType } from "../wsapi/types";
 
 const initialState: RunnerState = {
     isConnected:false,
-    journey:null,
+    journies:[],
     connectionMessage:null
 };
 export default function runnerReducer(
@@ -22,53 +22,58 @@ export default function runnerReducer(
                 case OutputType.TellMe:
                     return {
                         ...state,
-                        journey: {
+                        journies:[...state.journies.slice(0,-1),{
+                            ...state.journies[state.journies.length-1],
                             name:action.payload.output.payload.name,
                             dataType:action.payload.output.payload.dataType,
-                            interactions:[...state.journey!!.interactions,action.payload.output]
-                        }
+                            interactions:[...state.journies[state.journies.length-1].interactions,action.payload.output]
+                        }]
                     };
                 case OutputType.KnowThat:
                     return {
                         ...state,
-                        journey: {
-                            ...state.journey!!,
-                            interactions:[...state.journey!!.interactions,action.payload.output]
-                        }
+                        journies:[...state.journies.slice(0,-1),{
+                            ...state.journies[state.journies.length-1],
+                            interactions:[...state.journies[state.journies.length-1].interactions,action.payload.output]
+                        }]
                     };
                 case OutputType.Connected:
                     return {
                         ...state,
-                        journey: {
-                            ...state.journey!!,
-                            interactions:[...state.journey!!.interactions,action.payload.output]
-                        }
+                        journies:[...state.journies.slice(0,-1),{
+                            ...state.journies[state.journies.length-1],
+                            interactions:[...state.journies[state.journies.length-1].interactions,action.payload.output]
+                        }]
                     };
                 case OutputType.Done:
                     return {
                         ...state,
-                        journey: {
-                            ...state.journey!!,
-                            interactions:[...state.journey!!.interactions,action.payload.output]
-                        }
+                        journies:[...state.journies.slice(0,-1),{
+                            ...state.journies[state.journies.length-1],
+                            interactions:[...state.journies[state.journies.length-1].interactions,action.payload.output]
+                        },{
+                            name:null,
+                            dataType:null,
+                            interactions:[]
+                        }]
                     };
             }            
         case RunnerActionType.SentMessage:
             return {
                 ...state,
-                journey: {
-                    ...state.journey!!,
-                    interactions:[...state.journey!!.interactions,action.payload.input]
-                }
+                journies:[...state.journies.slice(0,-1),{
+                    ...state.journies[state.journies.length-1],
+                    interactions:[...state.journies[state.journies.length-1].interactions,action.payload.input]
+                }]
             };
         case RunnerActionType.Started:
             return {
                 ...state,
-                journey: {
+                journies:[...state.journies,{
                     name:null,
                     dataType:null,
                     interactions:[]
-                }
+                }]
             };
     }
     return state;

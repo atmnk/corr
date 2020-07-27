@@ -13,8 +13,9 @@ type RunnerScreenState = {
 const RunnerScreen: React.FC = () => {
     const [state, setState] = useState<RunnerScreenState>({ value: ''});
     const dispatch = useDispatch();
-    const {interactions} = useSelector((state:AppState)=>state.runner.journey??{interactions:[]})
-    const {name,dataType} = useSelector((state:AppState)=>state.runner.journey??{name:null,dataType:null})
+    const {journies} = useSelector((state:AppState)=>state.runner)
+    const {name,dataType} = journies.length>0?journies[journies.length-1]:{name:null,dataType:null};
+    const interactions = journies.flatMap((j)=>j.interactions);
     const handleValueChange = (event: ChangeEvent<HTMLInputElement>) => {
         const value = event.target.value;
         setState((prevState) => ({
@@ -24,8 +25,9 @@ const RunnerScreen: React.FC = () => {
     };
     const handleSend = (e: FormEvent) => {
         e.preventDefault();
-        if(interactions.length === 0){
+        if(name == null){
             dispatch(runnerActions.startWith(state.value));
+            
         } else {
             dispatch(runnerActions.continueWith(name!!,state.value,dataType!!));
         }
@@ -33,6 +35,8 @@ const RunnerScreen: React.FC = () => {
     };
     const location = useLocation();
     const {connectionMessage} = useSelector((state:AppState)=>state.runner)
+    const action = name==null? "Start":"Send"
+    const placeholder = name==null? "Filter":"Value"
     return !!connectionMessage?
      (
             <Box display="flex" flexDirection="column" flexGrow={1} minHeight={0}>
@@ -51,9 +55,9 @@ const RunnerScreen: React.FC = () => {
             </Box>
             <Box component="form" display="flex" justifyContent="center" alignItems="baseline"
                  mt={2}>
-                <TextField label="Filter" value={state.value} onChange={handleValueChange}/>
+                <TextField label={placeholder} value={state.value} onChange={handleValueChange}/>
                 <Button variant="contained" color="primary" onClick={handleSend}>
-                    Start
+                    {action}
                 </Button>
             </Box>
         </Box>

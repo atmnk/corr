@@ -46,7 +46,7 @@ export type Journey = {
 export type RunnerState = {
     isConnected:boolean,
     connectionMessage:string | null,
-    journey:Journey | null
+    journies:Journey[]
 }
 export type RunnerAction = 
 ConnectRunnerAction

@@ -14,6 +14,16 @@ version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "async-recursion"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "proc-macro2 1.0.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 1.0.33 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -137,6 +147,7 @@ dependencies = [
 name = "corr-lib"
 version = "0.0.18"
 dependencies = [
+ "async-recursion 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-trait 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -155,6 +166,7 @@ dependencies = [
 name = "corrs"
 version = "0.0.1"
 dependencies = [
+ "async-recursion 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-trait 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "corr-lib 0.0.18",
@@ -1404,6 +1416,7 @@ dependencies = [
 [metadata]
 "checksum aho-corasick 0.7.13 (registry+https://github.com/rust-lang/crates.io-index)" = "043164d8ba5c4c3035fec9bbee8647c0261d788f3474306f93bb65901cae0e86"
 "checksum arc-swap 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)" = "4d25d88fd6b8041580a654f9d0c581a047baee2b3efee13275f2fc392fc75034"
+"checksum async-recursion 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e5444eec77a9ec2bfe4524139e09195862e981400c4358d3b760cae634e4c4ee"
 "checksum async-trait 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)" = "a265e3abeffdce30b2e26b7a11b222fe37c6067404001b434101457d0385eb92"
 "checksum atty 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)" = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
 "checksum autocfg 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "1d49d90015b3c36167a20fe2810c5cd875ad504b39cff3d4eae7977e6b7c1cb2"
