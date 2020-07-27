@@ -7,7 +7,7 @@ use crate::core::{IO, Context, Variable};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SystemStep{
     Print,
-    For(Variable,Variable,Box<SystemStep>),
+    For(Variable,Variable,Box<Step>),
     Collection(Vec<Step>)
 }
 #[async_trait]
@@ -24,7 +24,8 @@ impl Executable for SystemStep{
             }
             SystemStep::For(temp,on,inner)=>{
                 context.iterate(on.name.clone(),temp.name.clone(),async move |context|{
-                    inner.execute(&context).await
+                    inner.execute(&context).await;
+                    context
                 }).await
 
             }
@@ -39,8 +40,11 @@ mod tests{
     use futures::lock::Mutex;
     use crate::core::proto::{Input, Output};
     use async_trait::async_trait;
-    use crate::core::{Client, Context, ReferenceStore};
+    use crate::core::{Client, Context, ReferenceStore, Variable, DataType, HeapObject, Value};
     use crate::journey::Executable;
+    use crate::journey::step::Step;
+
+    static mut MESSAGES:Vec<String> = vec![];
 
     struct DummyUser;
 
@@ -50,24 +54,22 @@ mod tests{
         }
     }
 
-
-    #[tokio::test]
-    async fn should_execute_system_step(){
-        static mut message:Vec<String> = vec![];
-        #[async_trait]
-        impl Client for DummyUser{
-            fn send(&self, output: Output) {
-                if let Output::KnowThat(kto)=output{
-                    unsafe {
-                        message.push(kto.message);
-                    }
+    #[async_trait]
+    impl Client for DummyUser{
+        fn send(&self, output: Output) {
+            if let Output::KnowThat(kto)=output{
+                unsafe {
+                    MESSAGES.push(kto.message);
                 }
             }
-
-            async fn get_message(&mut self) -> Input {
-                unimplemented!()
-            }
         }
+
+        async fn get_message(&mut self) -> Input {
+            unimplemented!()
+        }
+    }
+    #[tokio::test]
+    async fn should_execute_system_step_print(){
         let step=SystemStep::Print;
         let context= Context {
             user:Arc::new(Mutex::new(DummyUser::new())),
@@ -75,7 +77,31 @@ mod tests{
         };
         step.execute(&context).await;
         unsafe {
-            assert_eq!(message.get(0).unwrap(),"Hello World")
+            assert_eq!(MESSAGES.get(0).unwrap(),"Hello World")
+        }
+
+    }
+    #[tokio::test]
+    async fn should_execute_system_step_for(){
+        let step=SystemStep::For(Variable{
+            name:"temp".to_string(),
+            data_type:DataType::Long,
+        },
+         Variable{
+             name:"on".to_string(),
+             data_type:DataType::String,
+         },
+            Box::new(Step::System(SystemStep::Print))
+        );
+        let context= Context {
+            user:Arc::new(Mutex::new(DummyUser::new())),
+            store:ReferenceStore::new()
+        };
+        context.store.set("on".to_string(),Arc::new(Mutex::new(HeapObject::List(vec![Arc::new(Mutex::new(HeapObject::Final(Value::Long(1)))),Arc::new(Mutex::new(HeapObject::Final(Value::Long(2))))])))).await;
+        step.execute(&context).await;
+        unsafe {
+            assert_eq!(MESSAGES.get(0).unwrap(),"Hello World");
+            assert_eq!(MESSAGES.get(1).unwrap(),"Hello World");
         }
 
     }
