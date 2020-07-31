@@ -1,10 +1,9 @@
 pub mod step;
-use serde::{Deserialize, Serialize};
 use crate::journey::step::Step;
 use crate::core::{Context, IO, Variable, DataType, Value};
 use async_trait::async_trait;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Journey{
     pub name:String,
     pub steps:Vec<Step>
@@ -32,7 +31,7 @@ pub async fn start(journies:&Vec<Journey>,_filter: String,context:Context) {
         context.write(format!("Please Enter value between 0 to {}",journies.len()-1)).await;
         let choice=context.read(Variable{
             name:format!("choice"),
-            data_type:DataType::Long
+            data_type:Option::Some(DataType::Long)
         }).await;
         if let Value::Long(val) = choice.value.clone(){
             if val < journies.len(){
@@ -51,23 +50,23 @@ pub async fn start(journies:&Vec<Journey>,_filter: String,context:Context) {
 
 #[cfg(test)]
 mod tests{
-    use crate::core::{Context, ReferenceStore, DataType};
+    use crate::core::{Context, DataType};
     use crate::core::proto::{Input, Output};
     use crate::journey::step::system::SystemStep;
     use std::sync::{Arc};
     use crate::journey::{Journey, start};
     use crate::journey::step::Step;
     use crate::core::tests::MockClient;
+    use crate::template::text::{Text, Block};
 
     #[tokio::test]
     async fn should_start_journey(){
-        let step=SystemStep::Print;
+        let step=SystemStep::Print(Text{
+            blocks:vec![Block::Final("Hello World".to_string())]
+        });
         let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] }];
         let user = Arc::new(     futures::lock::Mutex::new(MockClient::new(vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::Long)])));
-        let context= Context {
-            user: user.clone(),
-            store:ReferenceStore::new()
-        };
+        let context= Context::new(user.clone());
         start(&journes,"hello".to_string(),context).await;
         assert_eq!(user.lock().await.buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_know_that("Please Enter value between 0 to 0".to_string()));
         assert_eq!(user.lock().await.buffer.lock().unwrap().get(1).unwrap().clone(),Output::new_tell_me("choice".to_string(),DataType::Long));
@@ -77,13 +76,12 @@ mod tests{
     }
     #[tokio::test]
     async fn should_ask_for_choice_again_journey(){
-        let step=SystemStep::Print;
+        let step=SystemStep::Print(Text{
+            blocks:vec![Block::Final("Hello World".to_string())]
+        });
         let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] }];
         let user= Arc::new(futures::lock::Mutex::new(MockClient::new(vec![Input::new_continue("choice".to_string(),"3".to_string(),DataType::Long),Input::new_continue("choice".to_string(),"0".to_string(),DataType::Long)])));
-        let context= Context {
-            user: user.clone(),
-            store:ReferenceStore::new()
-        };
+        let context= Context::new(user.clone());
         start(&journes,"hello".to_string(),context).await;
             assert_eq!(user.lock().await.buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_know_that("Please Enter value between 0 to 0".to_string()));
             assert_eq!(user.lock().await.buffer.lock().unwrap().get(1).unwrap().clone(),Output::new_tell_me("choice".to_string(),DataType::Long));

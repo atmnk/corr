@@ -1,12 +1,12 @@
 use crate::journey::step::Step;
-use serde::{Deserialize, Serialize};
 use async_trait::async_trait;
 use crate::journey::{Executable};
 use crate::core::{IO, Context, Variable};
+use crate::template::text::{Text, Fillable};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum SystemStep{
-    Print,
+    Print(Text),
     For(Variable,Variable,Box<Step>),
     Collection(Vec<Step>)
 }
@@ -14,8 +14,8 @@ pub enum SystemStep{
 impl Executable for SystemStep{
     async fn execute(&self,context: &Context) {
         match self {
-            SystemStep::Print=>{
-                context.write(format!("Hello World")).await;
+            SystemStep::Print(txt)=>{
+                context.write(txt.fill(context).await).await;
             },
             SystemStep::Collection(steps)=>{
                 for step in steps {
@@ -26,7 +26,7 @@ impl Executable for SystemStep{
                 context.iterate(on.name.clone(),temp.name.clone(),async move |context|{
                     inner.execute(&context).await;
                     context
-                }).await
+                }).await;
 
             }
         }
@@ -40,9 +40,10 @@ mod tests{
     use futures::lock::Mutex;
     use crate::core::proto::{Input, Output};
     use async_trait::async_trait;
-    use crate::core::{Client, Context, ReferenceStore, Variable, DataType, HeapObject, Value};
+    use crate::core::{Client, Context, Variable, DataType, HeapObject, Value};
     use crate::journey::Executable;
     use crate::journey::step::Step;
+    use crate::template::text::{Text, Block};
 
     static mut MESSAGES:Vec<String> = vec![];
 
@@ -70,11 +71,10 @@ mod tests{
     }
     #[tokio::test]
     async fn should_execute_system_step_print(){
-        let step=SystemStep::Print;
-        let context= Context {
-            user:Arc::new(Mutex::new(DummyUser::new())),
-            store:ReferenceStore::new()
-        };
+        let step=SystemStep::Print(Text{
+            blocks:vec![Block::Final("Hello World".to_string())]
+        });
+        let context= Context::new(Arc::new(Mutex::new(DummyUser::new())));
         step.execute(&context).await;
         unsafe {
             assert_eq!(MESSAGES.get(0).unwrap(),"Hello World")
@@ -85,18 +85,16 @@ mod tests{
     async fn should_execute_system_step_for(){
         let step=SystemStep::For(Variable{
             name:"temp".to_string(),
-            data_type:DataType::Long,
+            data_type:Option::Some(DataType::Long),
         },
          Variable{
              name:"on".to_string(),
-             data_type:DataType::String,
+             data_type:Option::Some(DataType::String),
          },
-            Box::new(Step::System(SystemStep::Print))
-        );
-        let context= Context {
-            user:Arc::new(Mutex::new(DummyUser::new())),
-            store:ReferenceStore::new()
-        };
+            Box::new(Step::System(SystemStep::Print(Text{
+            blocks:vec![Block::Final("Hello World".to_string())]
+        }))));
+        let context= Context::new(Arc::new(Mutex::new(DummyUser::new())));
         context.store.set("on".to_string(),Arc::new(Mutex::new(HeapObject::List(vec![Arc::new(Mutex::new(HeapObject::Final(Value::Long(1)))),Arc::new(Mutex::new(HeapObject::Final(Value::Long(2))))])))).await;
         step.execute(&context).await;
         unsafe {

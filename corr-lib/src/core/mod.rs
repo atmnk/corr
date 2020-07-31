@@ -59,6 +59,15 @@ impl Value {
         }
 
     }
+    pub fn to_string(&self)->String{
+        match self {
+            Value::String(str)=>str.clone(),
+            Value::Null=>"null".to_string(),
+            Value::Long(lng)=>format!("{}",lng),
+            Value::Double(dbl)=>format!("{}",dbl),
+            Value::Boolean(bln)=>format!("{}",bln)
+        }
+    }
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -70,7 +79,7 @@ pub struct VariableValue{
 #[serde(rename_all = "camelCase")]
 pub struct Variable{
     pub name:String,
-    pub data_type:DataType
+    pub data_type:Option<DataType>
 }
 pub fn convert(name:String,value:String,data_type:DataType)->Option<VariableValue>{
     match data_type {
@@ -124,6 +133,7 @@ impl HeapObject{
 }
 #[derive(Debug, Clone)]
 pub struct ReferenceStore{
+    parent:Option<Box<ReferenceStore>>,
     references:Arc<Mutex<HashMap<String,Arc<Mutex<HeapObject>>>>>
 }
 pub fn break_on(path:String,chr:char)->Option<(String,String)>{
@@ -158,8 +168,9 @@ pub async fn get_value_from(path:String,heap_object_ref:Arc<Mutex<HeapObject>>)-
         _=> Option::None
     }
 }
+#[async_recursion]
 pub async fn set_value_at(path:String,heap_object_ref:Arc<Mutex<HeapObject>>,value:Arc<Mutex<HeapObject>>)->Option<Arc<Mutex<HeapObject>>>{
-    let ho = &*heap_object_ref.lock().await;
+    let ho = &mut *heap_object_ref.lock().await;
     match ho {
         HeapObject::Object(obj)=>{
             if let Some((left,right))=break_on(path.clone(),'.'){
@@ -169,7 +180,7 @@ pub async fn set_value_at(path:String,heap_object_ref:Arc<Mutex<HeapObject>>,val
                     Option::None
                 }
             } else {
-                obj.lock().await.insert(path.clone(),value.clone());
+                obj.insert(path.clone(),value.clone());
                 Option::Some(value)
             }
         },
@@ -179,31 +190,41 @@ pub async fn set_value_at(path:String,heap_object_ref:Arc<Mutex<HeapObject>>,val
 impl ReferenceStore{
     pub fn new()->Self{
         ReferenceStore{
+            parent:Option::None,
             references:Arc::new(Mutex::new(HashMap::new()))
         }
     }
     pub async fn from(rs:&ReferenceStore)->Self{
         return ReferenceStore{
+            parent:Option::Some(Box::new(rs.clone())),
             references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
         }
     }
+    #[async_recursion]
     pub async fn set(&self,path:String,value:Arc<Mutex<HeapObject>>){
         if let Some((left,right)) = break_on(path.clone(),'.'){
             if let Some(arc) = self.references.lock().await.get(&left){
                 set_value_at(right.clone(),arc.clone(),value).await;
             } else {
                 let obj = Arc::new(Mutex::new(HeapObject::Object(HashMap::new())));
-                set_value_at(right.clone(),obj,)
-                self.references.lock().await.insert(left.clone(),value);
+                set_value_at(right.clone(),obj.clone(),value).await;
+                self.references.lock().await.insert(left.clone(),obj);
             }
         } else {
-            self.references.lock().await.insert(path,value);
+            self.references.lock().await.insert(path.clone(),value.clone());
+            if let Some(parent) = &self.parent{
+                parent.set(path.clone(),value).await;
+            }
         }
 
     }
 
+    #[async_recursion]
     pub async fn delete(&self,path:String){
         self.references.lock().await.remove(&path);
+        if let Some(parent) = &self.parent{
+            parent.delete(path).await;
+        }
     }
 
     pub async fn get(&self,path:String)->Option<Arc<Mutex<HeapObject>>>{
@@ -234,10 +255,14 @@ impl IO for Context {
     async fn read(&self, variable: Variable)->VariableValue{
         let val = if let Some(val) = self.store.get(variable.name.clone()).await{
             let ref_val = &*val.lock().await;
-            if ref_val.is_of_type(variable.data_type.clone()){
-                ref_val.to_value()
+            if let Some(dt) = &variable.data_type {
+                if ref_val.is_of_type(dt.clone()){
+                    ref_val.to_value()
+                } else {
+                    Option::None
+                }
             } else {
-                Option::None
+                ref_val.to_value()
             }
         } else {
             Option::None
@@ -248,7 +273,12 @@ impl IO for Context {
                 value:o_val.clone()
             }
         } else {
-            self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),variable.data_type.clone()));
+            let dt=if let Some(dt)= &variable.data_type{
+                dt.clone()
+            } else {
+                DataType::String
+            };
+            self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone()));
             loop{
                 let message=self.user.lock().await.get_message().await;
                 if let Some(var) =match message {
@@ -263,13 +293,14 @@ impl IO for Context {
                     }
                 } else {
                     self.user.lock().await.send(Output::new_know_that(format!("Invalid Value")));
-                    self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),variable.data_type.clone()));
+                    self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone()));
                 }
             }
         }
 
     }
 }
+#[derive(Clone)]
 pub struct Context{
     pub user:Arc<Mutex<dyn Client>>,
     pub store:ReferenceStore,
@@ -290,27 +321,30 @@ impl Context {
     pub async fn delete(&self,path:String){
         self.store.delete(path).await;
     }
-    pub async fn iterate<F, Fut>(&self,path:String,temp:String,iterate_this: F)
+    pub async fn iterate<F, Fut,T>(&self,path:String,temp:String,iterate_this: F)->Vec<T>
         where
             F: FnOnce(Context) -> Fut + Copy,
-            Fut: Future<Output = Context>,
+            Fut: Future<Output = T>,
     {
+        let mut result=vec![];
         if let Some(arc) = self.store.get(path.clone()).await{
             if let HeapObject::List(lst) = &*arc.lock().await {
+
                 for l in lst {
                     let new_ct = Context::from(self).await;
                     new_ct.store.set(temp.clone(),l.clone()).await;
-                    iterate_this(new_ct).await;
+                    result.push(iterate_this(new_ct).await);
+                    self.store.delete(temp.clone()).await;
                 }
             }
         } else {
-            let val=self.read(Variable{name:format!("{}.length",path.clone()),data_type:DataType::Long}).await;
+            let val=self.read(Variable{name:format!("{}::length",path.clone()),data_type:Option::Some(DataType::Long)}).await;
             let mut vec:Vec<Arc<Mutex<HeapObject>>>=vec![];
             if let Value::Long(size)=&val.value{
                 for _i in 0..size.clone() {
                     let new_ct = Context::from(self).await;
-                    let new_ct=iterate_this(new_ct).await;
-                    if let Some(ho)=new_ct.store.get(temp.clone()).await{
+                    result.push(iterate_this(new_ct).await);
+                    if let Some(ho)=self.store.get(temp.clone()).await{
                         vec.push(ho.clone());
                     } else {
                         vec.push(Arc::new(Mutex::new(HeapObject::Final(Value::Null))))
@@ -318,7 +352,8 @@ impl Context {
                 }
                 self.store.set(path.clone(),Arc::new(Mutex::new(HeapObject::List(vec)))).await
             }
-        }
+        };
+        result
     }
 }
 #[async_trait]
@@ -368,26 +403,14 @@ pub mod tests{
 
     #[tokio::test]
     async fn should_iterate(){
-        let user=Arc::new(futures::lock::Mutex::new(MockClient::new(vec![Input::new_continue("names.length".to_ascii_lowercase(), "4".to_string(), DataType::Long)])));
+        let user=Arc::new(futures::lock::Mutex::new(MockClient::new(vec![Input::new_continue("names::length".to_ascii_lowercase(), "4".to_string(), DataType::Long)])));
         let context = Context::new(user.clone());
-        static mut COUNT1:i32 = 0;
-        static mut COUNT2:i32 = 0;
-        context.iterate("names".to_string(),"name".to_string(),async move |ct|{
-            unsafe {
-                COUNT1 = COUNT1 +1;
-            }
-            ct
+        let a=context.iterate("names".to_string(),"name".to_string(),async move |ct|{
         }).await;
-        context.iterate("names".to_string(),"name".to_string(),async move |ct|{
-            unsafe {
-                COUNT2 = COUNT2 +1;
-            }
-            ct
+        let b=context.iterate("names".to_string(),"name".to_string(),async move |ct|{
         }).await;
-        unsafe {
-            assert_eq!(COUNT1, 4);
-            assert_eq!(COUNT2, 4);
-            assert_eq!(user.lock().await.buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("names.length".to_string(),DataType::Long));
-        }
+        assert_eq!(a.len(), 4);
+        assert_eq!(b.len(), 4);
+        assert_eq!(user.lock().await.buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("names::length".to_string(),DataType::Long));
     }
 }
