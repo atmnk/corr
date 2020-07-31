@@ -334,7 +334,7 @@ impl Context {
                     let new_ct = Context::from(self).await;
                     new_ct.store.set(temp.clone(),l.clone()).await;
                     result.push(iterate_this(new_ct).await);
-                    self.store.delete(temp.clone()).await;
+                    self.delete(temp.clone()).await;
                 }
             }
         } else {
@@ -347,8 +347,9 @@ impl Context {
                     if let Some(ho)=self.store.get(temp.clone()).await{
                         vec.push(ho.clone());
                     } else {
-                        vec.push(Arc::new(Mutex::new(HeapObject::Final(Value::Null))))
+                        vec.push(Arc::new(Mutex::new(HeapObject::Final(Value::Null))));
                     }
+                    self.delete(temp.clone()).await;
                 }
                 self.store.set(path.clone(),Arc::new(Mutex::new(HeapObject::List(vec)))).await
             }
@@ -373,6 +374,13 @@ pub mod tests{
     use std::sync::{Arc, Mutex};
     use async_trait::async_trait;
 
+    impl Context{
+        pub fn mock(inputs:Vec<Input>,buffer:Arc<Mutex<Vec<Output>>>)->Self{
+            let user=Arc::new(futures::lock::Mutex::new(MockClient::new(inputs,buffer)));
+            Context::new(user)
+        }
+    }
+
     pub struct MockClient {
         cursur:usize,
         pub messages:Vec<Input>,
@@ -380,11 +388,11 @@ pub mod tests{
     }
 
     impl MockClient {
-        pub fn new(messages:Vec<Input>)->Self{
+        pub fn new(messages:Vec<Input>,buffer:Arc<Mutex<Vec<Output>>>)->Self{
             return MockClient {
                 cursur:0,
                 messages,
-                buffer:Arc::new(Mutex::new(vec![]))
+                buffer
             };
         }
     }
@@ -403,14 +411,14 @@ pub mod tests{
 
     #[tokio::test]
     async fn should_iterate(){
-        let user=Arc::new(futures::lock::Mutex::new(MockClient::new(vec![Input::new_continue("names::length".to_ascii_lowercase(), "4".to_string(), DataType::Long)])));
-        let context = Context::new(user.clone());
-        let a=context.iterate("names".to_string(),"name".to_string(),async move |ct|{
+        let buffer= Arc::new(Mutex::new(vec![]));
+        let context = Context::mock(vec![Input::new_continue("names::length".to_ascii_lowercase(), "4".to_string(), DataType::Long)],buffer.clone());
+        let a=context.iterate("names".to_string(),"name".to_string(),async move |_ct|{
         }).await;
-        let b=context.iterate("names".to_string(),"name".to_string(),async move |ct|{
+        let b=context.iterate("names".to_string(),"name".to_string(),async move |_ct|{
         }).await;
         assert_eq!(a.len(), 4);
         assert_eq!(b.len(), 4);
-        assert_eq!(user.lock().await.buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("names::length".to_string(),DataType::Long));
+        assert_eq!( buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("names::length".to_string(),DataType::Long));
     }
 }

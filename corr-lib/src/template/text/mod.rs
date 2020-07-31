@@ -1,5 +1,5 @@
 use crate::template::Expression;
-use crate::core::{Context, IO, Variable};
+use crate::core::{Context};
 use async_trait::async_trait;
 #[derive(Clone,Debug)]
 pub struct Text{
@@ -48,18 +48,7 @@ impl Fillable for Block{
 #[async_trait]
 impl Fillable for Expression{
     async fn fill(&self, context: &Context) -> String {
-        match self {
-            Expression::Variable(name,data_type)=>{
-                let vv=context.read(Variable{
-                    name:name.clone(),
-                    data_type:data_type.clone()
-                }).await;
-                vv.value.to_string()
-            },
-            Expression::Function(func,args)=>{
-                func.evaluate(args.clone(),context).to_string()
-            }
-        }
+        self.evaluate(context).await.to_string()
     }
 }
 #[async_trait]
@@ -78,5 +67,94 @@ impl Fillable for LoopBlock{
             }
             buffer
         }).await.join("")
+    }
+}
+#[cfg(test)]
+mod tests{
+    use crate::template::text::{LoopBlock, Block, Fillable, ExpressionBlock, Text};
+    use crate::core::proto::{Input, ContinueInput, Output, TellMeOutput};
+    use crate::core::{DataType, Context, Value};
+    use std::sync::{Arc, Mutex};
+    use crate::template::Expression;
+
+    #[tokio::test]
+    async fn should_fill_loop_block(){
+        let lb=LoopBlock{
+            on:"names".to_string(),
+            with:"name".to_string(),
+            inner:vec![Block::Final("hello".to_string())]
+        };
+        let input=vec![Input::Continue(ContinueInput{name:"names::length".to_string(),value:"3".to_string(),data_type:DataType::Long})];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=lb.fill(&context).await;
+        assert_eq!(result,"hellohellohello".to_string());
+        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"names::length".to_string(),data_type:DataType::Long}));
+    }
+    #[tokio::test]
+    async fn should_fill_expression_block(){
+        let eb=ExpressionBlock{
+            expression:Expression::Variable("name".to_string(),Option::Some(DataType::String))
+        };
+        let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=eb.fill(&context).await;
+        assert_eq!(result,"Atmaram".to_string());
+        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
+    }
+    #[tokio::test]
+    async fn should_fill_block(){
+        let b=Block::Final("hello".to_string());
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=b.fill(&context).await;
+        assert_eq!(result,"hello".to_string());
+    }
+    #[tokio::test]
+    async fn should_fill_text(){
+        let txt=Text{
+            blocks:vec![
+                Block::Final("Hello".to_string()),
+                Block::Expression(
+                    ExpressionBlock{
+                        expression:Expression::Constant(Value::String("World".to_string()))
+                    }
+                ),
+                Block::Loop(
+                    LoopBlock{
+                        on:"names".to_string(),
+                        with:"name".to_string(),
+                        inner:vec![Block::Expression(ExpressionBlock{ expression: Expression::Variable("name".to_string(),Option::Some(DataType::String))})]
+                    }
+                )
+            ]
+        };
+        let input=vec![
+            Input::Continue(ContinueInput{
+                name:"names::length".to_string(),
+                value:"2".to_string(),
+                data_type:DataType::Long
+            }),
+            Input::Continue(ContinueInput{
+                name:"name".to_string(),
+                value:"Atmaram".to_string(),
+                data_type:DataType::String
+            }),
+            Input::Continue(ContinueInput{
+                name:"name".to_string(),
+                value:"Atiksh".to_string(),
+                data_type:DataType::String
+            })
+        ];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=txt.fill(&context).await;
+        assert_eq!(result,"HelloWorldAtmaramAtiksh".to_string());
+        assert_eq!(buffer.lock().unwrap().len(),3);
+        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"names::length".to_string(),data_type:DataType::Long}));
+        assert_eq!(buffer.lock().unwrap().get(1).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
+        assert_eq!(buffer.lock().unwrap().get(2).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
     }
 }
