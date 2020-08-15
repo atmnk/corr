@@ -1,8 +1,10 @@
+pub mod parser;
 use crate::journey::step::Step;
 use async_trait::async_trait;
 use crate::journey::{Executable};
-use crate::core::{IO, Context, Variable};
+use crate::core::{Variable};
 use crate::template::text::{Text, Fillable};
+use crate::core::runtime::{Context, IO};
 
 #[derive(Debug, Clone)]
 pub enum SystemStep{
@@ -40,10 +42,11 @@ mod tests{
     use futures::lock::Mutex;
     use crate::core::proto::{Input, Output};
     use async_trait::async_trait;
-    use crate::core::{Client, Context, Variable, DataType, HeapObject, Value};
+    use crate::core::{ Variable, DataType, Value};
     use crate::journey::Executable;
     use crate::journey::step::Step;
     use crate::template::text::{Text, Block};
+    use crate::core::runtime::{Client, Context, HeapObject};
 
     static mut MESSAGES:Vec<String> = vec![];
 
@@ -85,7 +88,7 @@ mod tests{
     async fn should_execute_system_step_for(){
         let step=SystemStep::For(Variable{
             name:"temp".to_string(),
-            data_type:Option::Some(DataType::Long),
+            data_type:Option::Some(DataType::PositiveInteger),
         },
          Variable{
              name:"on".to_string(),
@@ -95,7 +98,7 @@ mod tests{
             blocks:vec![Block::Final("Hello World".to_string())]
         }))));
         let context= Context::new(Arc::new(Mutex::new(DummyUser::new())));
-        context.store.set("on".to_string(),Arc::new(Mutex::new(HeapObject::List(vec![Arc::new(Mutex::new(HeapObject::Final(Value::Long(1)))),Arc::new(Mutex::new(HeapObject::Final(Value::Long(2))))])))).await;
+        context.store.set("on".to_string(),Arc::new(Mutex::new(HeapObject::List(vec![Arc::new(Mutex::new(HeapObject::Final(Value::PositiveInteger(1)))),Arc::new(Mutex::new(HeapObject::Final(Value::PositiveInteger(2))))])))).await;
         step.execute(&context).await;
         unsafe {
             assert_eq!(MESSAGES.get(0).unwrap(),"Hello World");

@@ -6,12 +6,10 @@ use corr_lib::core::proto::{Input, Output, StartInput};
 use corr_lib::core::proto::Result;
 use corr_lib::journey::{Journey, start};
 use async_trait::async_trait;
-use corr_lib::core::{ Client, Context};
+use corr_lib::core::runtime::{ Client, Context};
 use std::sync::{Arc};
 use futures::lock::Mutex;
-use corr_lib::journey::step::Step;
-use corr_lib::journey::step::system::SystemStep;
-use corr_lib::template::text::Text;
+use corr_lib::parser::Parsable;
 
 pub struct Hub{
 }
@@ -68,9 +66,11 @@ impl Hub {
                 _=>format!("")
             };
             let context = Context::new(shared_user.clone());
-            start(&vec![Journey{name:format!("Wonderfull"),steps:vec![Step::System(SystemStep::Print(Text{
-                blocks:vec![]
-            }))]}],filter,context).await;
+            let (_,a )= Journey::parser(r#"hello(){
+                print(@text `<%for (a in b){%>Hello {{a:PositiveInteger}}<%}%>`);
+                print(@text `<%for (a in b){%>Hello {{a}}<%}%>`);
+            }"#).unwrap();
+            start(&vec![a],filter,context).await;
             shared_user.lock().await.send(Output::new_done("Done Executing Journey".to_string()));
         }
 

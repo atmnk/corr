@@ -60,7 +60,8 @@ export type TellMeOutput = {
 };
 export type DataType  = {type : JourneyDataType};
 export enum JourneyDataType {
-    Long =  'long',
+    PositiveInteger =  'positiveInteger',
+    Integer =  'integer',
     String = 'string',
     Boolean = 'boolean',
     Double = 'double'

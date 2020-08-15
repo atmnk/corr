@@ -4,3 +4,5 @@ extern crate lazy_static;
 pub mod journey;
 pub mod core;
 pub mod template;
+pub mod parser;
+extern crate nom;

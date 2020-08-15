@@ -1,26 +1,25 @@
-use crate::template::Expression;
-use crate::core::{Context};
+pub mod parser;
+use crate::template::{Expression, ExpressionBlock};
+use crate::core::runtime::{Context};
 use async_trait::async_trait;
-#[derive(Clone,Debug)]
+
+#[derive(Clone,Debug,PartialEq)]
 pub struct Text{
     pub blocks:Vec<Block>
 }
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum Block{
     Final(String),
     Expression(ExpressionBlock),
     Loop(LoopBlock)
 }
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq)]
 pub struct LoopBlock{
     on:String,
     with:String,
     inner:Vec<Block>
 }
-#[derive(Clone,Debug)]
-pub struct ExpressionBlock{
-    expression:Expression
-}
+
 #[async_trait]
 pub trait Fillable{
     async fn fill(&self,context:&Context)->String;
@@ -73,9 +72,10 @@ impl Fillable for LoopBlock{
 mod tests{
     use crate::template::text::{LoopBlock, Block, Fillable, ExpressionBlock, Text};
     use crate::core::proto::{Input, ContinueInput, Output, TellMeOutput};
-    use crate::core::{DataType, Context, Value};
+    use crate::core::{DataType, Value};
     use std::sync::{Arc, Mutex};
     use crate::template::Expression;
+    use crate::core::runtime::Context;
 
     #[tokio::test]
     async fn should_fill_loop_block(){
@@ -84,12 +84,12 @@ mod tests{
             with:"name".to_string(),
             inner:vec![Block::Final("hello".to_string())]
         };
-        let input=vec![Input::Continue(ContinueInput{name:"names::length".to_string(),value:"3".to_string(),data_type:DataType::Long})];
+        let input=vec![Input::Continue(ContinueInput{name:"names::length".to_string(),value:"3".to_string(),data_type:DataType::PositiveInteger})];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let result=lb.fill(&context).await;
         assert_eq!(result,"hellohellohello".to_string());
-        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"names::length".to_string(),data_type:DataType::Long}));
+        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"names::length".to_string(),data_type:DataType::PositiveInteger}));
     }
     #[tokio::test]
     async fn should_fill_expression_block(){
@@ -135,7 +135,7 @@ mod tests{
             Input::Continue(ContinueInput{
                 name:"names::length".to_string(),
                 value:"2".to_string(),
-                data_type:DataType::Long
+                data_type:DataType::PositiveInteger
             }),
             Input::Continue(ContinueInput{
                 name:"name".to_string(),
@@ -153,7 +153,7 @@ mod tests{
         let result=txt.fill(&context).await;
         assert_eq!(result,"HelloWorldAtmaramAtiksh".to_string());
         assert_eq!(buffer.lock().unwrap().len(),3);
-        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"names::length".to_string(),data_type:DataType::Long}));
+        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"names::length".to_string(),data_type:DataType::PositiveInteger}));
         assert_eq!(buffer.lock().unwrap().get(1).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
         assert_eq!(buffer.lock().unwrap().get(2).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
     }
