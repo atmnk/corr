@@ -19,7 +19,7 @@ impl Parsable for Journey{
     }
 }
 pub fn steps<'a>(input:&'a str) ->ParseResult<'a,Vec<Step>>{
-    many0(terminated(ws(Step::parser),char(';')))(input)
+    many0(ws(Step::parser))(input)
 }
 
 pub fn parse_name<'a>(input:&'a str) ->ParseResult<'a,String>{
@@ -31,20 +31,15 @@ pub fn parse_name<'a>(input:&'a str) ->ParseResult<'a,String>{
 }
 #[cfg(test)]
 mod tests{
-    use crate::journey::step::system::SystemStep;
     use crate::parser::Parsable;
-    use crate::template::text::{Text, Block};
-    use crate::parser::util::{assert_no_error,assert_if};
-    use crate::core::{Variable, Value};
-    use crate::journey::step::Step;
-    use crate::template::Expression;
-    use nom::lib::std::collections::HashMap;
+    use crate::parser::util::{assert_no_error};
     use crate::journey::Journey;
 
     #[tokio::test]
-    async fn should_parse_complex_journey(){
+    async fn should_parse_journey(){
         let j= r#"`Hello World`(){
             print fillable text `Hello <%concat("Atmaram","Naik")%>`;
+            print fillable text `Hello <%concat("Atmaram")%>`;
         }"#;
         assert_no_error(j
                         ,Journey::parser(j)

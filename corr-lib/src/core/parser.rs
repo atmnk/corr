@@ -5,7 +5,7 @@ use nom::sequence::{tuple, preceded, delimited};
 use nom::bytes::complete::{tag, escaped, is_not};
 use nom::character::complete::{char, anychar, digit1};
 use nom::branch::alt;
-use nom::multi::{many0, separated_list0};
+use nom::multi::{ separated_list0};
 use nom::lib::std::collections::HashMap;
 use crate::template::VariableReferenceName;
 
@@ -14,7 +14,7 @@ pub fn double<'a>(input: &'a str) -> ParseResult<'a, f64> {
     let (i,(sign,char_nums,_,mant_num)) = num(input)?;
     let str_num=format!("{}.{}",char_nums,mant_num);
     let f_num=str_num.parse::<f64>().unwrap();
-    if let Some(val)=sign{
+    if let Some(_)=sign{
         Ok((i,(f_num * -1.0)))
     } else {
         Ok((i,f_num))
@@ -94,12 +94,9 @@ impl Parsable for DataType {
 }
 #[cfg(test)]
 mod tests{
-    use crate::journey::step::system::SystemStep;
     use crate::parser::Parsable;
-    use crate::template::text::{Text, Block};
     use crate::parser::util::assert_if;
-    use crate::core::{Variable, Value};
-    use crate::journey::step::Step;
+    use crate::core::{Value};
     use nom::lib::std::collections::HashMap;
 
     #[tokio::test]
