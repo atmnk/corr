@@ -1,1 +1,0 @@
-Abc<%for (abc:String in pqr){%>{{abc}}<%}%>

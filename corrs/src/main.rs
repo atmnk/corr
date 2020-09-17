@@ -1,26 +1,25 @@
-extern crate corr_server_lib;
-extern crate clap;
-extern crate toml;
-use corr_server_lib::bootstrap_server;
-use clap::{App, Arg};
+#![feature(generators, generator_trait)]
+use corrs::server::Server;
+use clap::Clap;
 use std::fs::read_to_string;
-use corr_server_lib::Config;
+use corrs::Config;
 
-fn main() {
-    let matches= App::new("Correlate Server")
-        .version("0.0.2")
-        .author("Atmaram R. Naik <naik.atmaram@gmail.com>")
-        .about("Command line tool for api journey processor server")
-        .arg(Arg::with_name("config")
-            .short("c")
-            .long("config")
-            .default_value("/usr/local/etc/corrs.toml")
-            .help("Sets a custom config file")
-            .takes_value(true)
-        )
-        .get_matches();
-
-        let mut path = matches.value_of("config").unwrap();
-        let config : Config = toml::from_str(read_to_string(path).unwrap().as_str()).unwrap();
-        bootstrap_server(config);
+#[tokio::main]
+async fn main() {
+    env_logger::init();
+    let opts: Opts = Opts::parse();
+    let config:Config = toml::from_str(read_to_string(opts.config).unwrap().as_str()).unwrap();
+    let server = Server::new(opts.port);
+    println!("Running corrs on {}",opts.port);
+    server.run(config).await;
 }
+#[derive(Clap,Debug)]
+#[clap(version = "0.1.0", author = "Atmaram Naik <atmnk@yahoo.com>")]
+struct Opts {
+    #[clap(short, long, default_value = "8765")]
+    port:u16,
+
+    #[clap(short, long, default_value = "/usr/local/etc/corrs-cfg.toml")]
+    config:String
+}
+

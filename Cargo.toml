@@ -3,15 +3,6 @@ codegen-units = 4
 
 [workspace]
 members = [
-    "corr",
     "corrs",
-    "lib/corr_server_lib",
-    "lib/corr_client_lib",
-    "lib/corr_core",
-    "lib/corr_templates",
-    "lib/corr_journeys",
-    "lib/corr_websocket",
-    "lib/corr_rest",
-    "lib/corr_postgres",
-    "lib/corr_journeys_builder"
+    "corr-lib",
 ]
