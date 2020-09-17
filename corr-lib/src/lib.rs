@@ -14,5 +14,5 @@ pub fn get_journey_keywords<'a>()->Vec<&'a str>{
     return vec!["print","fillable","text"]
 }
 pub fn get_scriptlet_keywords<'a>()->Vec<&'a str>{
-    return vec!["add","sub","mul","div","concat"]
+    return vec!["add","sub","mul","div","concat","null","true","false"]
 }
