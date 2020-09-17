@@ -1,6 +1,6 @@
 [package]
 name = "corrs"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["Atmaram Naik <naik.atmaram@gmail.com>"]
 edition = "2018"
 
@@ -19,3 +19,6 @@ warp = "0.2.3"
 async-trait = "0.1.36"
 async-recursion = "0.3.1"
 corr-lib={path="../corr-lib"}
+clap = "3.0.0-beta.1"
+toml = "0.5.6"
+app_dirs2 =  "2.3.0"

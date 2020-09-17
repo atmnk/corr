@@ -5,5 +5,4 @@ codegen-units = 4
 members = [
     "corrs",
     "corr-lib",
-    "corr-lib-derive"
 ]

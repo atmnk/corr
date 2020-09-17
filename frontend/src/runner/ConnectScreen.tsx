@@ -16,7 +16,7 @@ type ConnectScreenState = {
 
 const ConnectScreen: React.FC = () => {
     const classes = useStyles();
-    const [state, setState] = useState<ConnectScreenState>({ server: ''});
+    const [state, setState] = useState<ConnectScreenState>({ server: window.location.host});
     const dispatch = useDispatch();
     const handleServerChange = (event: ChangeEvent<HTMLInputElement>) => {
         const server = event.target.value;

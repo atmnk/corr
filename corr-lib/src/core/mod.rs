@@ -1,9 +1,13 @@
 use serde::{Deserialize, Serialize};
+use nom::lib::std::collections::HashMap;
+use crate::core::runtime::HeapObject;
+use std::sync::Arc;
+use futures::lock::Mutex;
 
 pub mod proto;
 pub mod runtime;
 pub mod parser;
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone,Copy, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 pub enum DataType {
     String,
@@ -22,7 +26,9 @@ pub enum Value{
     Integer(i64),
     Boolean(bool),
     Double(f64),
-    Null
+    Null,
+    Array(Vec<Value>),
+    Map(HashMap<String,Value>)
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
@@ -149,6 +155,79 @@ impl Number{
     }
 }
 impl Value {
+    pub fn from_json_value(value:serde_json::Value)->Self{
+        match value {
+            serde_json::Value::Null=>Value::Null,
+            serde_json::Value::Bool(val)=>Value::Boolean(val),
+            serde_json::Value::String(string)=>Value::String(string),
+            serde_json::Value::Number(num)=>{
+                if num.is_i64() {
+                    Value::Integer(num.as_i64().unwrap())
+                } else if num.is_u64() {
+                    Value::PositiveInteger(num.as_u64().unwrap() as usize)
+                } else {
+                    Value::Double(num.as_f64().unwrap())
+                }
+            },
+            serde_json::Value::Object(map)=>{
+                let mut hm = HashMap::new();
+                for (key,value) in map {
+                    hm.insert(key.clone(),Value::from_json_value(value));
+                }
+                Value::Map(hm)
+            },
+            serde_json::Value::Array(vec_val)=>{
+                let mut new_vec = Vec::new();
+                for value in vec_val {
+                    new_vec.push(Value::from_json_value(value))
+                }
+                Value::Array(new_vec)
+            }
+        }
+    }
+    pub fn to_heap_object(&self)->HeapObject{
+        match self {
+            Value::Map(map)=>{
+                let mut hm=HashMap::new();
+                for (key,value) in map {
+                    hm.insert(key.clone(),Arc::new(Mutex::new(value.to_heap_object())));
+                }
+                HeapObject::Object(hm)
+            },
+            Value::Array(vec)=>{
+                let mut vec_val=Vec::new();
+                for value in vec {
+                    vec_val.push(Arc::new(Mutex::new(value.to_heap_object())));
+                }
+                HeapObject::List(vec_val)
+            },
+            _=>HeapObject::Final(self.clone())
+        }
+    }
+    pub fn to_json_value(&self)->serde_json::Value{
+        match self {
+            Value::Boolean(val)=>serde_json::Value::Bool(val.clone()),
+            Value::String(val)=>serde_json::Value::String(val.clone()),
+            Value::Double(val)=>serde_json::Value::Number(serde_json::Number::from_f64(val.clone()).unwrap()),
+            Value::Integer(val)=>serde_json::Value::Number(serde_json::Number::from(val.clone())),
+            Value::PositiveInteger(val)=>serde_json::Value::Number(serde_json::Number::from(val.clone())),
+            Value::Null=>serde_json::Value::Null,
+            Value::Map(hm)=>{
+                let mut new_hm = serde_json::Map::new();
+                for (key,value) in hm {
+                    new_hm.insert(key.clone(),value.to_json_value());
+                }
+                serde_json::Value::Object(new_hm)
+            },
+            Value::Array(arr)=>{
+                let mut new_vec = Vec::new();
+                for val in arr {
+                    new_vec.push(val.to_json_value())
+                }
+                serde_json::Value::Array(new_vec)
+            }
+        }
+    }
     pub fn to_number(&self)->Option<Number>{
         match self {
             Value::Double(dbl)=>Option::Some(Number::Double(dbl.clone())),
@@ -211,7 +290,8 @@ impl Value {
             Value::PositiveInteger(lng)=>format!("{}",lng),
             Value::Integer(lng)=>format!("{}",lng),
             Value::Double(dbl)=>format!("{}",dbl),
-            Value::Boolean(bln)=>format!("{}",bln)
+            Value::Boolean(bln)=>format!("{}",bln),
+            _=>unimplemented!()
         }
     }
 }
@@ -226,6 +306,14 @@ pub struct VariableValue{
 pub struct Variable{
     pub name:String,
     pub data_type:Option<DataType>
+}
+impl Variable{
+    pub fn new(name:&str)->Variable{
+        return Variable{
+            name:name.to_string(),
+            data_type:Option::None
+        }
+    }
 }
 pub fn convert(name:String,value:String,data_type:DataType)->Option<VariableValue>{
     match data_type {

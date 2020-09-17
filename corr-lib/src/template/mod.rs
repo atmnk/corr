@@ -1,3 +1,4 @@
+pub mod json;
 pub mod text;
 pub mod functions;
 pub mod parser;
@@ -13,15 +14,19 @@ pub enum Expression{
     Constant(Value)
 }
 #[derive(Clone,Debug,PartialEq)]
-pub struct ExpressionBlock{
-    expression:Expression
+pub struct VariableReferenceName {
+    pub parts:Vec<String>
 }
+// #[derive(Clone,Debug,PartialEq)]
+// pub struct ExpressionBlock{
+//     expression:Expression
+// }
 #[async_trait]
 pub trait Function:Debug+Sync+Send{
     async fn evaluate(&self,args:Vec<Expression>,context:&Context)->Value;
 }
 impl Expression{
-    async fn evaluate(&self, context: &Context) -> Value {
+    pub(crate) async fn evaluate(&self, context: &Context) -> Value {
         match self {
             Expression::Variable(name,data_type)=>{
                 let vv=context.read(Variable{

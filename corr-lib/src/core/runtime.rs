@@ -12,6 +12,7 @@ pub enum HeapObject{
     List(Vec<Arc<Mutex<HeapObject>>>),
     Object(HashMap<String,Arc<Mutex<HeapObject>>>)
 }
+
 impl HeapObject{
     pub fn from(val:Value)->Self{
         HeapObject::Final(val)
@@ -35,12 +36,26 @@ impl HeapObject{
             }
         }
     }
-    pub fn to_value(&self)->Option<Value>{
+    #[async_recursion]
+    pub async fn to_value(&self)->Value{
         match self {
             HeapObject::Final(val)=>{
-                Option::Some(val.clone())
+                val.clone()
             },
-            _=>{Option::None}
+            HeapObject::List(lst)=>{
+                let mut vec_val=Vec::new();
+                for val in lst {
+                    vec_val.push(val.lock().await.to_value().await)
+                }
+                return Value::Array(vec_val);
+            },
+            HeapObject::Object(obj)=>{
+                let mut hm_val=HashMap::new();
+                for (key,val) in obj {
+                    hm_val.insert(key.clone(),val.lock().await.to_value().await);
+                }
+                return Value::Map(hm_val);
+            }
         }
     }
 }
@@ -173,12 +188,12 @@ impl IO for Context {
             let ref_val = &*val.lock().await;
             if let Some(dt) = &variable.data_type {
                 if ref_val.is_of_type(dt.clone()){
-                    ref_val.to_value()
+                    Option::Some(ref_val.to_value().await)
                 } else {
                     Option::None
                 }
             } else {
-                ref_val.to_value()
+                Option::Some(ref_val.to_value().await)
             }
         } else {
             Option::None
@@ -228,6 +243,9 @@ impl Context {
             store:ReferenceStore::new()
         }
     }
+    pub async fn define(&self,var:String,value:Value){
+        self.store.set(var,Arc::new(Mutex::new(value.to_heap_object()))).await;
+    }
     pub async fn from(context:&Context)->Self{
         Context{
             user:context.user.clone(),
@@ -237,29 +255,53 @@ impl Context {
     pub async fn delete(&self,path:String){
         self.store.delete(path).await;
     }
+    pub async fn iterate_like<F, Fut,T,U>(&self, vec_val:Vec<U>, path:String, temp:String, iterate_this: F) ->Vec<T>
+        where
+            F: FnOnce(Context,usize,U) -> Fut + Copy,
+            Fut: Future<Output = T>,
+    {
+        let mut result=vec![];
+
+        let mut vec:Vec<Arc<Mutex<HeapObject>>>=vec![];
+        let mut i =0;
+        for value in vec_val {
+            let new_ct = Context::from(self).await;
+            result.push(iterate_this(new_ct,i,value).await);
+            if let Some(ho)=self.store.get(temp.clone()).await{
+                vec.push(ho.clone());
+            } else {
+                vec.push(Arc::new(Mutex::new(HeapObject::Final(Value::Null))));
+            }
+            self.delete(temp.clone()).await;
+            i = i + 1;
+        }
+        self.store.set(path.clone(),Arc::new(Mutex::new(HeapObject::List(vec)))).await;
+        result
+    }
     pub async fn iterate<F, Fut,T>(&self,path:String,temp:String,iterate_this: F)->Vec<T>
         where
-            F: FnOnce(Context) -> Fut + Copy,
+            F: FnOnce(Context,usize) -> Fut + Copy,
             Fut: Future<Output = T>,
     {
         let mut result=vec![];
         if let Some(arc) = self.store.get(path.clone()).await{
             if let HeapObject::List(lst) = &*arc.lock().await {
-
+                let mut i = 0;
                 for l in lst {
                     let new_ct = Context::from(self).await;
                     new_ct.store.set(temp.clone(),l.clone()).await;
-                    result.push(iterate_this(new_ct).await);
+                    result.push(iterate_this(new_ct,i).await);
                     self.delete(temp.clone()).await;
+                    i = i + 1;
                 }
             }
         } else {
             let val=self.read(Variable{name:format!("{}::length",path.clone()),data_type:Option::Some(DataType::PositiveInteger)}).await;
             let mut vec:Vec<Arc<Mutex<HeapObject>>>=vec![];
             if let Value::PositiveInteger(size)=&val.value{
-                for _i in 0..size.clone() {
+                for i in 0..size.clone() {
                     let new_ct = Context::from(self).await;
-                    result.push(iterate_this(new_ct).await);
+                    result.push(iterate_this(new_ct,i).await);
                     if let Some(ho)=self.store.get(temp.clone()).await{
                         vec.push(ho.clone());
                     } else {
@@ -332,9 +374,9 @@ pub mod tests{
     async fn should_iterate(){
         let buffer= Arc::new(Mutex::new(vec![]));
         let context = Context::mock(vec![Input::new_continue("names::length".to_ascii_lowercase(), "4".to_string(), DataType::PositiveInteger)],buffer.clone());
-        let a=context.iterate("names".to_string(),"name".to_string(),async move |_ct|{
+        let a=context.iterate("names".to_string(),"name".to_string(),async move |_ct,_i|{
         }).await;
-        let b=context.iterate("names".to_string(),"name".to_string(),async move |_ct|{
+        let b=context.iterate("names".to_string(),"name".to_string(),async move |_ct,_i|{
         }).await;
         assert_eq!(a.len(), 4);
         assert_eq!(b.len(), 4);
@@ -348,13 +390,13 @@ pub mod tests{
             Input::new_continue("name".to_ascii_lowercase(), "Atmaram".to_string(), DataType::String),
             Input::new_continue("name".to_ascii_lowercase(), "Atiksh".to_string(), DataType::String)
         ],buffer.clone());
-        let a=context.iterate("names".to_string(),"name".to_string(),async move |ct|{
+        let a=context.iterate("names".to_string(),"name".to_string(),async move |ct,i|{
             ct.read(Variable{
                 name:"name".to_string(),
                 data_type:Option::Some(DataType::String)
             }).await
         }).await;
-        let b=context.iterate("names".to_string(),"name".to_string(),async move |ct|{
+        let b=context.iterate("names".to_string(),"name".to_string(),async move |ct,i|{
             ct.read(Variable{
                 name:"name".to_string(),
                 data_type:Option::Some(DataType::String)

@@ -9,8 +9,11 @@ use async_trait::async_trait;
 use corr_lib::core::runtime::{ Client, Context};
 use std::sync::{Arc};
 use futures::lock::Mutex;
-use corr_lib::parser::Parsable;
-
+use corr_lib::parser::{Parsable, readable_error, result_option};
+use app_dirs2::{app_root, AppDataType, AppInfo};
+use std::fs::File;
+use std::io::Read;
+const APP_INFO: AppInfo = AppInfo{name: "corrs", author: "Atmaram Naik"};
 pub struct Hub{
 }
 pub struct User {
@@ -66,15 +69,41 @@ impl Hub {
                 _=>format!("")
             };
             let context = Context::new(shared_user.clone());
-            let (_,a )= Journey::parser(r#"hello(){
-                print(@text `<%for (a in b){%>Hello {{a:PositiveInteger}}<%}%>`);
-                print(@text `<%for (a in b){%>Hello {{a}}<%}%>`);
-            }"#).unwrap();
-            start(&vec![a],filter,context).await;
+            let journies=get_journies();
+            start(&journies,filter,context).await;
             shared_user.lock().await.send(Output::new_done("Done Executing Journey".to_string()));
         }
 
     }
 }
+pub fn get_journies()->Vec<Journey>{
+    let mut journeys=Vec::new();
+    let app_path=app_root(AppDataType::UserConfig, &APP_INFO).unwrap();
+    let path=app_path.join("journeys");
+    for dir_entry in std::fs::read_dir(path).unwrap(){
+        let dir_entry=dir_entry.unwrap().path();
+        if dir_entry.is_file() {
+            if let Some(extention) = dir_entry.extension() {
+                match extention.to_str() {
+                    Some("journey") => {
+                        println!("reading from file {:?}",dir_entry);
+                        let ctc=File::open(dir_entry).unwrap();
+                        if let Some(journey)=read_journey_from_file(ctc){
+                            journeys.push(journey);
+                        }
+                    },
+                    _=>{}
+                }
+            }
 
+        }
+    }
+    return journeys;
+}
+pub fn read_journey_from_file(mut file:File)->Option<Journey>{
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+    result_option(contents.as_str(),Journey::parser(contents.as_str()))
+
+}
 

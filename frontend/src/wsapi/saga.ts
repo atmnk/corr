@@ -3,7 +3,7 @@ import { eventChannel, EventChannel } from 'redux-saga';
 import config from '../config';
 import apiActions from './actions';
 import { ApiActionType, Output, WriteApiAction } from './types';
-import { RunnerActionType } from '../runner/types';
+import {ConnectRunnerAction, RunnerActionType} from '../runner/types';
 
 function createWebSocketChannel(webSocket: WebSocket): EventChannel<Output> {
     return eventChannel<Output>((emit) => {
@@ -17,8 +17,8 @@ function createWebSocketChannel(webSocket: WebSocket): EventChannel<Output> {
     });
 }
 
-function* connectWebSocket(): Generator<StrictEffect> {
-    const webSocket = new WebSocket(config.webSocketUrl);
+function* connectWebSocket(action:ConnectRunnerAction): Generator<StrictEffect> {
+    const webSocket = new WebSocket("ws://"+action.payload.server+"/api");
     console.log("Connected to channel");
     const webSocketChannel = (yield call(createWebSocketChannel, webSocket)) as EventChannel<Output>;
     yield fork(read, webSocketChannel);

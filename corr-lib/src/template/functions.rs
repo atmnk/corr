@@ -2,6 +2,10 @@ use crate::template::{Function, Expression};
 use crate::core::{runtime::Context, Value, Number};
 use async_trait::async_trait;
 use std::sync::Arc;
+use std::fs::File;
+use std::io::BufReader;
+use crate::template::text::Fillable;
+
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Concat;
@@ -105,6 +109,29 @@ impl Function for Divide{
     }
 }
 
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct FromJson;
+
+#[async_trait]
+impl Function for FromJson{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Ok(file) = File::open(args.get(0).unwrap().fill(context).await){
+            let reader = BufReader::new(file);
+            let file_contents= serde_json::from_reader(reader);
+            // Read the JSON contents of the file as an instance of `User`.
+            if let Ok(value) = file_contents{
+                Value::from_json_value(value)
+            } else {
+                Value::Null
+            }
+
+        } else {
+            Value::Null
+        }
+
+    }
+}
 pub fn get_function(name:&str)->Arc<dyn Function>{
     match name {
         "add"=>{
@@ -121,6 +148,9 @@ pub fn get_function(name:&str)->Arc<dyn Function>{
         },
         "concat"=>{
             Arc::new(Concat{})
+        },
+        "from_json"=>{
+            Arc::new(FromJson{})
         }
         _=>Arc::new(Concat{})
     }

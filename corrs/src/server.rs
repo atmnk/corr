@@ -9,6 +9,7 @@ use warp::ws::WebSocket;
 use futures::{FutureExt, StreamExt};
 use corr_lib::core::proto::{Output};
 use corr_lib::core::runtime::Client;
+use crate::Config;
 
 /// Our global unique user id counter.
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
@@ -23,10 +24,10 @@ impl Server {
             hub:Arc::new(Hub::new())
         }
     }
-    pub async fn run(&self) {
+    pub async fn run(&self,config:Config) {
         let hub = self.hub.clone();
 
-        let runner = warp::path("runner")
+        let runner = warp::path("api")
             .and(warp::ws())
             .and(warp::any().map(move || hub.clone()))
             .map(
@@ -39,13 +40,19 @@ impl Server {
                 },
             );
 
+        let web = warp::path::end()
+            .and(warp::fs::dir(config.wroot.clone()));
+        let web_runner = warp::path("runner")
+            .and(warp::fs::dir(config.wroot.clone()));
+        let site=runner.or(web).or(web_runner);
+
         let shutdown = async {
             tokio::signal::ctrl_c()
                 .await
                 .expect("failed to install CTRL+C signal handler");
         };
         let (_, serving) =
-            warp::serve(runner).bind_with_graceful_shutdown(([127, 0, 0, 1], self.port), shutdown);
+            warp::serve(site).bind_with_graceful_shutdown(([127, 0, 0, 1], self.port), shutdown);
 
 
         tokio::select! {
