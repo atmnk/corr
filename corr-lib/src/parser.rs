@@ -4,7 +4,7 @@ use nom::bytes::complete::{take_while, tag, escaped_transform, is_not};
 use nom::sequence::{preceded, terminated, pair};
 use nom::combinator::{map, verify, recognize, opt};
 use nom::branch::alt;
-use nom::multi::{many0, many0_count};
+use nom::multi::{ many0_count};
 use nom::character::complete::{alphanumeric1, alpha1, char};
 use crate::core::parser::boolean;
 use nom::error::convert_error;
@@ -90,7 +90,7 @@ pub mod util{
 mod tests{
 
 
-    use crate::parser::{parse, ParseResult};
+    use crate::parser::{parse};
     use nom::error::{convert_error};
 
     #[test]

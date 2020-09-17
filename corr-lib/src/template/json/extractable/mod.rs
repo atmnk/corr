@@ -1,7 +1,6 @@
 pub mod parser;
 use crate::core::{Variable, Value};
-use crate::template::Expression;
-use crate::core::runtime::{Context, IO};
+use crate::core::runtime::{Context};
 use async_trait::async_trait;
 #[derive(Clone,Debug,PartialEq)]
 pub enum EJson{
@@ -40,7 +39,8 @@ impl Extractable for EJson{
                     let mut i = 0 ;
                     for value in arr {
                         if let Some(val)=vec_val.get(i){
-                            value.extract_from(context,val.clone()).await
+                            value.extract_from(context,val.clone()).await;
+                            i = i + 1;
                         }
                     }
                 };
@@ -48,7 +48,7 @@ impl Extractable for EJson{
             },
             EJson::DynamicArray(with,on,inner)=>{
                 if let serde_json::Value::Array(vec_val)=value{
-                    context.iterate_like(vec_val, on.name.clone(), with.name.clone(), async move |context, i, val|{
+                    context.iterate_like(vec_val, on.name.clone(), with.name.clone(), async move |context, _, val|{
                         inner.extract_from(&context,val).await;
                     }).await;
                 };

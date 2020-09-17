@@ -1,14 +1,13 @@
 use nom::bytes::complete::{ is_not, escaped_transform, tag};
 use nom::character::complete::{char};
-use nom::combinator::{map, opt};
+use nom::combinator::{map};
 use nom::sequence::{tuple, terminated, preceded};
 use std::str;
 use nom::branch::alt;
 use nom::multi::{many0};
 use crate::template::text::{Text, Block, Scriplet};
-use crate::parser::{Parsable, ParseResult, ws, sp};
+use crate::parser::{Parsable, ParseResult, ws};
 use crate::template::{Expression};
-use crate::core::Variable;
 
 impl Parsable for Scriplet{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -75,12 +74,50 @@ pub fn text_block<'a>(input:&'a str) ->ParseResult<'a,String>{
 
 #[cfg(test)]
 mod tests{
+    use crate::template::text::{Text, Block, Scriplet};
     use crate::parser::util::assert_if;
-    use crate::template::text::{Text, Block};
-    use crate::parser::{Parsable, ParseResult};
-    use crate::template::text::parser::{text_block};
-    use nom::error::convert_error;
-    use crate::core::Variable;
+    use crate::parser::Parsable;
+    use crate::template::Expression;
+    use crate::core::DataType;
+    use crate::template::text::parser::text_block;
+
+    #[test]
+    fn should_parse_text_with_scriptlet_and_text(){
+        let text=r#"fillable text `Hello <%name%>`"#;
+        let a=Text::parser(text);
+        assert_if(text,a,Text{
+            blocks:vec![
+                Block::Text("Hello ".to_string()),
+                Block::Scriplet(Scriplet::Expression(Expression::Variable("name".to_string(),Option::None)))
+            ]
+        })
+    }
+    #[test]
+    fn should_parse_text_block_with_escaped_back_tick(){
+        let text=r#"Atmaram\`Hello"#;
+        let a=text_block(text);
+        assert_if(text,a,r#"Atmaram`Hello"#.to_string())
+    }
+    #[test]
+    fn should_parse_text_block_of_text(){
+        let text=r#"Atmaram"#;
+        let a=Block::parser(text);
+        assert_if(text,a,Block::Text(r#"Atmaram"#.to_string()))
+    }
+    #[test]
+    fn should_parse_scriplet_block_of_text(){
+        let text=r#"<%name%>"#;
+        let a=Block::parser(text);
+        assert_if(text,a,Block::Scriplet(Scriplet::Expression(Expression::Variable("name".to_string(),Option::None))))
+    }
+
+    #[test]
+    fn should_parse_scriplet_with_expression(){
+        let text=r#"<%name:String%>"#;
+        let a=Scriplet::parser(text);
+        assert_if(text,a,Scriplet::Expression(Expression::Variable("name".to_string(),Option::Some(DataType::String))))
+    }
+    // use crate::parser::util::assert_if;
 
     // #[test]
     // fn should_parse_text(){

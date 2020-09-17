@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use corr_lib::core::runtime::{ Client, Context};
 use std::sync::{Arc};
 use futures::lock::Mutex;
-use corr_lib::parser::{Parsable, readable_error, result_option};
+use corr_lib::parser::{Parsable, result_option};
 use app_dirs2::{app_root, AppDataType, AppInfo};
 use std::fs::File;
 use std::io::Read;

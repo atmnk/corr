@@ -70,14 +70,13 @@ mod tests{
     use std::sync::{Arc, Mutex};
     use crate::journey::{Journey, start};
     use crate::journey::step::Step;
-    use crate::template::text::{Text, Block};
     use crate::core::runtime::Context;
     use crate::parser::Parsable;
 
     #[tokio::test]
     async fn should_start_journey(){
         let text = r#"print fillable text `Hello World`;"#;
-        let (i,step)=SystemStep::parser(text).unwrap();
+        let (_,step)=SystemStep::parser(text).unwrap();
         let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] }];
         let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
         let buffer = Arc::new(Mutex::new(vec![]));
@@ -94,7 +93,7 @@ mod tests{
     #[tokio::test]
     async fn should_ask_for_choice_again_journey(){
         let text = r#"print fillable text `Hello World`;"#;
-        let (i,step)=SystemStep::parser(text).unwrap();
+        let (_,step)=SystemStep::parser(text).unwrap();
         let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] }];
         let input = vec![Input::new_continue("choice".to_string(),"3".to_string(),DataType::PositiveInteger),Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
         let buffer = Arc::new(Mutex::new(vec![]));

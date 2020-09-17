@@ -3,14 +3,25 @@ use nom::combinator::map;
 use crate::parser::ParseResult;
 use crate::journey::step::system::SystemStep;
 use crate::parser::Parsable;
-use nom::branch::alt;
-use crate::journey::step::rest::RestStep;
 
 impl Parsable for Step{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        alt((
-                map(SystemStep::parser,Step::System),
-                map(RestStep::parser,Step::Rest)
-        ))(input)
+                map(SystemStep::parser,Step::System)(input)
+    }
+}
+#[cfg(test)]
+mod tests{
+    use crate::parser::Parsable;
+    use crate::parser::util::{assert_no_error};
+    use crate::journey::step::Step;
+
+    #[tokio::test]
+    async fn should_parse_step_with_system_step(){
+        let j= r#"
+            print fillable text `Hello <%concat("Atmaram","Naik")%>`;
+        "#;
+        assert_no_error(j
+                        ,Step::parser(j)
+        )
     }
 }

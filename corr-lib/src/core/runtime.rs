@@ -390,13 +390,13 @@ pub mod tests{
             Input::new_continue("name".to_ascii_lowercase(), "Atmaram".to_string(), DataType::String),
             Input::new_continue("name".to_ascii_lowercase(), "Atiksh".to_string(), DataType::String)
         ],buffer.clone());
-        let a=context.iterate("names".to_string(),"name".to_string(),async move |ct,i|{
+        let a=context.iterate("names".to_string(),"name".to_string(),async move |ct,_|{
             ct.read(Variable{
                 name:"name".to_string(),
                 data_type:Option::Some(DataType::String)
             }).await
         }).await;
-        let b=context.iterate("names".to_string(),"name".to_string(),async move |ct,i|{
+        let b=context.iterate("names".to_string(),"name".to_string(),async move |ct,_|{
             ct.read(Variable{
                 name:"name".to_string(),
                 data_type:Option::Some(DataType::String)

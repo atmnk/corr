@@ -58,18 +58,11 @@ impl Parsable for Json{
 
 #[cfg(test)]
 mod tests{
-    use crate::parser::util::{assert_if,assert_no_error};
+    use crate::parser::util::{assert_if};
     use crate::template::json::{Json, Pair};
-    use crate::parser::{Parsable, ParseResult};
+    use crate::parser::{Parsable};
     use crate::template::Expression;
     use crate::core::Value;
-    use nom::branch::alt;
-    use nom::combinator::{map, verify, recognize, all_consuming, opt};
-    use nom::sequence::{tuple, pair, preceded};
-    use nom::character::complete::{alpha1, alphanumeric1, char, anychar};
-    use nom::bytes::complete::tag;
-    use nom::multi::{many0, separated_list1, many0_count};
-    use nom::AsChar;
 
     // struct Reference {
     //     path:Vec<String>
@@ -100,7 +93,7 @@ mod tests{
     // }
 
     #[test]
-    fn should_parse_Pair(){
+    fn should_parse_pair(){
         let text=r#""name": "Atmaram""#;
         let a=Pair::parser(text);
         assert_if(text,a,Pair{

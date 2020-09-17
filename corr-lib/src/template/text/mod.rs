@@ -2,7 +2,6 @@ pub mod parser;
 use crate::template::{Expression};
 use crate::core::runtime::{Context};
 use async_trait::async_trait;
-use crate::core::{Variable, Value};
 
 #[derive(Clone,Debug,PartialEq)]
 pub struct Text{
@@ -96,6 +95,72 @@ impl Fillable for Expression{
 // }
 #[cfg(test)]
 mod tests{
+    use crate::template::text::{Scriplet, Fillable, Block, Text};
+    use crate::template::Expression;
+    use crate::core::DataType;
+    use crate::core::proto::{Input, ContinueInput, Output, TellMeOutput};
+    use std::sync::{Arc, Mutex};
+    use crate::core::runtime::Context;
+    use crate::parser::Parsable;
+
+    #[tokio::test]
+    async fn should_fill_text_with_scriptlet_and_text(){
+        let txt = r#"fillable text `Hello <%name%>`"#;
+        let (_,fillable)=Text::parser(txt).unwrap();
+        let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=fillable.fill(&context).await;
+        assert_eq!(result,"Hello Atmaram".to_string());
+        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
+    }
+
+    #[tokio::test]
+    async fn should_fill_block_with_text(){
+        let fillable=Block::Text("hello".to_string());
+        let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=fillable.fill(&context).await;
+        assert_eq!(result,"hello".to_string());
+        assert_eq!(buffer.lock().unwrap().len(),0);
+
+    }
+
+    #[tokio::test]
+    async fn should_fill_block_with_scriplet(){
+        let fillable=Block::Scriplet(Scriplet::Expression(Expression::Variable("name".to_string(),Option::Some(DataType::String))));
+        let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=fillable.fill(&context).await;
+        assert_eq!(result,"Atmaram".to_string());
+        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
+
+    }
+
+    #[tokio::test]
+    async fn should_fill_scriplet_with_expression(){
+            let scriplet=Scriplet::Expression(Expression::Variable("name".to_string(),Option::Some(DataType::String)));
+            let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
+            let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+            let context=Context::mock(input,buffer.clone());
+            let result=scriplet.fill(&context).await;
+            assert_eq!(result,"Atmaram".to_string());
+            assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
+
+    }
+    #[tokio::test]
+    async fn should_fill_expression(){
+        let expression=Expression::Variable("name".to_string(),Option::Some(DataType::String));
+        let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=expression.fill(&context).await;
+        assert_eq!(result,"Atmaram".to_string());
+        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
+
+    }
     // use crate::template::text::{LoopBlock, Block, Fillable, ExpressionBlock, Text};
     // use crate::core::proto::{Input, ContinueInput, Output, TellMeOutput};
     // use crate::core::{DataType, Value, Variable};

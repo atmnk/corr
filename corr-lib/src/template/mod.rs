@@ -17,10 +17,6 @@ pub enum Expression{
 pub struct VariableReferenceName {
     pub parts:Vec<String>
 }
-// #[derive(Clone,Debug,PartialEq)]
-// pub struct ExpressionBlock{
-//     expression:Expression
-// }
 #[async_trait]
 pub trait Function:Debug+Sync+Send{
     async fn evaluate(&self,args:Vec<Expression>,context:&Context)->Value;
