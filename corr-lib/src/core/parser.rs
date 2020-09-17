@@ -171,42 +171,42 @@ mod tests{
 
     }
 
-    #[tokio::test]
-    async fn should_parse_array(){
-        let j= r#"array!["Atmaram","Yogesh"]"#;
-        assert_if(j
-                  ,Value::parser(j)
-                  ,Value::Array(vec![Value::String(format!("Atmaram")),Value::String(format!("Yogesh"))]))
-
-    }
-    #[tokio::test]
-    async fn should_parse_object(){
-        let j= r#"object!{"name":"Atmaram"}"#;
-        let mut hm = HashMap::new();
-        hm.insert(format!("name"),Value::String(format!("Atmaram")));
-        assert_if(j
-                  ,Value::parser(j)
-                  ,Value::Map(hm));
-
-    }
-    #[tokio::test]
-    async fn should_parse_object_in_array(){
-        let mut hm1 = HashMap::new();
-        hm1.insert(format!("name"),Value::String(format!("Clothes")));
-
-        let mut hm2 = HashMap::new();
-        hm2.insert(format!("name"),Value::String(format!("Electronics")));
-        let j= r#"array![
-        object! {
-            "name":"Clothes"
-        },
-        object! {
-            "name":"Electronics"
-        }
-    ]"#;
-        assert_if(j
-                  ,Value::parser(j)
-                  ,Value::Array(vec![Value::Map(hm1),Value::Map(hm2)]))
-
-    }
+    // #[tokio::test]
+    // async fn should_parse_array(){
+    //     let j= r#"array!["Atmaram","Yogesh"]"#;
+    //     assert_if(j
+    //               ,Value::parser(j)
+    //               ,Value::Array(vec![Value::String(format!("Atmaram")),Value::String(format!("Yogesh"))]))
+    //
+    // }
+    // #[tokio::test]
+    // async fn should_parse_object(){
+    //     let j= r#"object!{"name":"Atmaram"}"#;
+    //     let mut hm = HashMap::new();
+    //     hm.insert(format!("name"),Value::String(format!("Atmaram")));
+    //     assert_if(j
+    //               ,Value::parser(j)
+    //               ,Value::Map(hm));
+    //
+    // }
+    // #[tokio::test]
+    // async fn should_parse_object_in_array(){
+    //     let mut hm1 = HashMap::new();
+    //     hm1.insert(format!("name"),Value::String(format!("Clothes")));
+    //
+    //     let mut hm2 = HashMap::new();
+    //     hm2.insert(format!("name"),Value::String(format!("Electronics")));
+    //     let j= r#"array![
+    //     object! {
+    //         "name":"Clothes"
+    //     },
+    //     object! {
+    //         "name":"Electronics"
+    //     }
+    // ]"#;
+    //     assert_if(j
+    //               ,Value::parser(j)
+    //               ,Value::Array(vec![Value::Map(hm1),Value::Map(hm2)]))
+    //
+    // }
 }
