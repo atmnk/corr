@@ -17,6 +17,21 @@ pub enum Expression{
 pub struct VariableReferenceName {
     pub parts:Vec<String>
 }
+
+impl VariableReferenceName {
+    pub fn to_string(&self)->String{
+        return self.parts.join(".")
+    }
+    pub fn from(str:&str)->VariableReferenceName{
+        let mut parts=vec![];
+        for part in str.split("."){
+            parts.push(part.to_string());
+        }
+        VariableReferenceName{
+            parts
+        }
+    }
+}
 #[async_trait]
 pub trait Function:Debug+Sync+Send{
     async fn evaluate(&self,args:Vec<Expression>,context:&Context)->Value;

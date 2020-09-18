@@ -1,11 +1,11 @@
 use crate::parser::{Parsable, ParseResult, ws, identifier_part, scriptlet_keyword};
 use crate::template::{Expression, VariableReferenceName};
-use nom::combinator::{map};
+use nom::combinator::{map, verify};
 use crate::core::{Value, Variable};
-use nom::sequence::{tuple};
+use nom::sequence::{tuple, preceded};
 use nom::branch::alt;
 use nom::character::complete::char;
-use nom::multi::{separated_list0, separated_list1};
+use nom::multi::{separated_list0, separated_list1, many0};
 
 impl Parsable for Expression{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -19,7 +19,7 @@ impl Parsable for Expression{
 impl Parsable for VariableReferenceName {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(
-            separated_list1(char('.'),
+            separated_list1(ws(char('.')),
                             map(identifier_part,|val|{val.to_string()})),|parts| { VariableReferenceName {parts}})(input)
     }
 }

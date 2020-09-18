@@ -93,6 +93,19 @@ mod tests{
         })
     }
     #[test]
+    fn should_parse_text_with_multiple_scriptlet_and_text(){
+        let text=r#"fillable text `Hello <%i%>-<%name%>`"#;
+        let a=Text::parser(text);
+        assert_if(text,a,Text{
+            blocks:vec![
+                Block::Text("Hello ".to_string()),
+                Block::Scriplet(Scriplet::Expression(Expression::Variable("i".to_string(),Option::None))),
+                Block::Text("-".to_string()),
+                Block::Scriplet(Scriplet::Expression(Expression::Variable("name".to_string(),Option::None)))
+            ]
+        })
+    }
+    #[test]
     fn should_parse_text_block_with_escaped_back_tick(){
         let text=r#"Atmaram\`Hello"#;
         let a=text_block(text);

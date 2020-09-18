@@ -278,7 +278,7 @@ impl Context {
         self.store.set(path.clone(),Arc::new(Mutex::new(HeapObject::List(vec)))).await;
         result
     }
-    pub async fn iterate<F, Fut,T>(&self,path:String,temp:String,iterate_this: F)->Vec<T>
+    pub async fn iterate<F, Fut,T>(&self,path:String,opt_temp:Option<String>,iterate_this: F)->Vec<T>
         where
             F: FnOnce(Context,usize) -> Fut + Copy,
             Fut: Future<Output = T>,
@@ -289,9 +289,13 @@ impl Context {
                 let mut i = 0;
                 for l in lst {
                     let new_ct = Context::from(self).await;
-                    new_ct.store.set(temp.clone(),l.clone()).await;
+                    if let Some(temp) = opt_temp.clone() {
+                        new_ct.store.set(temp.clone(),l.clone()).await;
+                    }
                     result.push(iterate_this(new_ct,i).await);
-                    self.delete(temp.clone()).await;
+                    if let Some(temp) = opt_temp.clone() {
+                        self.delete(temp.clone()).await;
+                    }
                     i = i + 1;
                 }
             }
@@ -302,12 +306,16 @@ impl Context {
                 for i in 0..size.clone() {
                     let new_ct = Context::from(self).await;
                     result.push(iterate_this(new_ct,i).await);
-                    if let Some(ho)=self.store.get(temp.clone()).await{
-                        vec.push(ho.clone());
+                    if let Some(temp) = opt_temp.clone() {
+                        if let Some(ho) = self.store.get(temp.clone()).await {
+                            vec.push(ho.clone());
+                        } else {
+                            vec.push(Arc::new(Mutex::new(HeapObject::Final(Value::Null))));
+                        }
+                        self.delete(temp.clone()).await;
                     } else {
                         vec.push(Arc::new(Mutex::new(HeapObject::Final(Value::Null))));
                     }
-                    self.delete(temp.clone()).await;
                 }
                 self.store.set(path.clone(),Arc::new(Mutex::new(HeapObject::List(vec)))).await
             }
@@ -374,9 +382,9 @@ pub mod tests{
     async fn should_iterate(){
         let buffer= Arc::new(Mutex::new(vec![]));
         let context = Context::mock(vec![Input::new_continue("names::length".to_ascii_lowercase(), "4".to_string(), DataType::PositiveInteger)],buffer.clone());
-        let a=context.iterate("names".to_string(),"name".to_string(),async move |_ct,_i|{
+        let a=context.iterate("names".to_string(),Option::Some("name".to_string()),async move |_ct,_i|{
         }).await;
-        let b=context.iterate("names".to_string(),"name".to_string(),async move |_ct,_i|{
+        let b=context.iterate("names".to_string(),Option::Some("name".to_string()),async move |_ct,_i|{
         }).await;
         assert_eq!(a.len(), 4);
         assert_eq!(b.len(), 4);
@@ -390,13 +398,13 @@ pub mod tests{
             Input::new_continue("name".to_ascii_lowercase(), "Atmaram".to_string(), DataType::String),
             Input::new_continue("name".to_ascii_lowercase(), "Atiksh".to_string(), DataType::String)
         ],buffer.clone());
-        let a=context.iterate("names".to_string(),"name".to_string(),async move |ct,_|{
+        let a=context.iterate("names".to_string(),Option::Some("name".to_string()),async move |ct,_|{
             ct.read(Variable{
                 name:"name".to_string(),
                 data_type:Option::Some(DataType::String)
             }).await
         }).await;
-        let b=context.iterate("names".to_string(),"name".to_string(),async move |ct,_|{
+        let b=context.iterate("names".to_string(),Option::Some("name".to_string()),async move |ct,_|{
             ct.read(Variable{
                 name:"name".to_string(),
                 data_type:Option::Some(DataType::String)

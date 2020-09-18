@@ -36,7 +36,7 @@ impl FillableJson for Json{
                 serde_json::Value::Array(new_vec)
             },
             Json::DynamicArray(with,on,inner,index_var)=>{
-                let res=context.iterate(on.name.clone(),with.name.clone(),async move |context,i|{
+                let res=context.iterate(on.name.clone(),Option::Some(with.name.clone()),async move |context,i|{
                     if let Some(iv)=index_var.clone(){
                         context.define(iv.name,Value::PositiveInteger(i)).await
                     }
