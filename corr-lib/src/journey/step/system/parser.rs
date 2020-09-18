@@ -50,11 +50,12 @@ fn arged_for_parser<'a>(input: &'a str) -> ParseResult<'a, (Option<VariableRefer
     map(tuple((
         preceded(
             ws(char('(')),
-            opt(terminated(
+            terminated(
+            opt(
                 tuple((
                     VariableReferenceName::parser,
-                    opt(preceded(ws(char(',')),VariableReferenceName::parser)))),tuple((ws(char(')')),ws(tag("=>"))))))),one_or_many_steps)),
-        |(opt_vars,steps)|{
+                    opt(preceded(ws(char(',')),VariableReferenceName::parser))))),ws(char(')')))),ws(tag("=>")),one_or_many_steps)),
+        |(opt_vars,_,steps)|{
             let mut with = Option::None;
             let mut index= Option::None;
             if let Some(vars)=opt_vars{
@@ -83,33 +84,16 @@ mod tests{
     use crate::journey::step::system::parser::{one_or_many_steps, unarged_for_parser, for_right_part, for_left_part, arged_for_parser};
 
     #[tokio::test]
-    async fn should_parse_printstep(){
-        let j= r#"print fillable text `Hello`;"#;
-        assert_if(j
-                  ,PrintStep::parser(j)
-                  ,PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]}))
-
-    }
-    #[tokio::test]
     async fn should_parse_for_left_part(){
-        let j= r#"atmaram.for"#;
+        let j= r#"atmaram.naik.for"#;
         assert_if(j
                   ,for_left_part(j)
-                  ,VariableReferenceName{ parts:vec![format!("atmaram")]})
+                  ,VariableReferenceName::from("atmaram.naik"))
 
     }
-    #[tokio::test]
-    async fn should_parse_for_step(){
-        let j= r#"atmaram.for print fillable text `Hello`;"#;
-        assert_if(j
-                  ,ForLoopStep::parser(j)
-                  ,ForLoopStep::WithVariableReference(VariableReferenceName{ parts:vec![format!("atmaram")]},Option::None,Option::None,vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
-            ]))
 
-    }
     #[tokio::test]
-    async fn should_parse_for_right(){
+    async fn should_parse_for_right_without_args(){
         let j= r#"print fillable text `Hello`;"#;
         assert_if(j
                   , for_right_part(j)
@@ -119,15 +103,16 @@ mod tests{
 
     }
     #[tokio::test]
-    async fn should_parse_one_or_many_steps(){
-        let j= r#"print fillable text `Hello`;"#;
+    async fn should_parse_for_right_with_args(){
+        let j= r#"(name,index)=>print fillable text `Hello`;"#;
         assert_if(j
-                  ,one_or_many_steps(j)
-                  ,vec![
+                  , for_right_part(j)
+                  , (Option::Some(VariableReferenceName::from("name")),Option::Some(VariableReferenceName::from("index")),vec![
                 Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
-            ])
+            ]))
 
     }
+
     #[tokio::test]
     async fn should_parse_unarged_for(){
         let j= r#"print fillable text `Hello`;"#;
@@ -138,6 +123,43 @@ mod tests{
             ]))
 
     }
+
+    #[tokio::test]
+    async fn should_parse_one_or_many_steps_when_one_step(){
+        let j= r#"print fillable text `Hello`;"#;
+        assert_if(j
+                  ,one_or_many_steps(j)
+                  ,vec![
+                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+            ])
+
+    }
+
+    #[tokio::test]
+    async fn should_parse_one_or_many_steps_when_multiple_step(){
+        let j= r#"{ print fillable text `Hello`;
+            print fillable text `Hello World`;
+        }"#;
+        assert_if(j
+                  ,one_or_many_steps(j)
+                  ,vec![
+                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]}))),
+                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello World".to_string())]})))
+            ])
+
+    }
+
+    #[tokio::test]
+    async fn should_parse_arged_for_without_variables(){
+        let j= r#"()=>print fillable text `Hello`;"#;
+        assert_if(j
+                  ,arged_for_parser(j)
+                  ,(Option::None,Option::None,vec![
+                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+            ]))
+
+    }
+
     #[tokio::test]
     async fn should_parse_arged_for_with_loop_variable(){
         let j= r#"(name)=>print fillable text `Hello`;"#;
@@ -158,12 +180,46 @@ mod tests{
             ]))
 
     }
+
+    #[tokio::test]
+    async fn should_parse_printstep(){
+        let j= r#"print fillable text `Hello`;"#;
+        assert_if(j
+                  ,PrintStep::parser(j)
+                  ,PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]}))
+
+    }
+
+    #[tokio::test]
+    async fn should_parse_for_step(){
+        let j= r#"atmaram.for print fillable text `Hello`;"#;
+        assert_if(j
+                  ,ForLoopStep::parser(j)
+                  ,ForLoopStep::WithVariableReference(VariableReferenceName{ parts:vec![format!("atmaram")]},Option::None,Option::None,vec![
+                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+            ]))
+
+    }
+
+
+
+
     #[tokio::test]
     async fn should_parse_systemstep_with_printstep(){
         let j= r#"print fillable text `Hello`;"#;
         assert_if(j
                   ,SystemStep::parser(j)
                   ,SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+
+    }
+    #[tokio::test]
+    async fn should_parse_systemstep_with_for_step(){
+        let j= r#"atmaram.for print fillable text `Hello`;"#;
+        assert_if(j
+                  ,SystemStep::parser(j)
+                  ,SystemStep::ForLoop(ForLoopStep::WithVariableReference(VariableReferenceName{ parts:vec![format!("atmaram")]},Option::None,Option::None,vec![
+                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+            ])))
 
     }
 }
