@@ -433,7 +433,7 @@ pub mod tests{
     }
 
     #[test]
-    fn should_dividet_double_from_positive_integer(){
+    fn should_divide_double_from_positive_integer(){
         let a = Number::PositiveInteger(4).divide(Number::Double(2.0));
         assert_eq!(a,Number::Double(2.0));
     }
