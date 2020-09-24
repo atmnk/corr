@@ -1,4 +1,4 @@
-use crate::parser::{Parsable, ws, sp};
+use crate::parser::{Parsable, ws};
 use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep};
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
