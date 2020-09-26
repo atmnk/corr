@@ -1,5 +1,5 @@
 pub mod parser;
-use crate::template::{Expression, VariableReferenceName};
+use crate::template::{Expression, VariableReferenceName, Fillable};
 use crate::core::runtime::{Context};
 use async_trait::async_trait;
 use crate::core::Value;
@@ -29,14 +29,11 @@ pub enum TextLoopInnerTemplate {
     Blocks(Vec<Block>)
 }
 
-#[async_trait]
-pub trait Fillable{
-    async fn fill(&self,context:&Context)->String;
-}
+
 
 
 #[async_trait]
-impl Fillable for Text{
+impl Fillable<String> for Text{
     async fn fill(&self, context: &Context) -> String {
         let mut ret="".to_string();
         for block in self.blocks.iter() {
@@ -46,7 +43,7 @@ impl Fillable for Text{
     }
 }
 #[async_trait]
-impl Fillable for Block{
+impl Fillable<String> for Block{
     async fn fill(&self, context: &Context) -> String {
         match self {
             Block::Scriplet(scriplet)=>{
@@ -59,7 +56,7 @@ impl Fillable for Block{
     }
 }
 #[async_trait]
-impl Fillable for Scriplet{
+impl Fillable<String> for Scriplet{
     async fn fill(&self, context: &Context) -> String {
         match self {
             Scriplet::Expression(expr)=>{
@@ -72,7 +69,7 @@ impl Fillable for Scriplet{
     }
 }
 #[async_trait]
-impl Fillable for TextForLoop{
+impl Fillable<String> for TextForLoop{
     async fn fill(&self, context: &Context) -> String {
         match self {
             TextForLoop::WithVariableReference(on,with,opt_index,inner)=>{
@@ -88,7 +85,7 @@ impl Fillable for TextForLoop{
     }
 }
 #[async_trait]
-impl Fillable for TextLoopInnerTemplate {
+impl Fillable<String> for TextLoopInnerTemplate {
     async fn fill(&self, context: &Context) -> String {
         match self {
             TextLoopInnerTemplate::ForLoop(tfl)=>tfl.fill(context).await,
@@ -104,7 +101,7 @@ impl Fillable for TextLoopInnerTemplate {
     }
 }
 #[async_trait]
-impl Fillable for Expression{
+impl Fillable<String> for Expression{
     async fn fill(&self, context: &Context) -> String {
         self.evaluate(context).await.to_string()
     }
@@ -241,7 +238,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=expression.fill(&context).await;
+        let result:String=expression.fill(&context).await;
         assert_eq!(result,"Atmaram".to_string());
         assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
     }

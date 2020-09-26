@@ -1,10 +1,9 @@
-use crate::template::{Function, Expression};
+use crate::template::{Function, Expression, Fillable};
 use crate::core::{runtime::Context, Value, Number};
 use async_trait::async_trait;
 use std::sync::Arc;
 use std::fs::File;
 use std::io::BufReader;
-use crate::template::text::Fillable;
 
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
@@ -116,7 +115,8 @@ pub struct FromJson;
 #[async_trait]
 impl Function for FromJson{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
-        if let Ok(file) = File::open(args.get(0).unwrap().fill(context).await){
+        let path:String = args.get(0).unwrap().fill(context).await;
+        if let Ok(file) = File::open(path){
             let reader = BufReader::new(file);
             let file_contents= serde_json::from_reader(reader);
             // Read the JSON contents of the file as an instance of `User`.

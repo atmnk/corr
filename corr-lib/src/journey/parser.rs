@@ -38,8 +38,8 @@ mod tests{
     #[tokio::test]
     async fn should_parse_journey(){
         let j= r#"`Hello World`(){
-            print fillable text `Hello <%concat("Atmaram","Naik")%>`;
-            print fillable text `Hello <%concat("Atmaram")%>`;
+            print fillable text `Hello <%concat("Atmaram","Naik")%>`
+            print fillable text `Hello <%concat("Atmaram")%>`
         }"#;
         assert_no_error(j
                         ,Journey::parser(j)
