@@ -39,7 +39,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_execute_system_step(){
-        let text = r#"print fillable text `Hello World`;"#;
+        let text = r#"print text `Hello World`;"#;
         let (_,step)=Step::parser(text).unwrap();
         let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
         let buffer = Arc::new(Mutex::new(vec![]));

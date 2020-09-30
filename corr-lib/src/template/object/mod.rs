@@ -89,7 +89,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_fill_fillableobject_when_expression(){
-        let txt = r#"fillable object name"#;
+        let txt = r#"object name"#;
         let (_,fo) = FillableObject::parser(txt).unwrap();
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
@@ -100,7 +100,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_fill_fillableobject_when_map(){
-        let txt = r#"fillable object {"name": name }"#;
+        let txt = r#"object {"name": name }"#;
         let (_,fo) = FillableObject::parser(txt).unwrap();
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
@@ -113,7 +113,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_fill_fillableobject_when_array(){
-        let txt = r#"fillable object [name,place]"#;
+        let txt = r#"object [name,place]"#;
         let (_,fo) = FillableObject::parser(txt).unwrap();
         let input=vec![
             Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String}),

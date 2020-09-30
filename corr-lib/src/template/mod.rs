@@ -103,7 +103,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_fill_assignable_when_fillabletext(){
-        let txt = r#"fillable text `Hello <%name%>`"#;
+        let txt = r#"text `Hello <%name%>`"#;
         let (_,assbl) = Assignable::parser(txt).unwrap();
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer = Arc::new(Mutex::new(vec![]));
@@ -114,7 +114,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_fill_assignable_when_fillableobject(){
-        let txt = r#"fillable object name`"#;
+        let txt = r#"object name"#;
         let (_,assbl) = Assignable::parser(txt).unwrap();
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer = Arc::new(Mutex::new(vec![]));

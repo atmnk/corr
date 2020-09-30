@@ -95,7 +95,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_execute_print_step(){
-        let text = r#"print fillable text `Hello World`;"#;
+        let text = r#"print text `Hello World`;"#;
         let (_,step)=SystemStep::parser(text).unwrap();
         let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
         let buffer = Arc::new(Mutex::new(vec![]));
@@ -123,8 +123,8 @@ mod tests{
     }
     #[tokio::test]
     async fn should_execute_for_step(){
-        let text = r#"names . for(name,i)=>{print fillable text `Hello <%i%>-<%name%>`
-            print fillable text `Next`
+        let text = r#"names . for(name,i)=>{print text `Hello <%i%>-<%name%>`
+            print text `Next`
         }"#;
         let (_,step)=SystemStep::parser(text).unwrap();
         let input = vec![

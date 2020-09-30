@@ -11,7 +11,7 @@ use crate::core::parser::string;
 
 impl Parsable for FillableObject{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-       preceded(tuple((ws(tag("fillable")),ws(tag("object")))),fillable_obj_rhs_parser
+       preceded(ws(tag("object")),fillable_obj_rhs_parser
        )(input)
     }
 }

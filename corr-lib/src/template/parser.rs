@@ -52,7 +52,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_parse_assignable_when_fillabletext(){
-        let txt = r#"fillable text `Hello <%name%>`"#;
+        let txt = r#"text `Hello <%name%>`"#;
         let a = Assignable::parser(txt);
         assert_if(txt,a,Assignable::FillableText(Text {
             blocks:vec![
@@ -65,7 +65,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_parse_assignable_when_fillableobject(){
-        let txt = r#"fillable object name`"#;
+        let txt = r#"object name"#;
         let a = Assignable::parser(txt);
         assert_if(txt,a,Assignable::FillableObject(FillableObject::WithExpression(Expression::Variable(format!("name"),Option::None))))
     }

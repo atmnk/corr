@@ -120,7 +120,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_fill_text_with_scriptlet_and_text(){
-        let txt = r#"fillable text `Hello <%name%>`"#;
+        let txt = r#"text `Hello <%name%>`"#;
         let (_,fillable)=Text::parser(txt).unwrap();
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
