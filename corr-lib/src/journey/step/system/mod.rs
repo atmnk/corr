@@ -1,20 +1,24 @@
 pub mod parser;
 use async_trait::async_trait;
 use crate::journey::{Executable};
-use crate::template::text::{Text, Fillable};
+use crate::template::text::{Text};
 use crate::core::runtime::{Context, IO};
 use crate::core::{Value};
-use crate::template::VariableReferenceName;
+use crate::template::{VariableReferenceName, Fillable, Assignable};
 use crate::journey::step::Step;
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum SystemStep{
     Print(PrintStep),
     ForLoop(ForLoopStep),
-    // For(Variable,Variable,Box<Step>,Option<Variable>),
-    // Collection(Vec<Step>),
-    // Assign(String,Expression)
+    Assignment(AssignmentStep)
+
 }
+#[derive(Debug, Clone,PartialEq)]
+pub enum AssignmentStep {
+    WithVariableName(VariableReferenceName,Assignable)
+}
+
 #[derive(Debug, Clone,PartialEq)]
 pub enum PrintStep{
     WithText(Text)
@@ -63,42 +67,35 @@ impl Executable for SystemStep{
             },
             SystemStep::ForLoop(fls)=>{
                 fls.execute(context).await
-            }
-            // SystemStep::Collection(steps)=>{
-            //     for step in steps {
-            //         step.execute(context).await
-            //     }
-            // }
-            // SystemStep::For(temp,on,inner,index_var)=>{
-            //     context.iterate(on.name.clone(),temp.name.clone(),async move |context,i|{
-            //         if let Some(iv)=index_var.clone(){
-            //             context.define(iv.name,Value::PositiveInteger(i)).await
-            //         }
-            //         inner.execute(&context).await;
-            //         context
-            //     }).await;
-            //
-            // },
-            // SystemStep::Assign(var,expr)=>{
-            //     context.define(var.clone(),expr.evaluate(context).await).await;
-            // }
+            },
+            SystemStep::Assignment(asst)=>asst.execute(context).await
         }
 
     }
 }
+#[async_trait]
+impl Executable for AssignmentStep {
+    async fn execute(&self, context: &Context) {
+        match self {
+            AssignmentStep::WithVariableName(var, asbl)=>{
+                context.define(var.to_string(),asbl.fill(context).await).await;
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests{
-    use crate::core::{ DataType};
+    use crate::core::{DataType, Variable, Value, VariableValue};
     use crate::core::proto::{Input, Output};
     use crate::journey::step::system::SystemStep;
     use std::sync::{Arc, Mutex};
     use crate::journey::{ Executable};
-    use crate::core::runtime::Context;
+    use crate::core::runtime::{Context, IO};
     use crate::parser::Parsable;
 
     #[tokio::test]
     async fn should_execute_print_step(){
-        let text = r#"print fillable text `Hello World`;"#;
+        let text = r#"print text `Hello World`;"#;
         let (_,step)=SystemStep::parser(text).unwrap();
         let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
         let buffer = Arc::new(Mutex::new(vec![]));
@@ -108,9 +105,26 @@ mod tests{
 
     }
     #[tokio::test]
+    async fn should_execute_assignment_step(){
+        let text = r#"let name = concat("Atmaram"," Naik")"#;
+        let (_,step)=SystemStep::parser(text).unwrap();
+        let input = vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context= Context::mock(input,buffer.clone());
+        step.execute(&context).await;
+        assert_eq!(context.read(Variable {
+            name:format!("name"),
+            data_type:Option::Some(DataType::String)
+        }).await,VariableValue {
+            name:format!("name"),
+            value:Value::String("Atmaram Naik".to_string())
+        })
+
+    }
+    #[tokio::test]
     async fn should_execute_for_step(){
-        let text = r#"names . for(name,i)=>{print fillable text `Hello <%i%>-<%name%>`;
-            print fillable text `Next`;
+        let text = r#"names . for(name,i)=>{print text `Hello <%i%>-<%name%>`
+            print text `Next`
         }"#;
         let (_,step)=SystemStep::parser(text).unwrap();
         let input = vec![

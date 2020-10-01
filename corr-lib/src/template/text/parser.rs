@@ -91,7 +91,7 @@ impl Parsable for Vec<Block> {
 impl Parsable for Text{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(
-            terminated(preceded(tuple((ws(tag("fillable")),ws(tag("text")),char('`'))),Vec::<Block>::parser),char('`')),
+            terminated(preceded(tuple((ws(tag("text")),char('`'))),Vec::<Block>::parser),char('`')),
             |blocks| Text{blocks}
         )(input)
     }
@@ -206,7 +206,7 @@ mod tests{
 
     #[test]
     fn should_parse_text_with_scriptlet_and_text(){
-        let text=r#"fillable text `Hello <%name%>`"#;
+        let text=r#"text `Hello <%name%>`"#;
         let a=Text::parser(text);
         assert_if(text,a,Text{
             blocks:vec![
@@ -217,7 +217,7 @@ mod tests{
     }
     #[test]
     fn should_parse_text_with_multiple_scriptlet_and_text(){
-        let text=r#"fillable text `Hello <%i%>-<%name%>`"#;
+        let text=r#"text `Hello <%i%>-<%name%>`"#;
         let a=Text::parser(text);
         assert_if(text,a,Text{
             blocks:vec![

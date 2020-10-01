@@ -18,7 +18,7 @@ mod tests{
     #[tokio::test]
     async fn should_parse_step_with_system_step(){
         let j= r#"
-            print fillable text `Hello <%concat("Atmaram","Naik")%>`;
+            print text `Hello <%concat("Atmaram","Naik")%>`;
         "#;
         assert_no_error(j
                         ,Step::parser(j)

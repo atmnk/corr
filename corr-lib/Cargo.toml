@@ -23,4 +23,4 @@ async-recursion = "0.3.1"
 nom = "6.0.0-alpha1"
 nom_locate = "2.0.0"
 isahc = "0.9.8"
-
+fake = "2.2.3"

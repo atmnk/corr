@@ -291,7 +291,38 @@ impl Value {
             Value::Integer(lng)=>format!("{}",lng),
             Value::Double(dbl)=>format!("{}",dbl),
             Value::Boolean(bln)=>format!("{}",bln),
-            _=>unimplemented!()
+            Value::Map(hm)=>{
+                let mut vec=vec![];
+                let mut sb= "".to_string();
+                sb.push_str("{");
+                for (key,value) in hm {
+                    if let Value::String(_)= value {
+                        vec.push(format!("\"{}\":\"{}\"",key,value.to_string()))
+                    } else {
+                        vec.push(format!("\"{}\":{}",key,value.to_string()))
+                    }
+
+                }
+                sb.push_str(vec.join(",").as_str());
+                sb.push_str("}");
+                sb
+            },
+            Value::Array(arr)=>{
+                let mut vec=vec![];
+                let mut sb= "".to_string();
+                sb.push_str("[");
+                for value in arr {
+                    if let Value::String(_)= value {
+                        vec.push(format!("\"{}\"",value.to_string()))
+                    } else {
+                        vec.push(format!("{}",value.to_string()))
+                    }
+
+                }
+                sb.push_str(vec.join(",").as_str());
+                sb.push_str("]");
+                sb
+            }
         }
     }
 }

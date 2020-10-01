@@ -1,11 +1,14 @@
-use crate::template::{Function, Expression};
+use crate::template::{Function, Expression, Fillable};
 use crate::core::{runtime::Context, Value, Number};
 use async_trait::async_trait;
 use std::sync::Arc;
 use std::fs::File;
 use std::io::BufReader;
-use crate::template::text::Fillable;
-
+use fake::faker::name::raw::*;
+use fake::faker::company::raw::*;
+use fake::faker::address::raw::*;
+use fake::locales::*;
+use fake::Fake;
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Concat;
@@ -59,6 +62,42 @@ impl Function for Multiply{
 //Subtarct Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Subtract;
+
+//Fake Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct FakeValue;
+
+#[async_trait]
+impl Function for FakeValue{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Value::String(arg) = args.get(0).unwrap().fill(context).await {
+            get_fake(arg)
+        } else {
+            Value::Null
+        }
+
+    }
+}
+
+fn get_fake(fake_type:String)->Value{
+    match fake_type.as_str() {
+        "Name"=> Value::String(Name(EN).fake()),
+        "FirstName"=>Value::String(FirstName(EN).fake()),
+        "LastName"=>Value::String(LastName(EN).fake()),
+        "Title"=>Value::String(Title(EN).fake()),
+        "Suffix"=>Value::String(Suffix(EN).fake()),
+        "NameWithTitle"=>Value::String(NameWithTitle(EN).fake()),
+        "CompanySuffix"=>Value::String(CompanySuffix(EN).fake()),
+        "CompanyName"=>Value::String(CompanyName(EN).fake()),
+        "Profession"=>Value::String(Profession(EN).fake()),
+        "CityName"=>Value::String(CityName(EN).fake()),
+        "StreetName"=>Value::String(StreetName(EN).fake()),
+        "StateName"=>Value::String(StateName(EN).fake()),
+        "StateAbbr"=>Value::String(StateAbbr(EN).fake()),
+        "ZipCode"=>Value::String(ZipCode(EN).fake::<String>().as_str()[..4].to_string()),
+        _=>Value::Null
+    }
+}
 
 #[async_trait]
 impl Function for Subtract{
@@ -116,7 +155,8 @@ pub struct FromJson;
 #[async_trait]
 impl Function for FromJson{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
-        if let Ok(file) = File::open(args.get(0).unwrap().fill(context).await){
+        let path:String = args.get(0).unwrap().fill(context).await;
+        if let Ok(file) = File::open(path){
             let reader = BufReader::new(file);
             let file_contents= serde_json::from_reader(reader);
             // Read the JSON contents of the file as an instance of `User`.
@@ -151,6 +191,9 @@ pub fn get_function(name:&str)->Arc<dyn Function>{
         },
         "from_json"=>{
             Arc::new(FromJson{})
+        },
+        "fake"=>{
+            Arc::new(FakeValue{})
         }
         _=>Arc::new(Concat{})
     }
@@ -161,7 +204,7 @@ mod tests{
     use crate::core::{DataType, Value};
     use crate::core::proto::{Input, ContinueInput, Output, TellMeOutput};
     use std::sync::{Arc, Mutex};
-    use crate::template::functions::{Concat, Add, Subtract, Multiply,Divide};
+    use crate::template::functions::{Concat, Add, Subtract, Multiply, Divide, get_fake};
     use crate::core::runtime::Context;
     use crate::template::{Expression, Function};
 
@@ -187,6 +230,13 @@ mod tests{
             Expression::Constant(Value::String("3".to_string()))
         ],&context).await;
         assert_eq!(result,Value::PositiveInteger(5));
+    }
+    #[tokio::test]
+    async fn should_get_zipcode(){
+        if let Value::String(str)=get_fake("Zipcode".to_string()){
+            assert_eq!(str.len(),5);
+        }
+
     }
     #[tokio::test]
     async fn should_subtract(){

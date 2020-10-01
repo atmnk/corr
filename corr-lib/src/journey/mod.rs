@@ -75,7 +75,7 @@ mod tests{
 
     #[tokio::test]
     async fn should_start_journey(){
-        let text = r#"print fillable text `Hello World`;"#;
+        let text = r#"print text `Hello World`;"#;
         let (_,step)=SystemStep::parser(text).unwrap();
         let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] }];
         let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
@@ -92,7 +92,7 @@ mod tests{
     }
     #[tokio::test]
     async fn should_ask_for_choice_again_journey(){
-        let text = r#"print fillable text `Hello World`;"#;
+        let text = r#"print text `Hello World`;"#;
         let (_,step)=SystemStep::parser(text).unwrap();
         let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] }];
         let input = vec![Input::new_continue("choice".to_string(),"3".to_string(),DataType::PositiveInteger),Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
