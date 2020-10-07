@@ -1,2 +1,2 @@
 #!/bin/sh
-cp static/index.html target/release/index.html
+cp frontend/public/index.html target/release/index.html

@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - '*'
-
 jobs:
   build:
     name: Publish Binaries
@@ -12,20 +11,44 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release --all-features --package corr
+#    - uses: actions-rs/cargo@v1
+#      with:
+#        command: build
+#        args: --release --all-features --package corr
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly
         override: true
-    - uses: actions-rs/cargo@v1
+    - name: Build Corrs Package
+      uses: actions-rs/cargo@v1
       with:
         command: build
         args: --release --all-features --package corrs
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: '12.x'
+
+    - name: Install dependencies
+      run: yarn
+      working-directory: ./frontend
+
+    - name: Clean
+      run: yarn clean
+      working-directory: ./frontend
+
+    - name: Create bundle
+      run: yarn build
+      working-directory: ./frontend
+
+    - name: Run Gulp Task to Shrink Bundle
+      run: yarn gulp
+      working-directory: ./frontend
+
     - name: Move Assets
       run: ./bundle_mac.sh
+
     - name: Compress corrs package
       uses: master-atul/tar-action@v1.0.2
       id: compress-corr
@@ -45,14 +68,14 @@ jobs:
           corrs
           index.html
         outPath: corrs.tar.gz
-    - name: Upload Corr binaries to release
-      uses: svenstaro/upload-release-action@v1-release
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: corr.tar.gz
-        asset_name: corr.tar.gz
-        tag: ${{ github.ref }}
-        overwrite: true
+#    - name: Upload Corr binaries to release
+#      uses: svenstaro/upload-release-action@v1-release
+#      with:
+#        repo_token: ${{ secrets.GITHUB_TOKEN }}
+#        file: corr.tar.gz
+#        asset_name: corr.tar.gz
+#        tag: ${{ github.ref }}
+#        overwrite: true
     - name: Upload Corrs binaries to release
       uses: svenstaro/upload-release-action@v1-release
       with:

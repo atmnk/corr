@@ -1,10 +1,6 @@
-name: Dev Workflow - Test and check thing
+name: Dev Workflow - Test Sanity of Commits
 
-on:
-  push:
-    branches:
-      - dev
-
+on: [push]
 jobs:
   build:
     name: Test The Commit
