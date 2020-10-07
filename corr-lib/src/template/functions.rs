@@ -94,7 +94,7 @@ fn get_fake(fake_type:String)->Value{
         "StreetName"=>Value::String(StreetName(EN).fake()),
         "StateName"=>Value::String(StateName(EN).fake()),
         "StateAbbr"=>Value::String(StateAbbr(EN).fake()),
-        "ZipCode"=>Value::String(ZipCode(EN).fake::<String>().as_str()[..4].to_string()),
+        "ZipCode"=>Value::String(format!("{:05}",ZipCode(EN).fake::<String>().trim())),
         _=>Value::Null
     }
 }

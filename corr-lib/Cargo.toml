@@ -1,6 +1,6 @@
 [package]
 name = "corr-lib"
-version = "0.0.18"
+version = "0.1.0"
 authors = ["ATM <naik.atmaram@gmail.com>"]
 edition = "2018"
 
@@ -20,7 +20,8 @@ tokio = { version = "0.2.21", features = ["full"] }
 warp = "0.2.3"
 async-trait = "0.1.36"
 async-recursion = "0.3.1"
-nom = "6.0.0-alpha1"
+nom = "6.0.0-alpha3"
 nom_locate = "2.0.0"
 isahc = "0.9.8"
 fake = "2.2.3"
+mockito = "0.27.0"

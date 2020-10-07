@@ -37,22 +37,23 @@ impl Client for User{
         }
     }
     async fn get_message(&mut self)->Input{
-        let mut ret=Input::Start(StartInput{filter:format!("hello")});
-        ret=if let Some(result) = self.user_ws_rx.next().await {
-            let message = match result {
-                Ok(msg) => msg,
-                Err(_e) => {
-                    unimplemented!()
-                }
+            let mut ret=Input::Start(StartInput{filter:format!("hello")});
+            ret=if let Some(result) = self.user_ws_rx.next().await {
+                let message = match result {
+                    Ok(msg) => msg,
+                    Err(e) => {
+                        println!("{:?}",e);
+                        unimplemented!()
+                    }
+                };
+                eprintln!("{:?}",message);
+                let input:Input = serde_json::from_str(message.to_str().unwrap()).unwrap();
+                eprintln!("Got Message{:?}",input);
+                input
+            } else {
+                ret
             };
-            eprintln!("{:?}",message);
-            let input:Input = serde_json::from_str(message.to_str().unwrap()).unwrap();
-            eprintln!("Got Message{:?}",input);
-            input
-        } else {
-            ret
-        };
-        return ret;
+            return ret;
     }
 }
 impl Hub {

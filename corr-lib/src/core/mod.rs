@@ -161,10 +161,11 @@ impl Value {
             serde_json::Value::Bool(val)=>Value::Boolean(val),
             serde_json::Value::String(string)=>Value::String(string),
             serde_json::Value::Number(num)=>{
-                if num.is_i64() {
-                    Value::Integer(num.as_i64().unwrap())
-                } else if num.is_u64() {
+                if num.is_u64() {
                     Value::PositiveInteger(num.as_u64().unwrap() as usize)
+                } else if num.is_i64() {
+                    Value::Integer(num.as_i64().unwrap())
+
                 } else {
                     Value::Double(num.as_f64().unwrap())
                 }
