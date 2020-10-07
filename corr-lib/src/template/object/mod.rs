@@ -4,6 +4,7 @@ use crate::core::runtime::Context;
 use nom::lib::std::collections::HashMap;
 use async_trait::async_trait;
 pub mod parser;
+pub mod extractable;
 #[derive(Clone,Debug,PartialEq)]
 pub enum FillableObject{
     WithExpression(Expression),

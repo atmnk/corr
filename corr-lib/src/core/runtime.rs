@@ -237,6 +237,13 @@ pub struct Context{
     pub store:ReferenceStore,
 }
 impl Context {
+    pub async fn get_var_from_store(&self,name:String)->Option<Value>{
+        if let Some(var)=self.store.get(name).await{
+            Option::Some(var.lock().await.to_value().await)
+        } else {
+            Option::None
+        }
+    }
     pub fn new(user:Arc<Mutex<dyn Client>>)->Self{
         Context{
             user:user,

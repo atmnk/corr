@@ -18,7 +18,8 @@ function createWebSocketChannel(webSocket: WebSocket): EventChannel<Output> {
 }
 
 function* connectWebSocket(action:ConnectRunnerAction): Generator<StrictEffect> {
-    const webSocket = new WebSocket("ws://"+action.payload.server+"/api");
+    const protocol= window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const webSocket = new WebSocket(protocol+"://"+action.payload.server+"/api");
     console.log("Connected to channel");
     const webSocketChannel = (yield call(createWebSocketChannel, webSocket)) as EventChannel<Output>;
     yield fork(read, webSocketChannel);

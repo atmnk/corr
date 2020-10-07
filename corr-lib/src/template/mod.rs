@@ -3,6 +3,7 @@ pub mod object;
 pub mod text;
 pub mod functions;
 pub mod parser;
+pub mod rest;
 use crate::core::{DataType, runtime::Context, Value, runtime::IO, Variable};
 use std::fmt::Debug;
 use async_trait::async_trait;

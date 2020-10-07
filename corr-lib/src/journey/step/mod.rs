@@ -5,10 +5,12 @@ use crate::journey::{Executable};
 use crate::journey::step::system::SystemStep;
 use async_trait::async_trait;
 use crate::core::runtime::Context;
+use crate::journey::step::rest::RestSetp;
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum Step{
-    System(SystemStep)
+    System(SystemStep),
+    Rest(RestSetp)
     // Rest(RestStep)
 }
 
@@ -20,6 +22,9 @@ impl Executable for Step{
             Step::System(sys_step)=>{
                 sys_step.execute(context).await
             },
+            Step::Rest(rst_step)=>{
+                rst_step.execute(context).await
+            }
             // Step::Rest(rest_step)=>{
             //     rest_step.execute(context).await
             // }
