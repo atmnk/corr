@@ -1,5 +1,4 @@
 import { ConnectRunnerAction, RunnerActionType , ConnectedRunnerAction, StartWithRunnerAction, StartedRunnerAction, GotMessageRunnerAction, SentMessageRunnerAction, ConitinueRunnerAction} from "./types";
-import { type } from "os";
 import { Output, Input, DataType } from "../wsapi/types";
 
 function connect(server:string):ConnectRunnerAction{
