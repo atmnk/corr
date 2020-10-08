@@ -34,10 +34,6 @@ jobs:
       run: yarn
       working-directory: ./frontend
 
-    - name: Clean
-      run: yarn clean
-      working-directory: ./frontend
-
     - name: Create bundle
       run: yarn build
       working-directory: ./frontend
@@ -49,15 +45,15 @@ jobs:
     - name: Move Assets
       run: ./bundle_mac.sh
 
-    - name: Compress corrs package
-      uses: master-atul/tar-action@v1.0.2
-      id: compress-corr
-      with:
-        command: c
-        cwd: target/release
-        files: |
-          corr
-        outPath: corr.tar.gz
+#     - name: Compress corrs package
+#       uses: master-atul/tar-action@v1.0.2
+#       id: compress-corr
+#       with:
+#         command: c
+#         cwd: target/release
+#         files: |
+#           corr
+#         outPath: corr.tar.gz
     - name: Compress corrs package
       uses: master-atul/tar-action@v1.0.2
       id: compress-corrs
