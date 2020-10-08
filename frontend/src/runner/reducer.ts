@@ -46,6 +46,7 @@ export default function runnerReducer(
                         }]
                     };
                 case OutputType.Done:
+
                     return {
                         ...state,
                         journies:[...state.journies.slice(0,-1),{
@@ -57,7 +58,8 @@ export default function runnerReducer(
                             interactions:[]
                         }]
                     };
-            }            
+            }
+            break
         case RunnerActionType.SentMessage:
             return {
                 ...state,

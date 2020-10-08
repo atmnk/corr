@@ -1,6 +1,5 @@
 import { call, fork, put, StrictEffect, takeEvery, take } from '@redux-saga/core/effects';
 import { eventChannel, EventChannel } from 'redux-saga';
-import config from '../config';
 import apiActions from './actions';
 import { ApiActionType, Output, WriteApiAction } from './types';
 import {ConnectRunnerAction, RunnerActionType} from '../runner/types';
