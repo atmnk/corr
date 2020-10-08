@@ -1,6 +1,9 @@
 name: Dev Workflow - Test Sanity of Commits
 
-on: [push]
+on:
+  push:
+    branches:
+      - '*'
 jobs:
   build:
     name: Test The Commit
