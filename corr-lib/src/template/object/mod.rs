@@ -1,4 +1,4 @@
-use crate::template::{Expression, Fillable};
+use crate::template::{Expression, Fillable, VariableReferenceName};
 use crate::core::Value;
 use crate::core::runtime::Context;
 use nom::lib::std::collections::HashMap;
@@ -9,11 +9,20 @@ pub mod extractable;
 pub enum FillableObject{
     WithExpression(Expression),
     WithMap(FillableMapObject),
-    WithArray(Vec<FillableObject>)
+    WithArray(Vec<FillableObject>),
+    WithForLoop(Box<FillableForLoop>)
 }
 #[derive(Clone,Debug,PartialEq)]
 pub enum FillableMapObject{
     WithPairs(Vec<FillablePair>)
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct FillableForLoop{
+    on:VariableReferenceName,
+    with:Option<VariableReferenceName>,
+    index:Option<VariableReferenceName>,
+    inner:FillableObject
 }
 #[derive(Clone,Debug,PartialEq)]
 pub enum FillablePair{
@@ -57,6 +66,17 @@ impl Fillable<Value> for FillableMapObject {
     }
 }
 #[async_trait]
+impl Fillable<Value> for FillableForLoop {
+    async fn fill(&self, context: &Context) -> Value {
+        Value::Array(context.iterate(self.on.to_string(),self.with.clone().map(|vr|vr.to_string()),async move |context,index|{
+            if let Some(index_var) = self.index.clone(){
+                context.define(index_var.to_string(),Value::PositiveInteger(index)).await
+            }
+            self.inner.clone().fill(&context).await
+        }).await)
+    }
+}
+#[async_trait]
 impl Fillable<Value> for Vec<FillableObject>{
     async fn fill(&self, context: &Context) -> Value {
         let mut arr = vec![];
@@ -72,7 +92,8 @@ impl Fillable<Value> for FillableObject{
         match self {
             FillableObject::WithExpression(expr)=>expr.fill(context).await,
             FillableObject::WithMap(map)=>map.fill(context).await,
-            FillableObject::WithArray(arr)=>arr.fill(context).await
+            FillableObject::WithArray(arr)=>arr.fill(context).await,
+            FillableObject::WithForLoop(ffl)=>ffl.fill(context).await
         }
     }
 }
@@ -84,7 +105,7 @@ mod tests{
     use std::sync::{Arc, Mutex};
     use crate::core::runtime::Context;
     use crate::parser::Parsable;
-    use crate::template::object::{FillableObject, FillableMapObject, FillablePair, FilledPair};
+    use crate::template::object::{FillableObject, FillableMapObject, FillablePair, FilledPair, FillableForLoop};
     use crate::template::Fillable;
     use nom::lib::std::collections::HashMap;
 
@@ -131,6 +152,26 @@ mod tests{
     }
 
     #[tokio::test]
+    async fn should_fill_fillableobject_when_forloop(){
+        let txt = r#"object names.for (name) => name"#;
+        let (_,fo) = FillableObject::parser(txt).unwrap();
+        println!("{:?}",fo);
+        let input=vec![
+            Input::Continue(ContinueInput{name:"names::length".to_string(),value:"2".to_string(),data_type:DataType::PositiveInteger}),
+            Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String}),
+            Input::Continue(ContinueInput{name:"name".to_string(),value:"Yogesh".to_string(),data_type:DataType::String})
+        ];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let filled = fo.fill(&context).await;
+        let mut v = vec![];
+        v.push(Value::String(format!("Atmaram")));
+        v.push(Value::String(format!("Yogesh")));
+
+        assert_eq!(filled,Value::Array(v));
+    }
+
+    #[tokio::test]
     async fn should_fill_fillableobjectmap(){
         let txt = r#"{"name":name, "place":place}"#;
         let (_,fmo) = FillableMapObject::parser(txt).unwrap();
@@ -145,6 +186,24 @@ mod tests{
         hm.insert(format!("place"),Value::String(format!("Mumbai")));
         let filled = fmo.fill(&context).await;
         assert_eq!(filled,Value::Map(hm));
+    }
+
+    #[tokio::test]
+    async fn should_fill_fillableforloop(){
+        let txt = r#"names.for (name,index) => concat(name,index)"#;
+        let (_,fmo) = FillableForLoop::parser(txt).unwrap();
+        let input=vec![
+            Input::Continue(ContinueInput{name:"names::length".to_string(),value:"2".to_string(),data_type:DataType::PositiveInteger}),
+            Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String}),
+            Input::Continue(ContinueInput{name:"name".to_string(),value:"Yogesh".to_string(),data_type:DataType::String})
+        ];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let mut vec_val = vec![];
+        vec_val.push(Value::String(format!("Atmaram0")));
+        vec_val.push(Value::String(format!("Yogesh1")));
+        let filled = fmo.fill(&context).await;
+        assert_eq!(filled,Value::Array(vec_val));
     }
 
     #[tokio::test]
