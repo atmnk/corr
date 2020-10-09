@@ -8,6 +8,7 @@ use fake::faker::name::raw::*;
 use fake::faker::company::raw::*;
 use fake::faker::address::raw::*;
 use fake::locales::*;
+use base64::encode;
 use fake::Fake;
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
@@ -23,6 +24,7 @@ impl Function for Concat{
         Value::String(buffer)
     }
 }
+
 
 //Add Function
 #[derive(Debug,Clone,PartialEq)]
@@ -148,6 +150,22 @@ impl Function for Divide{
     }
 }
 
+//Divide Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Encode;
+
+#[async_trait]
+impl Function for Encode{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0){
+            let filled:Value = arg.fill(context).await;
+            Value::String(encode(filled.to_string()))
+        } else {
+            Value::Null
+        }
+    }
+}
+
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct FromJson;
@@ -194,6 +212,9 @@ pub fn get_function(name:&str)->Arc<dyn Function>{
         },
         "fake"=>{
             Arc::new(FakeValue{})
+        },
+        "encode"=>{
+            Arc::new(Encode{})
         }
         _=>Arc::new(Concat{})
     }

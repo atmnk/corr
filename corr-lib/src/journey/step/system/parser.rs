@@ -58,7 +58,7 @@ fn arged_for_parser<'a>(input: &'a str) -> ParseResult<'a, (Option<VariableRefer
             terminated(
             opt(
                 tuple((
-                    VariableReferenceName::parser,
+                    ws(VariableReferenceName::parser),
                     opt(preceded(ws(char(',')),VariableReferenceName::parser))))),ws(char(')')))),ws(tag("=>")),one_or_many_steps)),
         |(opt_vars,_,steps)|{
             let mut with = Option::None;
@@ -111,7 +111,7 @@ mod tests{
     }
     #[tokio::test]
     async fn should_parse_for_right_with_args(){
-        let j= r#"(name,index)=>print text `Hello`;"#;
+        let j= r#"( name , index ) => print text `Hello`;"#;
         assert_if(j
                   , for_right_part(j)
                   , (Option::Some(VariableReferenceName::from("name")),Option::Some(VariableReferenceName::from("index")),vec![
