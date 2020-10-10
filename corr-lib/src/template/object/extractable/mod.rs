@@ -8,11 +8,20 @@ pub mod parser;
 #[derive(Clone,Debug,PartialEq)]
 pub enum ExtractableObject{
     WithVariableReference(VariableReferenceName),
-    WithMapObject(ExtractableMapObject)
+    WithForLoop(Box<ExtractableForLoop>),
+    WithMapObject(ExtractableMapObject),
+    WithFixedArray(Vec<ExtractableObject>)
 }
 #[derive(Clone,Debug,PartialEq)]
 pub enum ExtractableMapObject{
     WithPairs(Vec<ExtractablePair>)
+}
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct ExtractableForLoop{
+    on:VariableReferenceName,
+    with: VariableReferenceName,
+    inner: ExtractableObject
 }
 #[derive(Clone,Debug,PartialEq)]
 pub enum ExtractablePair{
@@ -31,7 +40,37 @@ impl Extractable<serde_json::Value> for ExtractableObject{
             },
             ExtractableObject::WithMapObject(mpobj)=>{
                 mpobj.extract_from(context,value).await
+            },
+            ExtractableObject::WithForLoop(efl)=>{
+                efl.extract_from(context,value).await
             }
+            ExtractableObject::WithFixedArray(vec_templates)=>{
+                vec_templates.extract_from(context,value).await
+            }
+        }
+    }
+}
+#[async_trait]
+impl Extractable<serde_json::Value> for Vec<ExtractableObject>{
+    async fn extract_from(&self, context: &Context, value: serde_json::Value) {
+        if let serde_json::Value::Array(vals)= value {
+            let mut index = 0;
+            for inner in self {
+                if let Some(val) = vals.get(index){
+                    inner.extract_from(context,val.clone()).await
+                }
+                index =  index + 1
+            }
+        }
+    }
+}
+#[async_trait]
+impl Extractable<serde_json::Value> for ExtractableForLoop{
+    async fn extract_from(&self, context: &Context, value: serde_json::Value) {
+        if let serde_json::Value::Array(vec_val) = value{
+            context.iterate_like(vec_val,self.on.clone().to_string(),self.with.clone().to_string(),async move |context,_,value|{
+                self.inner.clone().extract_from(&context,value).await
+            }).await;
         }
     }
 }
@@ -63,7 +102,7 @@ impl Extractable<serde_json::Value> for ExtractablePair{
 }
 #[cfg(test)]
 mod tests{
-    use crate::template::object::extractable::{ExtractablePair, Extractable, ExtractableMapObject, ExtractableObject};
+    use crate::template::object::extractable::{ExtractablePair, Extractable, ExtractableMapObject, ExtractableObject, ExtractableForLoop};
     use crate::core::{Value};
     use crate::core::proto::{Output};
     use std::sync::{Arc, Mutex};
@@ -98,6 +137,34 @@ mod tests{
         assert_eq!(context.get_var_from_store(format!("place")).await,Option::Some(Value::String(format!("Mumbai"))));
     }
     #[tokio::test]
+    async fn should_extract_extractableforloop(){
+        let text=r#"names.for (name)=>name"#;
+        let (_,efl) = ExtractableForLoop::parser(text).unwrap();
+        let input=vec![];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let mut vec_val = vec![];
+        vec_val.push(serde_json::Value::String(format!("Atmaram")));
+        vec_val.push(serde_json::Value::String(format!("Yogesh")));
+        efl.extract_from(&context,serde_json::Value::Array(vec_val.clone())).await;
+        assert_eq!(context.get_var_from_store(format!("names")).await,Option::Some(Value::from_json_value(serde_json::Value::Array(vec_val))));
+    }
+    #[tokio::test]
+    async fn should_extract_vec_extractableobject(){
+        let text=r#"[ name , place ]"#;
+        let (_,efl) = Vec::<ExtractableObject>::parser(text).unwrap();
+        let input=vec![];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let mut vec_val = vec![];
+        vec_val.push(serde_json::Value::String(format!("Atmaram")));
+        vec_val.push(serde_json::Value::String(format!("Pune")));
+        efl.extract_from(&context,serde_json::Value::Array(vec_val.clone())).await;
+        assert_eq!(context.get_var_from_store(format!("name")).await,Option::Some(Value::String(format!("Atmaram"))));
+        assert_eq!(context.get_var_from_store(format!("place")).await,Option::Some(Value::String(format!("Pune"))));
+
+    }
+    #[tokio::test]
     async fn should_extract_extractableobject_when_variablereference(){
         let text=r#"object name"#;
         let (_,ep) = ExtractableObject::parser(text).unwrap();
@@ -120,6 +187,35 @@ mod tests{
         ep.extract_from(&context,serde_json::Value::Object(hm)).await;
         assert_eq!(context.get_var_from_store(format!("name")).await,Option::Some(Value::String(format!("Atmaram"))));
         assert_eq!(context.get_var_from_store(format!("age")).await,Option::Some(Value::PositiveInteger(34)));
+
+    }
+    #[tokio::test]
+    async fn should_extract_extractableobject_when_extractableforloop(){
+        let text=r#"object names.for (name)=>name"#;
+        let (_,eo) = ExtractableObject::parser(text).unwrap();
+        let input=vec![];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let mut vec_val = vec![];
+        vec_val.push(serde_json::Value::String(format!("Atmaram")));
+        vec_val.push(serde_json::Value::String(format!("Yogesh")));
+        eo.extract_from(&context,serde_json::Value::Array(vec_val.clone())).await;
+        assert_eq!(context.get_var_from_store(format!("names")).await,Option::Some(Value::from_json_value(serde_json::Value::Array(vec_val))));
+
+    }
+    #[tokio::test]
+    async fn should_extract_extractableobject_when_fixedarray(){
+        let text=r#"object [ name , place ]"#;
+        let (_,eo) = ExtractableObject::parser(text).unwrap();
+        let input=vec![];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let mut vec_val = vec![];
+        vec_val.push(serde_json::Value::String(format!("Atmaram")));
+        vec_val.push(serde_json::Value::String(format!("Pune")));
+        eo.extract_from(&context,serde_json::Value::Array(vec_val.clone())).await;
+        assert_eq!(context.get_var_from_store(format!("name")).await,Option::Some(Value::String(format!("Atmaram"))));
+        assert_eq!(context.get_var_from_store(format!("place")).await,Option::Some(Value::String(format!("Pune"))));
 
     }
 }
