@@ -34,8 +34,8 @@ pub trait Fillable<T>{
 
 #[derive(Clone,Debug,PartialEq)]
 pub enum Expression{
-    Variable(String,Option<DataType>),
     Function(String,Vec<Expression>),
+    Variable(String,Option<DataType>),
     Constant(Value)
 }
 #[derive(Clone,Debug,PartialEq)]

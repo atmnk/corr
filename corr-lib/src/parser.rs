@@ -9,6 +9,7 @@ use nom::character::complete::{alphanumeric1, alpha1, char};
 use crate::core::parser::boolean;
 use nom::error::convert_error;
 use crate::{get_scriptlet_keywords, get_keywords};
+use crate::template::functions::function_names;
 
 pub trait Parsable:Sized{
     fn parser<'a>(input:&'a str)->ParseResult<'a,Self>;
@@ -38,11 +39,11 @@ pub fn identifier_part<'a>(input: &'a str) -> ParseResult<'a,&str> {
             alt((alpha1,tag("_"))),
             many0_count(preceded(opt(char('_')),alphanumeric1)))),|val:&&str|{!get_keywords().contains(val)})(input)
 }
-pub fn scriptlet_keyword<'a>(input: &'a str) -> ParseResult<'a,&str> {
+pub fn function_name<'a>(input: &'a str) -> ParseResult<'a,&str> {
     verify(recognize(
         pair(
             alt((alpha1,tag("_"))),
-            many0_count(preceded(opt(char('_')),alphanumeric1)))),|val:&&str|{get_scriptlet_keywords().contains(val)})(input)
+            many0_count(preceded(opt(char('_')),alphanumeric1)))),|val:&&str|{function_names().contains(val)})(input)
 }
 pub fn result_option<'a,T>(contents:&str,result:ParseResult<'a,T>)->Option<T>{
     match result {
@@ -84,5 +85,16 @@ pub mod util{
             },
             _=>{}
         }
+    }
+}
+#[cfg(test)]
+mod tests{
+    use crate::parser::function_name;
+
+    #[test]
+    fn should_recognize_function_names(){
+        let txt = r#"concat"#;
+        let (i,name) = function_name(txt).unwrap();
+        assert_eq!(name,"concat")
     }
 }

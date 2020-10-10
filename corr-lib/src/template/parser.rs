@@ -1,4 +1,4 @@
-use crate::parser::{Parsable, ParseResult, ws, identifier_part, scriptlet_keyword};
+use crate::parser::{Parsable, ParseResult, ws, identifier_part, function_name};
 use crate::template::{Expression, VariableReferenceName, Assignable};
 use nom::combinator::{map};
 use crate::core::{Value, Variable};
@@ -22,7 +22,7 @@ impl Parsable for Expression{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
             map(Value::parser,|val|Expression::Constant(val)),
-            map(tuple((scriptlet_keyword,ws(char('(')),separated_list0(ws(char(',')),Expression::parser),ws(char(')')))),|(name,_,expressions,_)|Expression::Function(name.to_string(),expressions)),
+            map(tuple((function_name, ws(char('(')), separated_list0(ws(char(',')), Expression::parser), ws(char(')')))), |(name,_,expressions,_)|Expression::Function(name.to_string(), expressions)),
             map(Variable::parser,|val|Expression::Variable(val.name,val.data_type)),
             ))(input)
     }
