@@ -190,34 +190,32 @@ impl Function for FromJson{
 
     }
 }
-pub fn get_function(name:&str)->Arc<dyn Function>{
-    match name {
-        "add"=>{
-            Arc::new(Add{})
-        },
-        "sub"=>{
-            Arc::new(Subtract{})
-        },
-        "mul"=>{
-            Arc::new(Multiply{})
-        },
-        "div"=>{
-            Arc::new(Divide{})
-        },
-        "concat"=>{
-            Arc::new(Concat{})
-        },
-        "from_json"=>{
-            Arc::new(FromJson{})
-        },
-        "fake"=>{
-            Arc::new(FakeValue{})
-        },
-        "encode"=>{
-            Arc::new(Encode{})
-        }
-        _=>Arc::new(Concat{})
+pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
+    return vec![
+        ("add",Arc::new(Add{})),
+        ("sub",Arc::new(Subtract{})),
+        ("mul",Arc::new(Multiply{})),
+        ("div",Arc::new(Divide{})),
+        ("concat",Arc::new(Concat{})),
+        ("from_json",Arc::new(FromJson{})),
+        ("fake",Arc::new(FakeValue{})),
+        ("encode",Arc::new(Encode{}))
+    ]
+}
+pub fn function_names()->Vec<&'static str>{
+    let mut names =vec![];
+    for (name,_) in functions() {
+        names.push(name);
     }
+    names
+}
+pub fn get_function(name:&str)->Arc<dyn Function>{
+    for (reserved_name,value) in functions() {
+        if reserved_name.eq(name){
+            return value;
+        }
+    }
+    return Arc::new(Concat{})
 }
 #[cfg(test)]
 
