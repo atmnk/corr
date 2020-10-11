@@ -8,7 +8,7 @@ use nom::multi::{ many0_count};
 use nom::character::complete::{alphanumeric1, alpha1, char};
 use crate::core::parser::boolean;
 use nom::error::convert_error;
-use crate::{get_scriptlet_keywords, get_keywords};
+use crate::{get_keywords};
 use crate::template::functions::function_names;
 
 pub trait Parsable:Sized{
