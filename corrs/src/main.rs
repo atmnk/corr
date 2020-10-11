@@ -19,7 +19,7 @@ struct Opts {
     #[clap(short, long, default_value = "8765")]
     port:u16,
 
-    #[clap(short, long, default_value = "/usr/local/etc/corrs-cfg.toml")]
+    #[clap(short, long, default_value = "/usr/local/etc/corrs.toml")]
     config:String
 }
 
