@@ -94,7 +94,7 @@ mod tests{
     #[test]
     fn should_recognize_function_names(){
         let txt = r#"concat"#;
-        let (i,name) = function_name(txt).unwrap();
+        let (_,name) = function_name(txt).unwrap();
         assert_eq!(name,"concat")
     }
 }

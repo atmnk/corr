@@ -10,6 +10,7 @@ use fake::faker::address::raw::*;
 use fake::locales::*;
 use base64::encode;
 use fake::Fake;
+use rand::Rng;
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Concat;
@@ -29,6 +30,14 @@ impl Function for Concat{
 //Add Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Add;
+
+//Random Element Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct RandomElement;
+
+//Random Element Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Random;
 
 #[async_trait]
 impl Function for Add{
@@ -123,6 +132,69 @@ impl Function for Subtract{
         }
     }
 }
+#[async_trait]
+impl Function for Random{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+
+        if let Some(val1) = args.get(0){
+            if let Some(val2) = args.get(1){
+
+                let value1:Value = val1.fill(context).await;
+                let value2:Value = val2.fill(context).await;
+                let mut rng = rand::thread_rng();
+                if let Value::PositiveInteger(uv1) = value1{
+                    if let Value::PositiveInteger(uv2)=value2{
+
+                        Value::PositiveInteger(rng.gen_range(uv1,uv2))
+                    } else {
+                        Value::Null
+                    }
+                } else if let Value::Integer(uv1) = value1{
+                    if let Value::Integer(uv2)=value2{
+
+                        Value::Integer(rng.gen_range(uv1,uv2))
+                    } else {
+                        Value::Null
+                    }
+                } else if let Value::Double(uv1) = value1{
+                    if let Value::Double(uv2)=value2{
+                        Value::Double(rng.gen_range(uv1,uv2))
+                    } else {
+                        Value::Null
+                    }
+                } else {
+                    Value::Null
+                }
+            } else {
+                Value::Null
+            }
+
+        }else {
+            Value::Null
+        }
+    }
+}
+#[async_trait]
+impl Function for RandomElement{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0) {
+            let value:Value = arg.fill(context).await;
+            if let Value::Array(val)=value{
+                let mut rng = rand::thread_rng();
+                let index = rng.gen_range(0,val.len() -1 );
+                if let Some(ret_val) = val.get(index){
+                    ret_val.clone()
+                } else {
+                    Value::Null
+                }
+            } else {
+                value.clone()
+            }
+        } else {
+            Value::Null
+        }
+    }
+}
 //Divide Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Divide;
@@ -199,7 +271,9 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("concat",Arc::new(Concat{})),
         ("from_json",Arc::new(FromJson{})),
         ("fake",Arc::new(FakeValue{})),
-        ("encode",Arc::new(Encode{}))
+        ("encode",Arc::new(Encode{})),
+        ("random",Arc::new(Random{})),
+        ("random_element",Arc::new(RandomElement{}))
     ]
 }
 pub fn function_names()->Vec<&'static str>{

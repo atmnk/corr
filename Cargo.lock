@@ -336,6 +336,7 @@ dependencies = [
  "mockito",
  "nom 6.0.0-alpha3",
  "nom_locate",
+ "rand 0.7.3",
  "regex",
  "serde",
  "serde_json",

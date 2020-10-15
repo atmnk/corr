@@ -52,7 +52,7 @@ impl Server {
                 .expect("failed to install CTRL+C signal handler");
         };
         let (_, serving) =
-            warp::serve(site).bind_with_graceful_shutdown(([127, 0, 0, 1], self.port), shutdown);
+            warp::serve(site).bind_with_graceful_shutdown(([0, 0, 0, 0], self.port), shutdown);
 
 
         tokio::select! {
