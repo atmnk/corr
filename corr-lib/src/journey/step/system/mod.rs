@@ -11,7 +11,8 @@ use crate::journey::step::Step;
 pub enum SystemStep{
     Print(PrintStep),
     ForLoop(ForLoopStep),
-    Assignment(AssignmentStep)
+    Assignment(AssignmentStep),
+    Comment(String)
 
 }
 #[derive(Debug, Clone,PartialEq)]
@@ -68,7 +69,8 @@ impl Executable for SystemStep{
             SystemStep::ForLoop(fls)=>{
                 fls.execute(context).await
             },
-            SystemStep::Assignment(asst)=>asst.execute(context).await
+            SystemStep::Assignment(asst)=>asst.execute(context).await,
+            SystemStep::Comment(_)=>{}
         }
 
     }

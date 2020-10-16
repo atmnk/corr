@@ -155,7 +155,6 @@ mod tests{
     async fn should_fill_fillableobject_when_forloop(){
         let txt = r#"object names.for (name) => name"#;
         let (_,fo) = FillableObject::parser(txt).unwrap();
-        println!("{:?}",fo);
         let input=vec![
             Input::Continue(ContinueInput{name:"names::length".to_string(),value:"2".to_string(),data_type:DataType::PositiveInteger}),
             Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String}),

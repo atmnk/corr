@@ -67,9 +67,9 @@ pub struct ReferenceStore{
 }
 
 fn break_on(path:String,chr:char)->Option<(String,String)>{
-    let spl:Vec<&str>=path.rsplitn(2,chr).collect();
+    let spl:Vec<&str>=path.splitn(2,chr).collect();
     if spl.len() == 2{
-        Option::Some((spl[1].to_string(),spl[0].to_string()))
+        Option::Some((spl[0].to_string(),spl[1].to_string()))
     }
     else {
         Option::None
@@ -348,7 +348,7 @@ pub mod tests{
     use crate::core::proto::{Input, Output};
     use std::sync::{Arc, Mutex};
     use async_trait::async_trait;
-    use crate::core::runtime::{Context, Client, IO};
+    use crate::core::runtime::{Context, Client, IO, break_on};
 
     impl Context{
         pub fn mock(inputs:Vec<Input>,buffer:Arc<Mutex<Vec<Output>>>)->Self{
@@ -396,6 +396,15 @@ pub mod tests{
         assert_eq!(a.len(), 4);
         assert_eq!(b.len(), 4);
         assert_eq!( buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("names::length".to_string(),DataType::PositiveInteger));
+    }
+    #[tokio::test]
+    async fn should_break_on_dot_with_two_dots(){
+        let vals= break_on(format!("person.address.addressLine1"),'.');
+        let (left,right) = vals.unwrap();
+
+        assert_eq!(left,format!("person"));
+        assert_eq!(right,format!("address.addressLine1"));
+
     }
     #[tokio::test]
     async fn should_iterate_and_read(){

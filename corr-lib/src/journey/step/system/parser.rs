@@ -72,6 +72,7 @@ fn arged_for_parser<'a>(input: &'a str) -> ParseResult<'a, (Option<VariableRefer
 impl Parsable for SystemStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
+            // map(preceded(ws(tag("//")),rest_of_the_line),|line|{SystemStep::Comment(line)}),
             map(PrintStep::parser,|ps|{SystemStep::Print(ps)}),
             map(ForLoopStep::parser,|fls|{SystemStep::ForLoop(fls)}),
             map(AssignmentStep::parser,|asst| SystemStep::Assignment(asst))))

@@ -85,7 +85,6 @@ impl Extractable<CorrResponse> for ExtractableResponse{
             if let Some(eb) = &self.body{
                 match eb {
                     ExtractableResponseBody::WithObject(_)=>{
-                        println!("{}",value.body);
                         eb.extract_from(context,ResponseBody::JSON(serde_json::from_str::<serde_json::Value>(value.body.as_str()).unwrap())).await;
                     }
                 }

@@ -52,7 +52,6 @@ pub async fn start(journies:&Vec<Journey>,filter_string: String,context:Context)
                 journies.get(val).unwrap().execute(&context).await;
                 break;
             } else {
-                println!("Invalid Value");
                 context.write(format!("Invalid Value")).await;
                 context.delete(format!("choice")).await;
                 continue;

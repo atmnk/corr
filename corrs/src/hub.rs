@@ -42,13 +42,11 @@ impl Client for User{
                 let message = match result {
                     Ok(msg) => msg,
                     Err(e) => {
-                        println!("{:?}",e);
+                        eprintln!("{:?}",e);
                         unimplemented!()
                     }
                 };
-                eprintln!("{:?}",message);
                 let input:Input = serde_json::from_str(message.to_str().unwrap()).unwrap();
-                eprintln!("Got Message{:?}",input);
                 input
             } else {
                 ret
@@ -87,7 +85,6 @@ pub fn get_journies()->Vec<Journey>{
             if let Some(extention) = dir_entry.extension() {
                 match extention.to_str() {
                     Some("journey") => {
-                        println!("reading from file {:?}",dir_entry);
                         let ctc=File::open(dir_entry).unwrap();
                         if let Some(journey)=read_journey_from_file(ctc){
                             journeys.push(journey);

@@ -51,7 +51,7 @@ pub fn result_option<'a,T>(contents:&str,result:ParseResult<'a,T>)->Option<T>{
             Option::Some(val)
         },
         Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e))=>{
-            println!("{}",readable_error(contents,e));
+            eprintln!("{}",readable_error(contents,e));
             Option::None
         },
         _=>{
