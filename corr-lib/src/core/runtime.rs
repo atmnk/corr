@@ -108,7 +108,9 @@ pub async fn set_value_at(path:String,heap_object_ref:Arc<Mutex<HeapObject>>,val
                 if let Some(key_value)=obj.get(&left){
                     set_value_at(right.clone(),key_value.clone(),value).await
                 } else {
-                    Option::None
+                    let inner_obj = Arc::new(Mutex::new(HeapObject::Object(HashMap::new())));
+                    obj.insert(left.clone(),inner_obj.clone());
+                    set_value_at(right.clone(),inner_obj.clone(),value).await
                 }
             } else {
                 obj.insert(path.clone(),value.clone());
@@ -134,11 +136,15 @@ impl ReferenceStore{
     #[async_recursion]
     pub async fn set(&self,path:String,value:Arc<Mutex<HeapObject>>){
         if let Some((left,right)) = break_on(path.clone(),'.'){
-            if let Some(arc) = self.references.lock().await.get(&left){
-                set_value_at(right.clone(),arc.clone(),value).await;
+            let mut new_obj = false;
+            let obj = if let Some(arc) = self.references.lock().await.get(&left){
+                arc.clone()
             } else {
-                let obj = Arc::new(Mutex::new(HeapObject::Object(HashMap::new())));
-                set_value_at(right.clone(),obj.clone(),value).await;
+                new_obj=true;
+                Arc::new(Mutex::new(HeapObject::Object(HashMap::new())))
+            };
+            set_value_at(right.clone(),obj.clone(),value).await;
+            if new_obj {
                 self.references.lock().await.insert(left.clone(),obj);
             }
         } else {

@@ -51,7 +51,6 @@ impl Executable for ForLoopStep{
                     for step in inner_steps.clone() {
                         step.execute(&context).await;
                     }
-                    context
                 }).await;
                 //To Do
             }
@@ -125,24 +124,24 @@ mod tests{
     }
     #[tokio::test]
     async fn should_execute_for_step(){
-        let text = r#"names . for(name,i)=>{print text `Hello <%i%>-<%name%>`
+        let text = r#"persons . for(person,i)=>{print text `Hello <%i%>-<%person.name%>`
             print text `Next`
         }"#;
         let (_,step)=SystemStep::parser(text).unwrap();
         let input = vec![
-            Input::new_continue("names::length".to_string(),"2".to_string(),DataType::PositiveInteger),
-            Input::new_continue("name".to_string(),"Atmaram".to_string(),DataType::String),
-            Input::new_continue("name".to_string(),"Yogesh".to_string(),DataType::String),
+            Input::new_continue("persons::length".to_string(),"2".to_string(),DataType::PositiveInteger),
+            Input::new_continue("person.name".to_string(),"Atmaram".to_string(),DataType::String),
+            Input::new_continue("person.name".to_string(),"Yogesh".to_string(),DataType::String),
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());
         step.execute(&context).await;
-        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("names::length".to_string(),DataType::PositiveInteger));
-        assert_eq!(buffer.lock().unwrap().get(1).unwrap().clone(),Output::new_tell_me("name".to_string(),DataType::String));
+        assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("persons::length".to_string(),DataType::PositiveInteger));
+        assert_eq!(buffer.lock().unwrap().get(1).unwrap().clone(),Output::new_tell_me("person.name".to_string(),DataType::String));
         assert_eq!(buffer.lock().unwrap().get(2).unwrap().clone(),Output::new_know_that("Hello 0-Atmaram".to_string()));
         assert_eq!(buffer.lock().unwrap().get(3).unwrap().clone(),Output::new_know_that("Next".to_string()));
 
-        assert_eq!(buffer.lock().unwrap().get(4).unwrap().clone(),Output::new_tell_me("name".to_string(),DataType::String));
+        assert_eq!(buffer.lock().unwrap().get(4).unwrap().clone(),Output::new_tell_me("person.name".to_string(),DataType::String));
         assert_eq!(buffer.lock().unwrap().get(5).unwrap().clone(),Output::new_know_that("Hello 1-Yogesh".to_string()));
         assert_eq!(buffer.lock().unwrap().get(6).unwrap().clone(),Output::new_know_that("Next".to_string()));
 
