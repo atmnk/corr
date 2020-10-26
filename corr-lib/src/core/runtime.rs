@@ -145,7 +145,10 @@ impl ReferenceStore{
             };
             set_value_at(right.clone(),obj.clone(),value).await;
             if new_obj {
-                self.references.lock().await.insert(left.clone(),obj);
+                self.references.lock().await.insert(left.clone(),obj.clone());
+                if let Some(parent) = &self.parent{
+                    parent.set(left.clone(),obj.clone()).await;
+                }
             }
         } else {
             self.references.lock().await.insert(path.clone(),value.clone());
@@ -297,9 +300,12 @@ impl Context {
             Fut: Future<Output = T>,
     {
         let mut result=vec![];
+
         if let Some(arc) = self.store.get(path.clone()).await{
+
             if let HeapObject::List(lst) = &*arc.lock().await {
                 let mut i = 0;
+
                 for l in lst {
                     let new_ct = Context::from(self).await;
                     if let Some(temp) = opt_temp.clone() {
@@ -438,5 +444,33 @@ pub mod tests{
         assert_eq!( buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("names::length".to_string(),DataType::PositiveInteger));
         assert_eq!( buffer.lock().unwrap().get(1).unwrap().clone(),Output::new_tell_me("name".to_string(),DataType::String));
         assert_eq!( buffer.lock().unwrap().get(2).unwrap().clone(),Output::new_tell_me("name".to_string(),DataType::String));
+    }
+
+    #[tokio::test]
+    async fn should_iterate_and_read_internal_variables(){
+        let buffer= Arc::new(Mutex::new(vec![]));
+        let context = Context::mock(vec![
+            Input::new_continue("persons::length".to_ascii_lowercase(), "2".to_string(), DataType::PositiveInteger),
+            Input::new_continue("person.name".to_ascii_lowercase(), "Atmaram".to_string(), DataType::String),
+            Input::new_continue("person.name".to_ascii_lowercase(), "Atiksh".to_string(), DataType::String)
+        ],buffer.clone());
+        let a=context.iterate("persons".to_string(),Option::Some("person".to_string()),async move |ct,_|{
+            ct.read(Variable{
+                name:"person.name".to_string(),
+                data_type:Option::Some(DataType::String)
+            }).await
+        }).await;
+        let b=context.iterate("persons".to_string(),Option::Some("person".to_string()),async move |ct,_|{
+            ct.read(Variable{
+                name:"person.name".to_string(),
+                data_type:Option::Some(DataType::String)
+            }).await
+        }).await;
+        assert_eq!(a.len(), 2);
+        assert_eq!(b.len(), 2);
+        assert_eq!( buffer.lock().unwrap().len(),3);
+        assert_eq!( buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("persons::length".to_string(),DataType::PositiveInteger));
+        assert_eq!( buffer.lock().unwrap().get(1).unwrap().clone(),Output::new_tell_me("person.name".to_string(),DataType::String));
+        assert_eq!( buffer.lock().unwrap().get(2).unwrap().clone(),Output::new_tell_me("person.name".to_string(),DataType::String));
     }
 }
