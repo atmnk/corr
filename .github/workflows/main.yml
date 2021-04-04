@@ -17,13 +17,19 @@ jobs:
 #        args: --release --all-features --package corr
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly
+        toolchain: nightly-1.50.0
         override: true
-    - name: Build Corrs Package
+    - name: Build corrs Package
       uses: actions-rs/cargo@v1
       with:
         command: build
         args: --release --all-features --package corrs
+
+    - name: Build corr Package
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --all-features --package corr
 
     - name: Setup Node.js
       uses: actions/setup-node@v1

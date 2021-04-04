@@ -14,7 +14,7 @@ jobs:
           ref: dev
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-1.50.0
           override: true
       - uses: actions/checkout@v2
       - run: cargo test --all
