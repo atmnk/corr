@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     name: Test The Commit
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     services:
       postgres:
         image: postgres:11.5-alpine
