@@ -95,7 +95,7 @@ impl Function for Mod{
 
 #[async_trait]
 impl Function for Uuid{
-    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+    async fn evaluate(&self, _args: Vec<Expression>, _context: &Context) -> Value {
         let val = uuid::Uuid::new_v4();
         Value::String(val.to_string())
     }

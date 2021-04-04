@@ -2,7 +2,7 @@
 use clap::Clap;
 use clap::AppSettings;
 use crate::launcher::{build, run};
-use futures::io::Error;
+
 use async_trait::async_trait;
 pub mod client;
 pub mod launcher;

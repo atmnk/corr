@@ -1,7 +1,7 @@
 use corr_lib::core::runtime::{Client};
 use corr_lib::core::runtime::Context as CorrContext;
-use std::task::{Context};
-use corr_lib::core::proto::{Input, Output, StartInput, TellMeOutput};
+
+use corr_lib::core::proto::{Input, Output};
 use async_trait::async_trait;
 pub struct CliDriver;
 use flate2::read::GzDecoder;
@@ -11,18 +11,18 @@ use std::path::Path;
 use corr_lib::journey::{Journey, Executable};
 use std::sync::Arc;
 use futures::lock::Mutex;
-use async_std::io;
-use futures::{future, ready, FutureExt, Sink, Stream, TryFutureExt, StreamExt, AsyncReadExt};
+
+
 use tokio::sync::{mpsc};
-use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver, Receiver, Sender};
-use tokio::macros::support::Pin;
-use async_std::task::Poll;
-use async_std::stream::Stream as StdStream;
+use tokio::sync::mpsc::{Receiver, Sender};
+
+
+
 use corr_lib::parser::Parsable;
-use futures::stream::SplitStream;
+
 use tokio::io::{Stdin, BufReader, AsyncBufReadExt, Lines};
-use std::iter::Map;
-use corr_lib::core::DataType;
+
+
 
 impl CliDriver{
     pub async fn run(target:String,journey:String){
@@ -80,7 +80,7 @@ impl Terminal{
     pub fn new()->Self{
         let stdin = tokio::io::stdin();
         let reader = BufReader::new(stdin);
-        let (tx,mut rx) = mpsc::channel(100);
+        let (tx,rx) = mpsc::channel(100);
         return Self {
             tx,
             rx,
@@ -116,8 +116,8 @@ impl Terminal{
         }
     }
     pub fn get_if(&mut self)->CliInterface{
-        let (tx,mut rx) = mpsc::channel(100);
-        let (tx_s,mut rx_s) = mpsc::channel(100);
+        let (tx,rx) = mpsc::channel(100);
+        let (tx_s,rx_s) = mpsc::channel(100);
         self.rx = rx;
         self.tx = tx_s;
         return CliInterface{
@@ -133,7 +133,7 @@ pub struct CliInterface{
 #[async_trait]
 impl Client for CliInterface {
     async fn send(&self,output:Output){
-        if let Err(err) = &self.tx.send(Message::Output(output)).await {
+        if let Err(_err) = &self.tx.send(Message::Output(output)).await {
             println!("Some Error")
         }
     }
