@@ -56,7 +56,7 @@ jobs:
           outPath: corrs.tar.gz
       - name: Compress corr package
         uses: master-atul/tar-action@v1.0.2
-        id: compress-corrs
+        id: compress-corr
         with:
           command: c
           cwd: target/release
