@@ -69,14 +69,15 @@ impl Server {
 
         // Split the socket into a sender and receive of messages.
         let (user_ws_tx, user_ws_rx) = web_socket.split();
-        let (tx, rx) = mpsc::unbounded_channel();
+        let (tx, rx) = mpsc::channel(100);
+        let rx = tokio_stream::wrappers::ReceiverStream::new(rx);
         tokio::task::spawn(rx.forward(user_ws_tx).map(|result| {
             if let Err(e) = result {
                 eprintln!("websocket send error: {}", e);
             }
         }));
         let user = User::new(tx,user_ws_rx);
-        user.send(Output::new_connected(format!("You are now connected to corrs server!!")));
+        user.send(Output::new_connected(format!("You are now connected to corrs server!!"))).await;
         hub.start(user).await
     }
 }

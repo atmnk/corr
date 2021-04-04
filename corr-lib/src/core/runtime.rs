@@ -189,7 +189,7 @@ impl ReferenceStore{
 #[async_trait]
 impl IO for Context {
     async fn write(&self, data:String){
-        self.user.lock().await.send(Output::new_know_that(data));
+        self.user.lock().await.send(Output::new_know_that(data)).await;
     }
 
     async fn read(&self, variable: Variable)->VariableValue{
@@ -218,7 +218,7 @@ impl IO for Context {
             } else {
                 DataType::String
             };
-            self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone()));
+            self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone())).await;
             loop{
                 let message=self.user.lock().await.get_message().await;
                 if let Some(var) =match message {
@@ -232,8 +232,8 @@ impl IO for Context {
                         continue;
                     }
                 } else {
-                    self.user.lock().await.send(Output::new_know_that(format!("Invalid Value")));
-                    self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone()));
+                    self.user.lock().await.send(Output::new_know_that(format!("Invalid Value"))).await;
+                    self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone())).await;
                 }
             }
         }
@@ -343,8 +343,8 @@ impl Context {
     }
 }
 #[async_trait]
-pub trait Client:Send{
-    fn send(&self,output:Output);
+pub trait Client:Send+Sync{
+    async fn send(&self,output:Output);
     async fn get_message(&mut self)->Input;
 }
 #[async_trait]
@@ -387,7 +387,7 @@ pub mod tests{
 
     #[async_trait]
     impl Client for MockClient {
-        fn send(&self, output: Output) {
+        async fn send(&self, output: Output) {
             self.buffer.lock().unwrap().push(output);
         }
 

@@ -7,9 +7,10 @@ pub mod rest;
 use crate::core::{DataType, runtime::Context, Value, runtime::IO, Variable};
 use std::fmt::Debug;
 use async_trait::async_trait;
-use crate::template::functions::get_function;
+use crate::template::functions::{get_function, Add, Subtract, Multiply, Divide, Mod, Increment, Decrement};
 use crate::template::text::Text;
 use crate::template::object::FillableObject;
+use std::sync::Arc;
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum Assignable{
@@ -31,12 +32,81 @@ impl Fillable<Value> for Assignable{
 pub trait Fillable<T>{
     async fn fill(&self,context:&Context)->T;
 }
-
+#[derive(Clone,Debug,PartialEq)]
+pub enum BinaryOperator {
+    Add,
+    Subtract,
+    Divide,
+    Multiply,
+    Mod,
+    // Range,
+    // Increment,
+    // Decrement
+}
+#[derive(Clone,Debug,PartialEq)]
+pub enum UnaryOperator {
+    Increment,
+    Decrement,
+    // Range,
+    // Increment,
+    // Decrement
+}
+impl BinaryOperator {
+    pub fn get_function(&self)->Arc<dyn Function>{
+        match self {
+            BinaryOperator::Add=>{
+                Arc::new(Add{})
+            },
+            BinaryOperator::Subtract=>{
+                Arc::new(Subtract{})
+            },
+            BinaryOperator::Multiply=>{
+                Arc::new(Multiply{})
+            },
+            BinaryOperator::Divide=>{
+                Arc::new(Divide{})
+            },
+            BinaryOperator::Mod=>{
+                Arc::new(Mod{})
+            }
+        }
+    }
+}
+impl UnaryOperator {
+    pub fn get_function(&self)->Arc<dyn Function>{
+        match self {
+            UnaryOperator::Increment=>{
+                Arc::new(Increment{})
+            },
+            UnaryOperator::Decrement=>{
+                Arc::new(Decrement{})
+            }
+        }
+    }
+}
+#[derive(Clone,Debug,PartialEq)]
+pub enum Operator{
+    Binary(BinaryOperator),
+    Unary(UnaryOperator)
+}
+impl Operator {
+    pub fn get_function(&self)->Arc<dyn Function>{
+        match self {
+            Operator::Binary(bo)=>{
+                bo.get_function()
+            },
+            Operator::Unary(uo)=>{
+                uo.get_function()
+            }
+        }
+    }
+}
 #[derive(Clone,Debug,PartialEq)]
 pub enum Expression{
     Function(String,Vec<Expression>),
     Variable(String,Option<DataType>),
-    Constant(Value)
+    Constant(Value),
+    Operator(Operator, Vec<Expression>)
 }
 #[derive(Clone,Debug,PartialEq)]
 pub struct VariableReferenceName {
@@ -76,6 +146,9 @@ impl Expression{
             },
             Expression::Constant(val)=>{
                 val.clone()
+            },
+            Expression::Operator(op,args)=>{
+                op.get_function().evaluate(args.clone(),context).await
             }
         }
     }

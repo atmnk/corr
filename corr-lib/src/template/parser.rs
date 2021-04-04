@@ -1,13 +1,14 @@
 use crate::parser::{Parsable, ParseResult, ws, identifier_part, function_name};
-use crate::template::{Expression, VariableReferenceName, Assignable};
+use crate::template::{Expression, VariableReferenceName, Assignable, BinaryOperator, Operator, UnaryOperator};
 use nom::combinator::{map};
 use crate::core::{Value, Variable};
 use nom::sequence::{tuple};
 use nom::branch::alt;
 use nom::character::complete::char;
-use nom::multi::{separated_list0, separated_list1};
+use nom::multi::{separated_list0, separated_list1, many1};
 use crate::template::text::Text;
 use crate::template::object::FillableObject;
+use nom::bytes::complete::tag;
 
 impl Parsable for Assignable {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -18,14 +19,64 @@ impl Parsable for Assignable {
             ))(input)
     }
 }
-impl Parsable for Expression{
+impl Parsable for BinaryOperator {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
-            map(Value::parser,|val|Expression::Constant(val)),
-            map(tuple((function_name, ws(char('(')), separated_list0(ws(char(',')), Expression::parser), ws(char(')')))), |(name,_,expressions,_)|Expression::Function(name.to_string(), expressions)),
-            map(Variable::parser,|val|Expression::Variable(val.name,val.data_type)),
-            ))(input)
+            map(tag("+"),|_| BinaryOperator::Add),
+            map(tag("-"),|_| BinaryOperator::Subtract),
+            map(tag("*"),|_| BinaryOperator::Multiply),
+            map(tag("/"),|_| BinaryOperator::Divide),
+            map(tag("%"),|_| BinaryOperator::Mod),
+         ))(input)
     }
+}
+impl Parsable for UnaryOperator {
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        alt((
+            map(tag("++"),|_| UnaryOperator::Increment),
+            map(tag("--"),|_| UnaryOperator::Decrement)
+        ))(input)
+    }
+}
+
+impl Operator {
+    fn expression_with_operator_parser<'a>(input: &'a str) -> ParseResult<'a, Expression> {
+        alt((
+            map(tuple((ws(Operator::non_binary_expression), ws(BinaryOperator::parser), ws(Operator::non_binary_expression))), |(left,op,right)|{
+                Expression::Operator(Operator::Binary(op),vec![left,right])
+            }),
+            Operator::non_binary_expression
+            ))(input)
+
+    }
+    fn non_binary_expression<'a>(input: &'a str) -> ParseResult<'a, Expression> {
+        alt((
+            map(tuple((ws(non_operator_expression), many1(ws(UnaryOperator::parser)))), |(left,ops)|{
+                let mut exp = left.clone();
+                for opt  in ops {
+                    exp = Expression::Operator(Operator::Unary(opt),vec![exp])
+                }
+                exp
+            }),
+            non_operator_expression
+        ))(input)
+
+    }
+}
+impl Parsable for Expression{
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+       alt((operator_expression,non_operator_expression))(input)
+    }
+}
+fn non_operator_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
+    alt((
+        map(Value::parser,|val|Expression::Constant(val)),
+        map(tuple((function_name, ws(char('(')), separated_list0(ws(char(',')), Expression::parser), ws(char(')')))), |(name,_,expressions,_)|Expression::Function(name.to_string(), expressions)),
+        map(Variable::parser,|val|Expression::Variable(val.name,val.data_type)),
+    ))(input)
+}
+fn operator_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
+    Operator::expression_with_operator_parser(input)
 }
 impl Parsable for VariableReferenceName {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {

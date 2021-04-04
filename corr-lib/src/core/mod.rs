@@ -95,6 +95,31 @@ impl Number{
             },
         }
     }
+    pub fn remainder(&self,number:Number)->Number{
+        match self {
+            Number::PositiveInteger(lng1)=> {
+                match number {
+                    Number::PositiveInteger(lng2)=>Number::PositiveInteger(lng1%lng2),
+                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i64%lng2),
+                    Number::Double(dbl1)=>Number::Double(lng1.clone() as f64%dbl1)
+                }
+            },
+            Number::Integer(lng1)=> {
+                match number {
+                    Number::PositiveInteger(lng2)=>Number::Integer(lng1%lng2 as i64),
+                    Number::Integer(lng2)=>Number::Integer(lng1%lng2),
+                    Number::Double(dbl1)=>Number::Double(lng1.clone() as f64%dbl1)
+                }
+            },
+            Number::Double(dbl1)=> {
+                match number {
+                    Number::PositiveInteger(lng1)=>Number::Double(dbl1%lng1 as f64),
+                    Number::Integer(lng1)=>Number::Double(dbl1%lng1 as f64),
+                    Number::Double(dbl2)=>Number::Double(dbl1%dbl2)
+                }
+            },
+        }
+    }
     pub fn subtract(&self, number:Number) ->Number{
         match self {
             Number::PositiveInteger(lng1)=> {

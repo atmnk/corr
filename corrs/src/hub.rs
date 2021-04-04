@@ -17,11 +17,11 @@ const APP_INFO: AppInfo = AppInfo{name: "corrs", author: "Atmaram Naik"};
 pub struct Hub{
 }
 pub struct User {
-    pub tx:mpsc::UnboundedSender<Result<Message>>,
+    pub tx:mpsc::Sender<Result<Message>>,
     pub user_ws_rx:SplitStream<WebSocket>
 }
 impl User {
-    pub fn new(tx:mpsc::UnboundedSender<Result<Message>>,user_ws_rx:SplitStream<WebSocket>)->User{
+    pub fn new(tx:mpsc::Sender<Result<Message>>,user_ws_rx:SplitStream<WebSocket>)->User{
         User{
             tx,
             user_ws_rx
@@ -31,8 +31,8 @@ impl User {
 }
 #[async_trait]
 impl Client for User{
-    fn send(&self,output:Output){
-        if let Err(_disconnected) = self.tx.send(Ok(Message::text(serde_json::to_string(&output).unwrap()))) {
+    async fn send(&self,output:Output){
+        if let Err(_disconnected) = &self.tx.send(Ok(Message::text(serde_json::to_string(&output).unwrap()))).await {
 
         }
     }
@@ -70,7 +70,7 @@ impl Hub {
             let context = Context::new(shared_user.clone());
             let journies=get_journies();
             start(&journies,filter,context).await;
-            shared_user.lock().await.send(Output::new_done("Done Executing Journey".to_string()));
+            shared_user.lock().await.send(Output::new_done("Done Executing Journey".to_string())).await;
         }
 
     }

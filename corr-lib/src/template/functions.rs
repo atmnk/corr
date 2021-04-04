@@ -56,6 +56,18 @@ impl Function for Add{
 #[derive(Debug,Clone,PartialEq)]
 pub struct Multiply;
 
+//Multiply Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Mod;
+
+//Uuid Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Uuid;
+
+//Get Current Date With Now and optional format
+#[derive(Debug,Clone,PartialEq)]
+pub struct Now;
+
 #[async_trait]
 impl Function for Multiply{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
@@ -68,7 +80,52 @@ impl Function for Multiply{
         number.to_value()
     }
 }
+#[async_trait]
+impl Function for Mod{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let mut number= Number::PositiveInteger(1);
+        for arg in args {
+            if let Some(res)=arg.evaluate(context).await.to_number(){
+                number=number.remainder(res)
+            }
+        }
+        number.to_value()
+    }
+}
 
+#[async_trait]
+impl Function for Uuid{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let val = uuid::Uuid::new_v4();
+        Value::String(val.to_string())
+    }
+}
+
+#[async_trait]
+impl Function for Now{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let  value = if args.len() == 1 {
+            let format = args.get(0).unwrap().evaluate(context).await.to_string();
+            chrono::Utc::now().format(format.as_str()).to_string()
+        } else {
+            chrono::Utc::now().to_rfc3339().to_string()
+        };
+        Value::String(value)
+    }
+}
+
+// #[async_trait]
+// impl Function for Now{
+//     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+//         let  value = if args.len() == 1 {
+//             let format = args.get(0).unwrap().evaluate(context).await.to_string();
+//             chrono::Utc::now().format(format.as_str()).to_string()
+//         } else {
+//             chrono::Utc::now().to_rfc3339().to_string()
+//         };
+//         Value::String(value)
+//     }
+// }
 
 //Subtarct Function
 #[derive(Debug,Clone,PartialEq)]
@@ -78,11 +135,51 @@ pub struct Subtract;
 #[derive(Debug,Clone,PartialEq)]
 pub struct FakeValue;
 
+//Fake Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Increment;
+
+//Fake Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Decrement;
+
 #[async_trait]
 impl Function for FakeValue{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
         if let Value::String(arg) = args.get(0).unwrap().fill(context).await {
             get_fake(arg)
+        } else {
+            Value::Null
+        }
+
+    }
+}
+
+#[async_trait]
+impl Function for Increment{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0){
+            if let Some(first) = arg.evaluate(context).await.to_number(){
+                first.add(Number::PositiveInteger(1)).to_value()
+            } else {
+                Value::Null
+            }
+        } else {
+            Value::Null
+        }
+
+    }
+}
+
+#[async_trait]
+impl Function for Decrement{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0){
+            if let Some(first) = arg.evaluate(context).await.to_number(){
+                first.subtract(Number::PositiveInteger(1)).to_value()
+            } else {
+                Value::Null
+            }
         } else {
             Value::Null
         }
@@ -199,6 +296,7 @@ impl Function for RandomElement{
 #[derive(Debug,Clone,PartialEq)]
 pub struct Divide;
 
+
 #[async_trait]
 impl Function for Divide{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
@@ -264,7 +362,10 @@ impl Function for FromJson{
 }
 pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
     return vec![
+        ("now",Arc::new(Now{})),
+        ("uuid",Arc::new(Uuid{})),
         ("add",Arc::new(Add{})),
+        ("mod",Arc::new(Mod{})),
         ("sub",Arc::new(Subtract{})),
         ("mul",Arc::new(Multiply{})),
         ("div",Arc::new(Divide{})),
