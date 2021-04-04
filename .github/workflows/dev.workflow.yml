@@ -16,11 +16,8 @@ jobs:
         with:
           toolchain: nightly
           override: true
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - run: cargo test --all
-        env:
-          PG_HOST: localhost
-          PG_PORT: ${{ job.services.postgres.ports[5432] }}
     outputs:
       job-status: ${{ job.status }}
   notify-slack:
