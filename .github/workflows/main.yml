@@ -17,7 +17,7 @@ jobs:
 #        args: --release --all-features --package corr
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly-1.50.0
+        toolchain: nightly
         override: true
     - name: Build corrs Package
       uses: actions-rs/cargo@v1
