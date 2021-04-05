@@ -249,4 +249,9 @@ mod tests{
             }))))
 
     }
+    #[tokio::test]
+    async fn should_parse_systemstep_with_assignment_step_with_operator(){
+        let j= r#"let obj.day = object index % 18"#;
+        SystemStep::parser(j).unwrap();
+    }
 }

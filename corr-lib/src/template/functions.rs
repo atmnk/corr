@@ -83,13 +83,23 @@ impl Function for Multiply{
 #[async_trait]
 impl Function for Mod{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
-        let mut number= Number::PositiveInteger(1);
-        for arg in args {
-            if let Some(res)=arg.evaluate(context).await.to_number(){
-                number=number.remainder(res)
+        if let Some(arg) = args.get(0){
+            if let Some(first) = arg.evaluate(context).await.to_number(){
+                if let Some(arg) = args.get(1){
+                    if let Some(second) = arg.evaluate(context).await.to_number(){
+                        first.remainder(second).to_value()
+                    } else {
+                        first.to_value()
+                    }
+                } else {
+                    first.to_value()
+                }
+            } else {
+                Value::Null
             }
+        } else {
+            Value::Null
         }
-        number.to_value()
     }
 }
 

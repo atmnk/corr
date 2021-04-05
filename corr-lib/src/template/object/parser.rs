@@ -126,6 +126,12 @@ mod tests{
         let a=fillable_obj_rhs_parser(text);
         assert_if(text,a,FillableObject::WithExpression(Expression::Variable(format!("name"),Option::None)))
     }
+    // #[test]
+    // fn should_parse_fillable_obj_rhs_when_expression_with_operators(){
+    //     let text=r#"name % 15 + 10"#;
+    //     let a=fillable_obj_rhs_parser(text);
+    //     assert_if(text,a,FillableObject::WithExpression(Expression::Variable(format!("name"),Option::None)))
+    // }
 
     #[test]
     fn should_parse_fillable_obj_rhs_when_object(){

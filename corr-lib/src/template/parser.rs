@@ -5,7 +5,7 @@ use crate::core::{Value, Variable};
 use nom::sequence::{tuple};
 use nom::branch::alt;
 use nom::character::complete::char;
-use nom::multi::{separated_list0, separated_list1, many1};
+use nom::multi::{separated_list0, separated_list1, many1, many0};
 use crate::template::text::Text;
 use crate::template::object::FillableObject;
 use nom::bytes::complete::tag;
@@ -42,9 +42,7 @@ impl Parsable for UnaryOperator {
 impl Operator {
     fn expression_with_operator_parser<'a>(input: &'a str) -> ParseResult<'a, Expression> {
         alt((
-            map(tuple((ws(Operator::non_binary_expression), ws(BinaryOperator::parser), ws(Operator::non_binary_expression))), |(left,op,right)|{
-                Expression::Operator(Operator::Binary(op),vec![left,right])
-            }),
+            Operator::binary_expression_chain,
             Operator::non_binary_expression
             ))(input)
 
@@ -62,6 +60,42 @@ impl Operator {
         ))(input)
 
     }
+    fn pure_binary_expression<'a>(input: &'a str) -> ParseResult<'a, Expression> {
+        map(tuple((ws(Operator::non_binary_expression), ws(BinaryOperator::parser), ws(Operator::non_binary_expression))), |(left,op,right)|{
+                Expression::Operator(Operator::Binary(op),vec![left,right])
+            })(input)
+
+    }
+    // fn binary_expression<'a>(input: &'a str) -> ParseResult<'a, Expression> {
+    //     map(tuple((ws(Operator::binary_expression_chain), ws(BinaryOperator::parser), ws(Operator::non_binary_expression))), |(left,op,right)|{
+    //             Expression::Operator(Operator::Binary(op),vec![left,right])
+    //     })(input)
+    //
+    // }
+    fn expression(mut left:Vec<(Expression,BinaryOperator)>,exp:Expression)->Expression{
+        if left.len() == 0{
+            return exp
+        } else if let Some((next_exp,op)) = left.pop(){
+            return Expression::Operator(Operator::Binary(op), vec![Self::expression(left,next_exp),exp]);
+        } else {
+            unimplemented!()
+        }
+    }
+    fn binary_expression_chain<'a>(input: &'a str)-> ParseResult<'a, Expression>{
+        map(tuple((many0(tuple((ws(Operator::non_binary_expression),ws(BinaryOperator::parser)))),ws(Operator::non_binary_expression))),|(left,right)|{
+            Operator::expression(left,right)
+        })(input)
+    }
+    // fn binary_expression<'a>(input: &'a str) -> ParseResult<'a, Expression> {
+    //     alt((
+    //         Operator::pure_binary_expression,
+    //         Operator::non_binary_expression,
+    //         map(tuple((ws(Operator::binary_expression), ws(BinaryOperator::parser), ws(Operator::pure_binary_expression))), |(left,op,right)|{
+    //             Expression::Operator(Operator::Binary(op),vec![left,right])
+    //         }),
+    //     ))(input)
+    //
+    // }
 }
 impl Parsable for Expression{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -70,10 +104,14 @@ impl Parsable for Expression{
 }
 fn non_operator_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
     alt((
+            stack_expression,
         map(Value::parser,|val|Expression::Constant(val)),
         map(tuple((function_name, ws(char('(')), separated_list0(ws(char(',')), Expression::parser), ws(char(')')))), |(name,_,expressions,_)|Expression::Function(name.to_string(), expressions)),
         map(Variable::parser,|val|Expression::Variable(val.name,val.data_type)),
     ))(input)
+}
+fn stack_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
+    map(tuple((ws(tag("(")),ws(Expression::parser),ws(tag(")")))),|(_,exp,_)|{exp})(input)
 }
 fn operator_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
     Operator::expression_with_operator_parser(input)
@@ -89,10 +127,29 @@ impl Parsable for VariableReferenceName {
 mod tests{
     use crate::parser::util::assert_if;
     use crate::parser::Parsable;
-    use crate::template::{Expression, VariableReferenceName, Assignable};
+    use crate::template::{Expression, VariableReferenceName, Assignable, Operator, BinaryOperator};
     use crate::core::{Value};
     use crate::template::text::{Text, Block, Scriplet};
     use crate::template::object::FillableObject;
+    use crate::core::runtime::Context;
+    use crate::template::parser::stack_expression;
+
+    #[tokio::test]
+    async fn should_parse_variable_reference_name_when_dot(){
+        let txt = r#"obj.day"#;
+        let a = VariableReferenceName::parser(txt);
+        assert_if(txt,a,VariableReferenceName::from("obj.day"))
+    }
+    #[tokio::test]
+    async fn should_parse_nested_stack_expression(){
+        let txt = r#"((10 + 10)/ (20 +20))"#;
+        let a = stack_expression(txt).unwrap();
+    }
+    #[tokio::test]
+    async fn should_parse_simple_stack_expression(){
+        let txt = r#"(20 + 20)"#;
+        let a = stack_expression(txt).unwrap();
+    }
 
     #[tokio::test]
     async fn should_parse_assignable_when_expression(){
@@ -121,11 +178,39 @@ mod tests{
         assert_if(txt,a,Assignable::FillableObject(FillableObject::WithExpression(Expression::Variable(format!("name"),Option::None))))
     }
 
+    // #[tokio::test]
+    // async fn should_parse_assignable_when_fillableobject_with_operator(){
+    //     let txt = r#"object name % 15"#;
+    //     let a = Assignable::parser(txt);
+    //     assert_if(txt,a,Assignable::FillableObject(FillableObject::WithExpression(Expression::Variable(format!("name"),Option::None))))
+    // }
+
     #[test]
     fn should_parse_expression_when_constant(){
         let text=r#""Atmaram""#;
         let a=Expression::parser(text);
         assert_if(text,a,Expression::Constant(Value::String("Atmaram".to_string())))
+    }
+
+    #[test]
+    fn should_parse_expression_when_operator(){
+        let text=r#"100 + 15 / 10"#;
+        let a=Expression::parser(text);
+        assert_if(text,a,
+                  Expression::Operator(
+                      Operator::Binary(BinaryOperator::Divide),
+                      vec![
+                          Expression::Operator(
+                              Operator::Binary(BinaryOperator::Add),
+                              vec![
+                                  Expression::Constant(Value::PositiveInteger(100)),
+                                  Expression::Constant(Value::PositiveInteger(15))
+                              ]
+                          ),
+                          Expression::Constant(Value::PositiveInteger(10))
+                      ]
+                  )
+        )
     }
 
     #[test]
