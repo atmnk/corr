@@ -47,26 +47,33 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableResponse>,con
     if let Ok(i_req) = builder.body(request.body.clone().map(|bd| { bd.to_string_body() }).unwrap_or("".to_string())) {
         let i_response = i_req.send_async().await;
         if let Some(er) = response {
-            if let Ok(mut rb) = i_response {
-                if rb.status().as_u16() < 399 {
-                    er.extract_from(context, CorrResponse {
-                        body: rb.text_async().await.unwrap().to_string(),
-                        original_response: rb
-                    }).await
-                } else {
-                    eprintln!("Rest api {} Failed with code {}", request.url, rb.status())
-                }
-            } else {
-                eprintln!("No Response for api {}", request.url)
-            }
-        } else {
-            if let Ok(rb) = i_response {
-                if rb.status().as_u16() > 399 {
-                    {
-                        eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.unwrap().to_string_body(), rb.status())
+            match i_response {
+                Ok(mut rb)=>{
+                    if rb.status().as_u16() < 399 {
+                        er.extract_from(context, CorrResponse {
+                            body: rb.text_async().await.unwrap().to_string(),
+                            original_response: rb
+                        }).await
+                    } else {
+                        eprintln!("Rest api {} Failed with code {}", request.url, rb.status())
                     }
-                } else {
-                    eprintln!("No Response for api {}", request.url)
+                },
+                Err(e)=>{
+                    eprintln!("Error Response for api {} {:?}", request.url,e)
+                }
+            }
+
+        } else {
+            match i_response {
+                Ok(mut rb)=>{
+                    if rb.status().as_u16() > 399 {
+                        {
+                            eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.unwrap().to_string_body(), rb.status())
+                        }
+                    }
+                },
+                Err(e)=>{
+                    eprintln!("Error Response for api {} {:?}", request.url,e)
                 }
             }
         }
