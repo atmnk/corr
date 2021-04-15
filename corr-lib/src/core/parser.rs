@@ -18,17 +18,17 @@ pub fn double<'a>(input: &'a str) -> ParseResult<'a, f64> {
         Ok((i,f_num))
     }
 }
-pub fn positive_integer<'a>(input: &'a str) -> ParseResult<'a, usize> {
+pub fn positive_integer<'a>(input: &'a str) -> ParseResult<'a, u128> {
     let (i,digits) = digit1(input)?;
     let str_num=format!("{}",digits);
-    let f_num=str_num.parse::<usize>().unwrap();
+    let f_num=str_num.parse::<u128>().unwrap();
     Ok((i,f_num))
 }
-pub fn integer<'a>(input: &'a str) -> ParseResult<'a, i64> {
+pub fn integer<'a>(input: &'a str) -> ParseResult<'a, i128> {
     let mut num = tuple((opt(tag("-")),digit1));
     let (i,(sign,nums)) = num(input)?;
     let str_num=format!("{}",nums);
-    let f_num=str_num.parse::<i64>().unwrap();
+    let f_num=str_num.parse::<i128>().unwrap();
     if let Some(_)=sign{
         Ok((i,(f_num * -1)))
     } else {

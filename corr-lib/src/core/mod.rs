@@ -22,8 +22,8 @@ pub enum DataType {
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 pub enum Value{
     String(String),
-    PositiveInteger(usize),
-    Integer(i64),
+    PositiveInteger(u128),
+    Integer(i128),
     Boolean(bool),
     Double(f64),
     Null,
@@ -33,15 +33,15 @@ pub enum Value{
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 pub enum Number{
-    PositiveInteger(usize),
-    Integer(i64),
+    PositiveInteger(u128),
+    Integer(i128),
     Double(f64)
 }
 impl Number{
     pub fn to_value(&self)->Value{
         match self {
-            Number::PositiveInteger(lng)=>Value::PositiveInteger(lng.clone()),
-            Number::Integer(lng)=>Value::Integer(lng.clone()),
+            Number::PositiveInteger(lng)=>Value::PositiveInteger(lng.clone() as u128),
+            Number::Integer(lng)=>Value::Integer(lng.clone() as i128),
             Number::Double(dbl)=>Value::Double(dbl.clone())
         }
     }
@@ -50,13 +50,13 @@ impl Number{
             Number::PositiveInteger(lng1)=> {
                 match number {
                     Number::PositiveInteger(lng2)=>Number::PositiveInteger(lng1+lng2),
-                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i64+lng2),
+                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i128+lng2),
                     Number::Double(dbl1)=>Number::Double(lng1.clone() as f64+dbl1)
                 }
             },
             Number::Integer(lng1)=> {
                 match number {
-                    Number::PositiveInteger(lng2)=>Number::Integer(lng1+lng2 as i64),
+                    Number::PositiveInteger(lng2)=>Number::Integer(lng1+lng2 as i128),
                     Number::Integer(lng2)=>Number::Integer(lng1+lng2),
                     Number::Double(dbl1)=>Number::Double(lng1.clone() as f64+dbl1)
                 }
@@ -75,13 +75,13 @@ impl Number{
             Number::PositiveInteger(lng1)=> {
                 match number {
                     Number::PositiveInteger(lng2)=>Number::PositiveInteger(lng1*lng2),
-                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i64*lng2),
+                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i128*lng2),
                     Number::Double(dbl1)=>Number::Double(lng1.clone() as f64*dbl1)
                 }
             },
             Number::Integer(lng1)=> {
                 match number {
-                    Number::PositiveInteger(lng2)=>Number::Integer(lng1*lng2 as i64),
+                    Number::PositiveInteger(lng2)=>Number::Integer(lng1*lng2 as i128),
                     Number::Integer(lng2)=>Number::Integer(lng1*lng2),
                     Number::Double(dbl1)=>Number::Double(lng1.clone() as f64*dbl1)
                 }
@@ -100,13 +100,13 @@ impl Number{
             Number::PositiveInteger(lng1)=> {
                 match number {
                     Number::PositiveInteger(lng2)=>Number::PositiveInteger(lng1%lng2),
-                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i64%lng2),
+                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i128%lng2),
                     Number::Double(dbl1)=>Number::Double(lng1.clone() as f64%dbl1)
                 }
             },
             Number::Integer(lng1)=> {
                 match number {
-                    Number::PositiveInteger(lng2)=>Number::Integer(lng1%lng2 as i64),
+                    Number::PositiveInteger(lng2)=>Number::Integer(lng1%lng2 as i128),
                     Number::Integer(lng2)=>Number::Integer(lng1%lng2),
                     Number::Double(dbl1)=>Number::Double(lng1.clone() as f64%dbl1)
                 }
@@ -128,16 +128,16 @@ impl Number{
                         if lng1.clone() > lng2{
                             Number::PositiveInteger(lng1-lng2)
                         } else {
-                            Number::Integer(lng1.clone() as i64 - lng2 as i64)
+                            Number::Integer(lng1.clone() as i128 - lng2 as i128)
                         }
                     },
-                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i64-lng2),
+                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i128-lng2),
                     Number::Double(dbl1)=>Number::Double(lng1.clone() as f64-dbl1)
                 }
             },
             Number::Integer(lng1)=> {
                 match number {
-                    Number::PositiveInteger(lng2)=>Number::Integer(lng1-lng2 as i64),
+                    Number::PositiveInteger(lng2)=>Number::Integer(lng1-lng2 as i128),
                     Number::Integer(lng2)=>Number::Integer(lng1-lng2),
                     Number::Double(dbl1)=>Number::Double(lng1.clone() as f64-dbl1)
                 }
@@ -158,13 +158,13 @@ impl Number{
                     Number::PositiveInteger(lng2)=>{
                         Number::PositiveInteger(lng1/lng2)
                     },
-                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i64/lng2),
+                    Number::Integer(lng2)=>Number::Integer(lng1.clone() as i128/lng2),
                     Number::Double(dbl1)=>Number::Double(lng1.clone() as f64/dbl1)
                 }
             },
             Number::Integer(lng1)=> {
                 match number {
-                    Number::PositiveInteger(lng2)=>Number::Integer(lng1/lng2 as i64),
+                    Number::PositiveInteger(lng2)=>Number::Integer(lng1/lng2 as i128),
                     Number::Integer(lng2)=>Number::Integer(lng1-lng2),
                     Number::Double(dbl1)=>Number::Double(lng1.clone() as f64/dbl1)
                 }
@@ -187,9 +187,9 @@ impl Value {
             serde_json::Value::String(string)=>Value::String(string),
             serde_json::Value::Number(num)=>{
                 if num.is_u64() {
-                    Value::PositiveInteger(num.as_u64().unwrap() as usize)
+                    Value::PositiveInteger(num.as_u64().unwrap() as u128)
                 } else if num.is_i64() {
-                    Value::Integer(num.as_i64().unwrap())
+                    Value::Integer(num.as_i64().unwrap() as i128)
 
                 } else {
                     Value::Double(num.as_f64().unwrap())
@@ -235,8 +235,8 @@ impl Value {
             Value::Boolean(val)=>serde_json::Value::Bool(val.clone()),
             Value::String(val)=>serde_json::Value::String(val.clone()),
             Value::Double(val)=>serde_json::Value::Number(serde_json::Number::from_f64(val.clone()).unwrap()),
-            Value::Integer(val)=>serde_json::Value::Number(serde_json::Number::from(val.clone())),
-            Value::PositiveInteger(val)=>serde_json::Value::Number(serde_json::Number::from(val.clone())),
+            Value::Integer(val)=>serde_json::Value::from(val.clone() as i64),
+            Value::PositiveInteger(val)=>serde_json::Value::from(val.clone() as u64),
             Value::Null=>serde_json::Value::Null,
             Value::Map(hm)=>{
                 let mut new_hm = serde_json::Map::new();
@@ -260,9 +260,9 @@ impl Value {
             Value::PositiveInteger(lng)=>Option::Some(Number::PositiveInteger(lng.clone())),
             Value::Integer(lng)=>Option::Some(Number::Integer(lng.clone())),
             Value::String(str)=>{
-                if let Ok(val) = str.parse::<usize>(){
+                if let Ok(val) = str.parse::<u128>(){
                     Option::Some(Number::PositiveInteger(val))
-                } else if let Ok(val) = str.parse::<i64>(){
+                } else if let Ok(val) = str.parse::<i128>(){
                     Option::Some(Number::Integer(val))
                 } else if let Ok(val) = str.parse::<f64>(){
                     Option::Some(Number::Double(val))
@@ -376,14 +376,14 @@ pub fn convert(name:String,value:String,data_type:DataType)->Option<VariableValu
     match data_type {
         DataType::String=>Option::Some(VariableValue{name,value:Value::String(value)}),
         DataType::PositiveInteger=>{
-            if let Ok(val) = value.parse::<usize>(){
+            if let Ok(val) = value.parse::<u128>(){
                 Option::Some(VariableValue{name,value:Value::PositiveInteger(val)})
             } else {
                 Option::None
             }
         },
         DataType::Integer=>{
-            if let Ok(val) = value.parse::<i64>(){
+            if let Ok(val) = value.parse::<i128>(){
                 Option::Some(VariableValue{name,value:Value::Integer(val)})
             } else {
                 Option::None

@@ -48,8 +48,8 @@ pub async fn start(journies:&Vec<Journey>,filter_string: String,context:Context)
             data_type:Option::Some(DataType::PositiveInteger)
         }).await;
         if let Value::PositiveInteger(val) = choice.value.clone(){
-            if val < journies.len(){
-                journies.get(val).unwrap().execute(&context).await;
+            if val < journies.len()  as u128{
+                journies.get(val as usize).unwrap().execute(&context).await;
                 break;
             } else {
                 context.write(format!("Invalid Value")).await;

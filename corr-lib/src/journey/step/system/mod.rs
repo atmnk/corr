@@ -46,7 +46,7 @@ impl Executable for ForLoopStep{
             ForLoopStep::WithVariableReference(on,with,index_var,inner_steps)=>{
                 context.iterate(on.to_string(),with.clone().map(|val|{val.to_string()}),async move |context,index|{
                     if let Some(iv)=index_var.clone(){
-                        context.define(iv.to_string(),Value::PositiveInteger(index)).await
+                        context.define(iv.to_string(),Value::PositiveInteger(index as u128)).await
                     }
                     for step in inner_steps.clone() {
                         step.execute(&context).await;

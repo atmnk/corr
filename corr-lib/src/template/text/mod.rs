@@ -76,7 +76,7 @@ impl Fillable<String> for TextForLoop{
                 context.iterate(on.to_string(),with.clone().map(|val|val.to_string()),
                                 async move |context,i|{
                                     if let Some(index) = opt_index {
-                                        context.define(index.to_string(),Value::PositiveInteger(i)).await;
+                                        context.define(index.to_string(),Value::PositiveInteger(i as u128)).await;
                                     }
                                     inner.fill(&context).await
                 }).await.join("")

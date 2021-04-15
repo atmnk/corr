@@ -70,7 +70,7 @@ impl Fillable<Value> for FillableForLoop {
     async fn fill(&self, context: &Context) -> Value {
         Value::Array(context.iterate(self.on.to_string(),self.with.clone().map(|vr|vr.to_string()),async move |context,index|{
             if let Some(index_var) = self.index.clone(){
-                context.define(index_var.to_string(),Value::PositiveInteger(index)).await
+                context.define(index_var.to_string(),Value::PositiveInteger(index as u128)).await
             }
             self.inner.clone().fill(&context).await
         }).await)

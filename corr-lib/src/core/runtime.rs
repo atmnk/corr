@@ -324,7 +324,7 @@ impl Context {
             if let Value::PositiveInteger(size)=&val.value{
                 for i in 0..size.clone() {
                     let new_ct = Context::from(self).await;
-                    result.push(iterate_this(new_ct,i).await);
+                    result.push(iterate_this(new_ct,i as usize).await);
                     if let Some(temp) = opt_temp.clone() {
                         if let Some(ho) = self.store.get(temp.clone()).await {
                             vec.push(ho.clone());

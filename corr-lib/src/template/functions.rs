@@ -11,6 +11,7 @@ use fake::locales::*;
 use base64::encode;
 use fake::Fake;
 use rand::Rng;
+use std::time::{SystemTime, UNIX_EPOCH};
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Concat;
@@ -64,6 +65,10 @@ pub struct Mod;
 #[derive(Debug,Clone,PartialEq)]
 pub struct Uuid;
 
+//Uuid Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct TimeStamp;
+
 //Get Current Date With Now and optional format
 #[derive(Debug,Clone,PartialEq)]
 pub struct Now;
@@ -108,6 +113,16 @@ impl Function for Uuid{
     async fn evaluate(&self, _args: Vec<Expression>, _context: &Context) -> Value {
         let val = uuid::Uuid::new_v4();
         Value::String(val.to_string())
+    }
+}
+#[async_trait]
+impl Function for TimeStamp{
+    async fn evaluate(&self, _args: Vec<Expression>, _context: &Context) -> Value {
+        let val = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        Value::PositiveInteger(val)
     }
 }
 
@@ -372,6 +387,7 @@ impl Function for FromJson{
 }
 pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
     return vec![
+        ("timestamp",Arc::new(TimeStamp{})),
         ("now",Arc::new(Now{})),
         ("uuid",Arc::new(Uuid{})),
         ("add",Arc::new(Add{})),
