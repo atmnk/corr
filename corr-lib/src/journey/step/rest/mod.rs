@@ -60,7 +60,7 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableResponse>,con
                 eprintln!("No Response for api {}", request.url)
             }
         } else {
-            if let Ok(mut rb) = i_response {
+            if let Ok(rb) = i_response {
                 if rb.status().as_u16() > 399 {
                     {
                         eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.unwrap().to_string_body(), rb.status())

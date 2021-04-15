@@ -131,7 +131,7 @@ mod tests{
     use crate::core::{Value};
     use crate::template::text::{Text, Block, Scriplet};
     use crate::template::object::FillableObject;
-    use crate::core::runtime::Context;
+    
     use crate::template::parser::stack_expression;
 
     #[tokio::test]
@@ -143,12 +143,12 @@ mod tests{
     #[tokio::test]
     async fn should_parse_nested_stack_expression(){
         let txt = r#"((10 + 10)/ (20 +20))"#;
-        let a = stack_expression(txt).unwrap();
+        let _a = stack_expression(txt).unwrap();
     }
     #[tokio::test]
     async fn should_parse_simple_stack_expression(){
         let txt = r#"(20 + 20)"#;
-        let a = stack_expression(txt).unwrap();
+        let _a = stack_expression(txt).unwrap();
     }
 
     #[tokio::test]
