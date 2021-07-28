@@ -74,10 +74,10 @@ mod tests{
 
     #[tokio::test]
     async fn should_start_journey(){
-        let text = r#"print text `Hello World`;"#;
+        let text = r#"print text `Hello World <%name:Double%>`;"#;
         let (_,step)=SystemStep::parser(text).unwrap();
         let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] }];
-        let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
+        let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger),Input::new_continue("name".to_string(),"100.01".to_string(),DataType::Double)];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());
         start(&journes,"hello".to_string(),context).await;
@@ -86,7 +86,8 @@ mod tests{
         assert_eq!(buffer.lock().unwrap().get(2).unwrap().clone(),Output::new_know_that("Please Enter value between 0 to 0".to_string()));
         assert_eq!(buffer.lock().unwrap().get(3).unwrap().clone(),Output::new_tell_me("choice".to_string(),DataType::PositiveInteger));
         assert_eq!(buffer.lock().unwrap().get(4).unwrap().clone(),Output::new_know_that("Executing Journey test".to_string()));
-        assert_eq!(buffer.lock().unwrap().get(5).unwrap().clone(),Output::new_know_that("Hello World".to_string()));
+        assert_eq!(buffer.lock().unwrap().get(5).unwrap().clone(),Output::new_tell_me("name".to_string(),DataType::Double));
+        assert_eq!(buffer.lock().unwrap().get(6).unwrap().clone(),Output::new_know_that("Hello World 100.01".to_string()));
 
     }
     #[tokio::test]

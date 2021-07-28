@@ -7,10 +7,12 @@ pub struct CliDriver;
 use flate2::read::GzDecoder;
 use std::fs::{File, create_dir_all};
 use tar::Archive;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use corr_lib::journey::{Journey, Executable};
 use std::sync::Arc;
 use futures::lock::Mutex;
+use async_recursion::async_recursion;
+
 
 
 use tokio::sync::{mpsc};
@@ -30,23 +32,29 @@ impl CliDriver{
         Self::run_journey_in(jp,journey).await;
     }
     pub async fn run_journey_in(jp:String,journey:String){
-        let j = if journey.eq("<default>"){
-            let mut dir = tokio::fs::read_dir(format!("{}/src",jp)).await.unwrap();
-            let entry = dir.next_entry().await.unwrap().unwrap();
-            let contents = tokio::fs::read_to_string(entry.path()).await.unwrap();
-            contents
+        let jrns = get_journeis_in (format!("{}/src",jp)).await.unwrap();
+        let j = if journey.clone().eq("<default>"){
+            jrns.get(0).map(|j|j.clone())
         } else {
-            let contents = tokio::fs::read_to_string(format!("{}/src/{}.journey",jp,journey)).await.unwrap();
-            contents
+            let mut jn = Option::None;
+            for jrn in jrns {
+                if jrn.name.eq(&journey.clone()) {
+                    jn = Option::Some(jrn.clone());
+                    break;
+                }
+            }
+            jn
         };
+        if let Some(jn) = j {
+            let mut terminal = Terminal::new();
+            let context = CorrContext::new(Arc::new(Mutex::new(terminal.get_if())));
+            tokio::spawn(async move {
+                start(jn,context).await;
+            });
+            terminal.start().await;
+        }
+        // let (_,jrn) = Journey::parser(j.as_str()).unwrap();//Self::get_journey(jp,journey);
 
-        let (_,jrn) = Journey::parser(j.as_str()).unwrap();//Self::get_journey(jp,journey);
-        let mut terminal = Terminal::new();
-        let context = CorrContext::new(Arc::new(Mutex::new(terminal.get_if())));
-        tokio::spawn(async move {
-            start(jrn,context).await;
-        });
-        terminal.start().await;
 
     }
 }
@@ -145,6 +153,28 @@ impl Client for CliInterface {
             }
         }
     }
+}
+#[async_recursion]
+async fn get_journeis_in(path: impl AsRef<Path> + std::marker::Send + 'static)->tokio::io::Result<Vec<Journey>>{
+    let mut js:Vec<Journey> = vec![];
+    let mut dir = tokio::fs::read_dir(path).await?;
+    while let Some(child) = dir.next_entry().await? {
+        if child.metadata().await?.is_dir() {
+            println!("Directory:{:?}",child.path());
+            let mut child_j = get_journeis_in(child.path()).await?;
+            js.append(&mut child_j)
+        } else {
+            let path:PathBuf = child.path();
+            if let Some(Some(ext)) = path.extension().map(|ext|ext.to_str()) {
+                if ext.eq("journey") {
+                    let contents = tokio::fs::read_to_string(child.path()).await.unwrap();
+                    let (_,jrn) = Journey::parser(contents.as_str()).unwrap();
+                    js.push(jrn);
+                }
+            }
+        }
+    }
+    Ok(js)
 }
 
 

@@ -135,11 +135,19 @@ mod tests{
     }
 
     #[tokio::test]
-    async fn should_parse_double_value(){
+    async fn should_parse_negative_double_value(){
         let j= r#"-12.33"#;
         assert_if(j
                   ,Value::parser(j)
                   ,Value::Double(-12.33))
+
+    }
+    #[tokio::test]
+    async fn should_parse_positive_double_value(){
+        let j= r#"12.00"#;
+        assert_if(j
+                  ,Value::parser(j)
+                  ,Value::Double(12.00))
 
     }
 

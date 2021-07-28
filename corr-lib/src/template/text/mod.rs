@@ -221,15 +221,15 @@ mod tests{
 
     #[tokio::test]
     async fn should_fill_textloopinnertemplate_when_blocks(){
-        let text=r#"%>Hello <%name%><%"#;
+        let text=r#"%>Hello <%name:Double%><%"#;
         let (_,tlit)=TextLoopInnerTemplate::parser(text).unwrap();
         let input=vec![
-            Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String}),
+            Input::Continue(ContinueInput{name:"name".to_string(),value:"100.0".to_string(),data_type:DataType::String}),
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let result=tlit.fill(&context).await;
-        assert_eq!(result,"Hello Atmaram".to_string());
+        assert_eq!(result,"Hello 100.0".to_string());
     }
 
     #[tokio::test]

@@ -389,6 +389,13 @@ pub fn convert(name:String,value:String,data_type:DataType)->Option<VariableValu
                 Option::None
             }
         },
+        DataType::Double=>{
+            if let Ok(val) = value.parse::<f64>(){
+                Option::Some(VariableValue{name,value:Value::Double(val)})
+            } else {
+                Option::None
+            }
+        },
         _=>Option::None
     }
 }
