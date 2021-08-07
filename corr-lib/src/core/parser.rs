@@ -24,6 +24,12 @@ pub fn positive_integer<'a>(input: &'a str) -> ParseResult<'a, u128> {
     let f_num=str_num.parse::<u128>().unwrap();
     Ok((i,f_num))
 }
+pub fn port<'a>(input: &'a str) -> ParseResult<'a, u16> {
+    let (i,digits) = digit1(input)?;
+    let str_num=format!("{}",digits);
+    let f_num=str_num.parse::<u16>().unwrap();
+    Ok((i,f_num))
+}
 pub fn integer<'a>(input: &'a str) -> ParseResult<'a, i128> {
     let mut num = tuple((opt(tag("-")),digit1));
     let (i,(sign,nums)) = num(input)?;

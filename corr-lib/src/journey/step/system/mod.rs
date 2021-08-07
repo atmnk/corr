@@ -4,19 +4,28 @@ use crate::journey::{Executable};
 use crate::template::text::{Text};
 use crate::core::runtime::{Context, IO};
 use crate::core::{Value};
-use crate::template::{VariableReferenceName, Fillable, Assignable};
+use crate::template::{VariableReferenceName, Fillable, Assignable, Expression};
 use crate::journey::step::Step;
+use tokio::task::JoinHandle;
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum SystemStep{
     Print(PrintStep),
     ForLoop(ForLoopStep),
+    Condition(ConditionalStep),
     Assignment(AssignmentStep),
+    Push(PushStep),
+    LoadAssign(LoadAssignStep),
+    Sync(SyncStep),
     Comment(String)
 
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum AssignmentStep {
+    WithVariableName(VariableReferenceName,Assignable)
+}
+#[derive(Debug, Clone,PartialEq)]
+pub enum PushStep {
     WithVariableName(VariableReferenceName,Assignable)
 }
 
@@ -25,33 +34,89 @@ pub enum PrintStep{
     WithText(Text)
 }
 #[derive(Debug, Clone,PartialEq)]
+pub struct IfPart{
+    condition:Expression,
+    block:Vec<Step>
+}
+#[derive(Debug, Clone,PartialEq)]
+pub struct ConditionalStep{
+    if_parts:Vec<IfPart>,
+    else_part:Vec<Step>
+}
+#[derive(Debug, Clone,PartialEq)]
+pub struct SyncStep{
+    sandbox:Option<Expression>,
+    variable:VariableReferenceName
+}
+#[derive(Debug, Clone,PartialEq)]
+pub struct LoadAssignStep{
+    sandbox:Option<Expression>,
+    variable:VariableReferenceName
+}
+#[derive(Debug, Clone,PartialEq)]
 pub enum ForLoopStep{
     WithVariableReference(VariableReferenceName,Option<VariableReferenceName>,Option<VariableReferenceName>,Vec<Step>)
 }
 #[async_trait]
+impl Executable for ConditionalStep{
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        let mut handles = vec![];
+        let mut found = false;
+        for ip in &self.if_parts {
+            if ip.condition.evaluate(context).await.parse::<bool>().unwrap_or(false) {
+                found = true;
+                for step in &ip.block{
+                    handles.append(&mut step.execute(context).await)
+                }
+                break;
+            }
+        }
+        if !found {
+            for step in &self.else_part{
+                handles.append(&mut step.execute(context).await)
+            }
+        }
+        handles
+    }
+}
+#[async_trait]
+impl Executable for PushStep{
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        match self {
+            PushStep::WithVariableName(var, asbl)=>{
+                context.push(var.to_string(),asbl.fill(context).await).await;
+            }
+        }
+        return vec![]
+    }
+}
+#[async_trait]
 impl Executable for PrintStep{
-    async fn execute(&self,context: &Context) {
+    async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
             PrintStep::WithText(txt)=>{
                 context.write(txt.fill(context).await).await;
             }
         }
-
+        return vec![]
     }
 }
 #[async_trait]
 impl Executable for ForLoopStep{
-    async fn execute(&self,context: &Context) {
+    async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
             ForLoopStep::WithVariableReference(on,with,index_var,inner_steps)=>{
-                context.iterate(on.to_string(),with.clone().map(|val|{val.to_string()}),async move |context,index|{
+                let outer_handles:Vec<Vec<JoinHandle<bool>>> = context.iterate(on.to_string(),with.clone().map(|val|{val.to_string()}),async move |context,index|{
+                    let mut handles = vec![];
                     if let Some(iv)=index_var.clone(){
                         context.define(iv.to_string(),Value::PositiveInteger(index as u128)).await
                     }
                     for step in inner_steps.clone() {
-                        step.execute(&context).await;
+                        handles.append(&mut step.execute(&context).await);
                     }
+                    handles
                 }).await;
+                outer_handles.into_iter().flatten().collect()
                 //To Do
             }
         }
@@ -60,7 +125,7 @@ impl Executable for ForLoopStep{
 }
 #[async_trait]
 impl Executable for SystemStep{
-    async fn execute(&self,context: &Context) {
+    async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
             SystemStep::Print(ps)=>{
                 ps.execute(context).await
@@ -68,20 +133,27 @@ impl Executable for SystemStep{
             SystemStep::ForLoop(fls)=>{
                 fls.execute(context).await
             },
+            SystemStep::Push(pt)=>{
+                pt.execute(context).await
+            },
+            SystemStep::Condition(pt)=>{
+                pt.execute(context).await
+            }
             SystemStep::Assignment(asst)=>asst.execute(context).await,
-            SystemStep::Comment(_)=>{}
+            SystemStep::Comment(_)=>{vec![]}
         }
 
     }
 }
 #[async_trait]
 impl Executable for AssignmentStep {
-    async fn execute(&self, context: &Context) {
+    async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
         match self {
             AssignmentStep::WithVariableName(var, asbl)=>{
                 context.define(var.to_string(),asbl.fill(context).await).await;
             }
         }
+        return vec![]
     }
 }
 #[cfg(test)]

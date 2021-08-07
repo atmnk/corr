@@ -60,7 +60,8 @@ impl CliDriver{
 }
 pub async fn start(journey:Journey,context:CorrContext) {
     println!("Starting Journey");
-    journey.execute(&context).await;
+    let handles = journey.execute(&context).await;
+    futures::future::join_all(handles).await;
     context.user.lock().await.send(Output::new_done("Done Executing Journey".to_string())).await;
 }
 fn unpack(target:String) -> Result<String, std::io::Error> {

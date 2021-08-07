@@ -12,6 +12,9 @@ use base64::encode;
 use fake::Fake;
 use rand::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
+use strfmt::{Format, Formatter, strfmt_map};
+use std::collections::HashMap;
+
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Concat;
@@ -31,6 +34,8 @@ impl Function for Concat{
 //Add Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Add;
+#[derive(Debug,Clone,PartialEq)]
+pub struct Equal;
 
 //Random Element Function
 #[derive(Debug,Clone,PartialEq)]
@@ -52,10 +57,30 @@ impl Function for Add{
         number.to_value()
     }
 }
+#[async_trait]
+impl Function for Equal{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let mut ret = true;
+        let first = if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        for arg in args {
+            let res=arg.evaluate(context).await;
+            ret = ret && first.eq(&res);
+        }
+        Value::Boolean(ret)
+    }
+}
 
 //Multiply Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Multiply;
+
+//Multiply Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Formated;
 
 //Multiply Function
 #[derive(Debug,Clone,PartialEq)]
@@ -211,7 +236,48 @@ impl Function for Decrement{
 
     }
 }
+#[async_trait]
+impl Function for Formated{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0){
+            let first = arg.evaluate(context).await.to_string();
+            let mut vars=HashMap::new();
+            let mut index = 0;
+            for arg in args{
+                if(index !=0){
+                    let num = arg.evaluate(context).await.to_number().unwrap();
+                    match(num){
+                        Number::Double(d)=>{
+                            vars.insert(format!("{0}",index),d);
+                        },
+                        _=>{}
+                    }
+                }
 
+                index = index + 1;
+
+            }
+
+            let f = |mut fmt: Formatter| {
+                fmt.f64(*vars.get(fmt.key).unwrap())
+            };
+
+            let fstr = strfmt_map(first.as_str(),&f).unwrap();
+            Value::String(fstr)
+                // if let Some(arg) = args.get(1){
+                //     if let Some(second) = arg.evaluate(context).await.to_number(){
+                //         first.subtract(second).to_value()
+                //     } else {
+                //         first.to_value()
+                //     }
+                // } else {
+                //     first.to_value()
+                // }
+        } else {
+            Value::Null
+        }
+    }
+}
 fn get_fake(fake_type:String)->Value{
     match fake_type.as_str() {
         "Name"=> Value::String(Name(EN).fake()),
@@ -302,13 +368,20 @@ impl Function for RandomElement{
         if let Some(arg) = args.get(0) {
             let value:Value = arg.fill(context).await;
             if let Value::Array(val)=value{
-                let mut rng = rand::thread_rng();
-                let index = rng.gen_range(0,val.len() -1 );
-                if let Some(ret_val) = val.get(index){
-                    ret_val.clone()
-                } else {
+                if val.len()==0{
                     Value::Null
+                } else if val.len() == 1 {
+                    val.get(0).unwrap().clone()
+                } else {
+                    let mut rng = rand::thread_rng();
+                    let index = rng.gen_range(0,val.len() -1 );
+                    if let Some(ret_val) = val.get(index){
+                        ret_val.clone()
+                    } else {
+                        Value::Null
+                    }
                 }
+
             } else {
                 value.clone()
             }
@@ -424,7 +497,7 @@ mod tests{
     use crate::core::{DataType, Value};
     use crate::core::proto::{Input, ContinueInput, Output, TellMeOutput};
     use std::sync::{Arc, Mutex};
-    use crate::template::functions::{Concat, Add, Subtract, Multiply, Divide, get_fake};
+    use crate::template::functions::{Concat, Add, Subtract, Multiply, Divide, Formated, get_fake};
     use crate::core::runtime::Context;
     use crate::template::{Expression, Function};
 
@@ -481,6 +554,29 @@ mod tests{
             Expression::Constant(Value::String("3".to_string()))
         ],&context).await;
         assert_eq!(result,Value::PositiveInteger(6));
+    }
+    #[tokio::test]
+    async fn should_format_without_any_args(){
+        let a=Formated{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::String("Hello".to_string()))
+        ],&context).await;
+        assert_eq!(result,Value::String("Hello".to_string()));
+    }
+    #[tokio::test]
+    async fn should_format_with_double_args(){
+        let a=Formated{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::String("Hello {0}".to_string())),
+            Expression::Constant(Value::Double(100.0)),
+        ],&context).await;
+        assert_eq!(result,Value::String("Hello 100.0".to_string()));
     }
     #[tokio::test]
     async fn should_divide(){

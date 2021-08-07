@@ -1,31 +1,27 @@
 [package]
-name = "corr-lib"
+name = "playground"
 version = "0.1.0"
-authors = ["ATM <naik.atmaram@gmail.com>"]
+authors = ["Atmaram Naik <naik.atmaram@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+clap = "3.0.0-beta.2"
 serde = { version = "1.0.125", features = ["derive"] }
 serde_json = "1.0.64"
 log = "0.4.11"
 env_logger = "0.7.1"
 chrono = { version = "0.4.13", features = ["serde"] }
+regex = "1.3.9"
 lazy_static = "1.4.0"
 uuid = { version = "0.8.1", features = ["serde", "v4"] }
 futures = "0.3.5"
 tokio = { version = "1.4.0", features = ["full"] }
-warp = "0.3.1"
 async-trait = "0.1.36"
 async-recursion = "0.3.1"
-nom = "6.0.0-alpha3"
-nom_locate = "2.0.0"
-isahc = "0.9.8"
-fake = "2.2.3"
-mockito = "0.27.0"
-base64 = "0.13.0"
-rand = "0.7.3"
-strfmt = "0.1.6"
-hyper = { version = "0.14", features = ["full"] }
-regex = "1.5.4"
+corr-lib={path="../corr-lib"}
+app_dirs2 =  "2.3.0"
+flate2 = "1.0.20"
+tar = "0.4.33"
+toml = "0.5.8"
+async-std = "1.9.0"
+hyper = "0.14.11"

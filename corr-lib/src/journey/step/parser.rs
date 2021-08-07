@@ -5,12 +5,15 @@ use crate::journey::step::system::SystemStep;
 use crate::parser::Parsable;
 use nom::branch::alt;
 use crate::journey::step::rest::RestSetp;
+use crate::journey::step::listner::StartListenerStep;
 
 impl Parsable for Step{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
+            map(ws(StartListenerStep::parser),Step::Listner),
             map(ws(SystemStep::parser),Step::System),
-            map(ws(RestSetp::parser),Step::Rest)
+            map(ws(RestSetp::parser),Step::Rest),
+
             ))(input)
     }
 }

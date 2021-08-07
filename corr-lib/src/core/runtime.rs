@@ -134,6 +134,30 @@ impl ReferenceStore{
         }
     }
     #[async_recursion]
+    pub async fn push(&self,path:String,value:Arc<Mutex<HeapObject>>){
+        let mut new_array = false;
+        let array = if let Some(arc) = self.references.lock().await.get(&path){
+            arc.clone()
+        } else {
+            new_array = true;
+            Arc::new(Mutex::new(HeapObject::List(vec![value.clone()])))
+        };
+        if new_array {
+            self.references.lock().await.insert(path.clone(),array.clone());
+            if let Some(parent) = &self.parent{
+                parent.set(path.clone(),array.clone()).await;
+            }
+        } else {
+            let ho =&mut *array.lock().await;
+            match ho {
+                HeapObject::List(ls)=>{
+                    ls.push(value);
+                }
+                _=>{}
+            }
+        }
+    }
+    #[async_recursion]
     pub async fn set(&self,path:String,value:Arc<Mutex<HeapObject>>){
         if let Some((left,right)) = break_on(path.clone(),'.'){
             let mut new_obj = false;
@@ -181,8 +205,6 @@ impl ReferenceStore{
                 None
             }
         }
-
-
     }
 }
 
@@ -261,6 +283,9 @@ impl Context {
     }
     pub async fn define(&self,var:String,value:Value){
         self.store.set(var,Arc::new(Mutex::new(value.to_heap_object()))).await;
+    }
+    pub async fn push(&self,var:String,value:Value){
+        self.store.push(var,Arc::new(Mutex::new(value.to_heap_object()))).await;
     }
     pub async fn from(context:&Context)->Self{
         Context{

@@ -1,4 +1,5 @@
 pub mod parser;
+pub mod extractable;
 use crate::template::{Expression, VariableReferenceName, Fillable};
 use crate::core::runtime::{Context};
 use async_trait::async_trait;

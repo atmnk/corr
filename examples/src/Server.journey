@@ -1,0 +1,5 @@
+`Server`(){
+    listen on 8188
+    listen on 8189
+    print text `Hello <%StopMe%>`
+}

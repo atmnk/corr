@@ -1,5 +1,5 @@
 use crate::parser::{Parsable, ws};
-use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep};
+use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart};
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
 use nom::sequence::{preceded, terminated, tuple};
@@ -7,7 +7,7 @@ use nom::bytes::complete::tag;
 use crate::template::text::{Text};
 use nom::character::complete::char;
 use nom::branch::alt;
-use crate::template::{VariableReferenceName, Assignable};
+use crate::template::{VariableReferenceName, Assignable, Expression};
 use crate::journey::step::Step;
 use nom::multi::many0;
 
@@ -26,6 +26,11 @@ impl Parsable for ForLoopStep{
 impl Parsable for AssignmentStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(tuple((ws(tag("let")),ws(VariableReferenceName::parser),ws(char('=')),ws(Assignable::parser))),|(_,var,_,assbl)|{AssignmentStep::WithVariableName(var,assbl)})(input)
+    }
+}
+impl Parsable for PushStep{
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map(tuple((ws(VariableReferenceName::parser),ws(tag(".push")),ws(tag("(")),ws(Assignable::parser),ws(tag(")")))),|(var,_,_,assbl,_)|{PushStep::WithVariableName(var,assbl)})(input)
     }
 }
 fn for_left_part<'a>(input: &'a str) -> ParseResult<'a, VariableReferenceName>{
@@ -73,20 +78,57 @@ impl Parsable for SystemStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
             // map(preceded(ws(tag("//")),rest_of_the_line),|line|{SystemStep::Comment(line)}),
+            map(ConditionalStep::parser,|ps|{SystemStep::Condition(ps)}),
             map(PrintStep::parser,|ps|{SystemStep::Print(ps)}),
             map(ForLoopStep::parser,|fls|{SystemStep::ForLoop(fls)}),
-            map(AssignmentStep::parser,|asst| SystemStep::Assignment(asst))))
+            map(AssignmentStep::parser,|asst| SystemStep::Assignment(asst)),
+            map(PushStep::parser,|ps|{SystemStep::Push(ps)})))
             // map(tuple((ws(tag("let ")),ws(identifier),ws(char('=')),Expression::parser)),|(_,var,_,expr)|{SystemStep::Assign(var,expr)}),
         (input)
+    }
+}
+impl Parsable for ConditionalStep{
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map(tuple(((
+            ws(tag("if")),
+            Expression::parser, ws(tag("{")),
+            many0(Step::parser),ws(tag("}")),
+            many0(tuple(((
+                ws(tag("else")),
+                ws(tag("if")),
+                Expression::parser, ws(tag("{")),
+                many0(Step::parser),ws(tag("}")))))),
+            opt(tuple((ws(tag("else")), ws(tag("{")),
+                       many0(Step::parser),ws(tag("}")))))))),
+            |(_,fc,_,
+                 fb, _,eip,ep)|{
+                let mut if_parts = vec![];
+                if_parts.push(IfPart{
+                    condition:fc,
+                    block:fb
+                });
+                let els:Vec<IfPart> = eip.iter().map(|(_,_,condition,_,block,_)|{
+                    IfPart{
+                        condition:condition.clone(),
+                        block:block.clone()
+                    }
+                }).collect();
+                if_parts.append(&mut els.clone());
+                let else_part = ep.map(|(_,_,s,_)|s).unwrap_or(vec![]);
+                Self{
+                    if_parts,
+                    else_part
+                }
+            })(input)
     }
 }
 
 #[cfg(test)]
 mod tests{
-    use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep};
+    use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep};
     use crate::parser::Parsable;
     use crate::template::text::{Text, Block};
-    use crate::parser::util::assert_if;
+    use crate::parser::util::{assert_if, assert_no_error};
     use crate::template::{VariableReferenceName, Assignable, Expression};
     use crate::journey::step::Step;
     use crate::journey::step::system::parser::{one_or_many_steps, unarged_for_parser, for_right_part, for_left_part, arged_for_parser};
@@ -217,6 +259,14 @@ mod tests{
                   ,AssignmentStep::WithVariableName(VariableReferenceName::from("a"),Assignable::Expression(Expression::Variable(format!("name"),Option::None))))
 
     }
+    #[tokio::test]
+    async fn should_parse_push_step(){
+        let j= r#"objects.push(obj)"#;
+        assert_if(j
+                  ,PushStep::parser(j)
+                  ,PushStep::WithVariableName(VariableReferenceName::from("objects"),Assignable::Expression(Expression::Variable(format!("obj"),Option::None))))
+
+    }
 
 
 
@@ -227,6 +277,16 @@ mod tests{
         assert_if(j
                   ,SystemStep::parser(j)
                   ,SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+
+    }
+    #[tokio::test]
+    async fn should_parse_systemstep_with_push_step(){
+        let j= r#"name.push(text `Hello`)"#;
+        assert_if(j
+                  ,SystemStep::parser(j)
+                  ,SystemStep::Push(PushStep::WithVariableName(VariableReferenceName::from("name"),Assignable::FillableText(Text{
+                blocks:vec![Block::Text(format!("Hello"))]
+            }))))
 
     }
     #[tokio::test]
@@ -253,5 +313,14 @@ mod tests{
     async fn should_parse_systemstep_with_assignment_step_with_operator(){
         let j= r#"let obj.day = object index % 18"#;
         SystemStep::parser(j).unwrap();
+    }
+    #[tokio::test]
+    async fn should_parse_if_step(){
+        let j= r#"
+            if 1==1 {
+                print text `Hello`
+            }
+        "#;
+        assert_no_error(j,SystemStep::parser(j))
     }
 }

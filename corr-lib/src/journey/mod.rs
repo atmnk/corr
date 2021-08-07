@@ -3,6 +3,8 @@ pub mod parser;
 use crate::journey::step::Step;
 use crate::core::{runtime::Context, runtime::IO, Variable, DataType, Value};
 use async_trait::async_trait;
+use tokio::task::JoinHandle;
+
 #[derive(Debug, Clone,PartialEq)]
 pub struct Journey{
     pub name:String,
@@ -12,18 +14,20 @@ pub struct Journey{
 
 #[async_trait]
 pub trait Executable{
-    async fn execute(&self,context:&Context);
+    async fn execute(&self,context:&Context)->Vec<JoinHandle<bool>>;
 }
 
 
 
 #[async_trait]
 impl Executable for Journey{
-    async fn execute(&self, context: &Context) {
+    async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>>{
         context.write(format!("Executing Journey {}",self.name)).await;
+        let mut handles = vec![];
         for step in self.steps.iter() {
-            step.execute(context).await
+            handles.append(&mut step.execute(context).await)
         }
+        handles
     }
 }
 pub fn filter(journies:Vec<Journey>,_filter:String)->Vec<Journey>{

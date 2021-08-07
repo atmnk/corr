@@ -3,7 +3,7 @@ use nom::lib::std::collections::HashMap;
 use crate::core::runtime::HeapObject;
 use std::sync::Arc;
 use futures::lock::Mutex;
-
+use core::str::FromStr;
 pub mod proto;
 pub mod runtime;
 pub mod parser;
@@ -180,6 +180,28 @@ impl Number{
     }
 }
 impl Value {
+    pub fn parse<T>(&self)->Option<T> where T:FromStr{
+        match self {
+            Value::String(s)=>{
+                s.parse::<T>().ok()
+            },
+            Value::PositiveInteger(p)=>{
+                p.to_string().parse::<T>().ok()
+            },
+            Value::Double(p)=>{
+                p.to_string().parse::<T>().ok()
+            },
+            Value::Integer(p)=>{
+                p.to_string().parse::<T>().ok()
+            },
+            Value::Boolean(p)=>{
+                p.to_string().parse::<T>().ok()
+            },
+            _=>{
+                Option::None
+            }
+        }
+    }
     pub fn from_json_value(value:serde_json::Value)->Self{
         match value {
             serde_json::Value::Null=>Value::Null,

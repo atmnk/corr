@@ -5,15 +5,18 @@ use nom::sequence::{tuple, preceded};
 use crate::template::rest::FillableRequest;
 use nom::bytes::complete::tag;
 use crate::template::rest::extractable::ExtractableResponse;
+use futures::TryFutureExt;
 
 impl Parsable for RestSetp{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(
             tuple((
+                opt(ws(tag("async"))),
                 ws(FillableRequest::parser),
                 opt(preceded(ws(tag("matching")),ExtractableResponse::parser))
                 )),
-            |(request,response)|RestSetp{
+            |(ia,request,response)|RestSetp{
+                is_async:ia.map(|_| true).unwrap_or(false),
                 request,
                 response
             }
@@ -44,6 +47,7 @@ mod tests{
         assert_if(j
                   ,RestSetp::parser(j)
                   ,RestSetp {
+                is_async:false,
                 request:FillableRequest{
                     url:URL::WithExpression(Expression::Constant(Value::String(format!("http://localhost")))),
                     verb:RestVerb::GET,
@@ -78,6 +82,7 @@ mod tests{
         assert_if(j
                   ,RestSetp::parser(j)
                   ,RestSetp{
+                is_async:false,
                 request:FillableRequest{
                     url:URL::WithExpression(Expression::Constant(Value::String(format!("http://localhost")))),
                     verb:RestVerb::GET,

@@ -7,8 +7,11 @@ use crate::core::runtime::Context;
 use isahc::prelude::*;
 use crate::template::Fillable;
 use async_trait::async_trait;
+use tokio::task::JoinHandle;
+
 #[derive(Debug, Clone,PartialEq)]
 pub struct RestSetp{
+    is_async:bool,
     request: FillableRequest,
     response:Option<ExtractableResponse>
 }
@@ -21,11 +24,12 @@ pub struct CorrRequest {
 }
 #[async_trait]
 impl Executable for RestSetp{
-    async fn execute(&self, context: &Context) {
-        rest(self.request.fill(context).await,self.response.clone(),context).await
+    async fn execute(&self, context: &Context) ->Vec<JoinHandle<bool>>{
+        rest(self.request.fill(context).await,self.response.clone(),context,self.is_async).await;
+        return vec![]
     }
 }
-pub async fn rest(request: CorrRequest, response:Option<ExtractableResponse>,context:&Context) {
+pub async fn rest(request: CorrRequest, response:Option<ExtractableResponse>,context:&Context,is_async:bool) {
     let mut builder = match request.method {
         RestVerb::GET => Request::get(request.url.clone()),
         RestVerb::POST => Request::post(request.url.clone()),
@@ -33,7 +37,7 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableResponse>,con
         RestVerb::PUT => Request::put(request.url.clone()),
         RestVerb::DELETE => Request::delete(request.url.clone())
     };
-    if let Some(headers) = request.headers {
+    if let Some(headers) = request.headers.clone() {
         for header in headers.headers {
             builder = builder.header(header.key.as_str(), header.value.as_str())
         }
@@ -45,38 +49,47 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableResponse>,con
         _ => {}
     };
     if let Ok(i_req) = builder.body(request.body.clone().map(|bd| { bd.to_string_body() }).unwrap_or("".to_string())) {
-        let i_response = i_req.send_async().await;
-        if let Some(er) = response {
-            match i_response {
-                Ok(mut rb)=>{
-                    if rb.status().as_u16() < 399 {
-                        er.extract_from(context, CorrResponse {
-                            body: rb.text_async().await.unwrap().to_string(),
-                            original_response: rb
-                        }).await
-                    } else {
-                        eprintln!("Rest api {} Failed with code {}", request.url, rb.status())
-                    }
-                },
-                Err(e)=>{
-                    eprintln!("Error Response for api {} {:?}", request.url,e)
-                }
-            }
-
-        } else {
-            match i_response {
-                Ok(mut rb)=>{
-                    if rb.status().as_u16() > 399 {
-                        {
-                            eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.unwrap().to_string_body(), rb.status())
+        let context = context.clone();
+        let step = async move|| {
+            let i_response = i_req.send_async().await;
+            if let Some(er) = response {
+                match i_response {
+                    Ok(mut rb)=>{
+                        if rb.status().as_u16() < 399 {
+                            er.extract_from(&context, CorrResponse {
+                                body: rb.text_async().await.unwrap().to_string(),
+                                original_response: rb
+                            }).await
+                        } else {
+                            eprintln!("Rest api {} Failed with code {}", request.url, rb.status())
                         }
+                    },
+                    Err(e)=>{
+                        eprintln!("Error Response for api {} {:?}", request.url,e)
                     }
-                },
-                Err(e)=>{
-                    eprintln!("Error Response for api {} {:?}", request.url,e)
+                }
+
+            } else {
+                match i_response {
+                    Ok(mut rb)=>{
+                        if rb.status().as_u16() > 399 {
+                            {
+                                eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.unwrap().to_string_body(), rb.status())
+                            }
+                        }
+                    },
+                    Err(e)=>{
+                        eprintln!("Error Response for api {} {:?}", request.url,e)
+                    }
                 }
             }
+        };
+        if is_async {
+            tokio::spawn(step());
+        } else {
+            step().await;
         }
+
     }
     #[cfg(test)]
     mod tests {

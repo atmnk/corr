@@ -16,6 +16,17 @@ pub enum RestVerb{
     PATCH,
     DELETE
 }
+impl RestVerb {
+    pub fn as_str(&self)->&'static str{
+        match self {
+            RestVerb::GET=>"get",
+            RestVerb::POST=>"post",
+            RestVerb::PUT=>"put",
+            RestVerb::PATCH=>"patch",
+            RestVerb::DELETE=>"delete",
+        }
+    }
+}
 #[derive(Debug, Clone,PartialEq)]
 pub struct FillableRequest {
     pub verb:RestVerb,

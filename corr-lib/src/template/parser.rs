@@ -22,6 +22,7 @@ impl Parsable for Assignable {
 impl Parsable for BinaryOperator {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
+            map(tag("=="),|_| BinaryOperator::Equal),
             map(tag("+"),|_| BinaryOperator::Add),
             map(tag("-"),|_| BinaryOperator::Subtract),
             map(tag("*"),|_| BinaryOperator::Multiply),
