@@ -248,7 +248,7 @@ impl Function for Formated{
                     let num = arg.evaluate(context).await.to_number().unwrap();
                     match(num){
                         Number::Double(d)=>{
-                            vars.insert(format!("{0}",index),d);
+                            vars.insert(format!("{0}",index-1),d);
                         },
                         _=>{}
                     }
@@ -259,6 +259,7 @@ impl Function for Formated{
             }
 
             let f = |mut fmt: Formatter| {
+                // print!("{0}",fmt.key);
                 fmt.f64(*vars.get(fmt.key).unwrap())
             };
 
@@ -576,7 +577,7 @@ mod tests{
             Expression::Constant(Value::String("Hello {0}".to_string())),
             Expression::Constant(Value::Double(100.0)),
         ],&context).await;
-        assert_eq!(result,Value::String("Hello 100.0".to_string()));
+        assert_eq!(result,Value::String("Hello 100".to_string()));
     }
     #[tokio::test]
     async fn should_divide(){

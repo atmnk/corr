@@ -1,5 +1,5 @@
 use crate::parser::{Parsable, ws};
-use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart};
+use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep};
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
 use nom::sequence::{preceded, terminated, tuple};
@@ -81,10 +81,29 @@ impl Parsable for SystemStep{
             map(ConditionalStep::parser,|ps|{SystemStep::Condition(ps)}),
             map(PrintStep::parser,|ps|{SystemStep::Print(ps)}),
             map(ForLoopStep::parser,|fls|{SystemStep::ForLoop(fls)}),
+            map(LoadAssignStep::parser,|asst| SystemStep::LoadAssign(asst)),
             map(AssignmentStep::parser,|asst| SystemStep::Assignment(asst)),
+            map(SyncStep::parser,|asst| SystemStep::Sync(asst)),
             map(PushStep::parser,|ps|{SystemStep::Push(ps)})))
             // map(tuple((ws(tag("let ")),ws(identifier),ws(char('=')),Expression::parser)),|(_,var,_,expr)|{SystemStep::Assign(var,expr)}),
         (input)
+    }
+}
+impl Parsable for SyncStep {
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map(tuple((ws(tag("sync")),ws(VariableReferenceName::parser),opt(tuple((ws(tag("to")),ws(tag("sandbox")),Expression::parser))))),|(_,variable,sb)|{SyncStep{
+            variable,
+            sandbox:sb.map(|(_,_,e)|e)
+        }})(input)
+    }
+}
+impl Parsable for LoadAssignStep {
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map(tuple((ws(tag("let")),ws(VariableReferenceName::parser),ws(char('=')),ws(tag("load")),Expression::parser,opt(tuple((ws(tag("from")),ws(tag("sandbox")),Expression::parser))))),|(_,variable,_,_,default_value,sb)|{LoadAssignStep{
+            variable,
+            default_value,
+            sandbox:sb.map(|(_,_,e)|e)
+        }})(input)
     }
 }
 impl Parsable for ConditionalStep{

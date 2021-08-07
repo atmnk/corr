@@ -7,6 +7,8 @@ use crate::core::{Value};
 use crate::template::{VariableReferenceName, Fillable, Assignable, Expression};
 use crate::journey::step::Step;
 use tokio::task::JoinHandle;
+use tokio::fs::{File, OpenOptions};
+use tokio::io::{BufReader, AsyncWriteExt, AsyncReadExt};
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum SystemStep{
@@ -51,7 +53,8 @@ pub struct SyncStep{
 #[derive(Debug, Clone,PartialEq)]
 pub struct LoadAssignStep{
     sandbox:Option<Expression>,
-    variable:VariableReferenceName
+    variable:VariableReferenceName,
+    default_value:Expression
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum ForLoopStep{
@@ -138,6 +141,12 @@ impl Executable for SystemStep{
             },
             SystemStep::Condition(pt)=>{
                 pt.execute(context).await
+            },
+            SystemStep::LoadAssign(pt)=>{
+                pt.execute(context).await
+            },
+            SystemStep::Sync(pt)=>{
+                pt.execute(context).await
             }
             SystemStep::Assignment(asst)=>asst.execute(context).await,
             SystemStep::Comment(_)=>{vec![]}
@@ -145,6 +154,7 @@ impl Executable for SystemStep{
 
     }
 }
+
 #[async_trait]
 impl Executable for AssignmentStep {
     async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
@@ -152,6 +162,59 @@ impl Executable for AssignmentStep {
             AssignmentStep::WithVariableName(var, asbl)=>{
                 context.define(var.to_string(),asbl.fill(context).await).await;
             }
+        }
+        return vec![]
+    }
+}
+#[async_trait]
+impl Executable for LoadAssignStep {
+    async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
+        let dir:String = if let Some(sb)=&self.sandbox{
+            sb.evaluate(context).await.to_string()
+        } else {
+            format!("data")
+        };
+        let path = format!("./{0}/{1}.json",dir,self.variable.to_string());
+        let val = if let Ok(mut data) = tokio::fs::read(path).await{
+            let file_contents= serde_json::from_str(String::from_utf8_lossy(&data).as_ref());
+            // Read the JSON contents of the file as an instance of `User`.
+            if let Ok(value) = file_contents{
+                Value::from_json_value(value)
+            } else {
+                println!("Shit 1");
+                self.default_value.evaluate(context).await
+            }
+
+        } else {
+            println!("Shit 2");
+            self.default_value.evaluate(context).await
+        };
+        context.define(self.variable.to_string(),val).await;
+        return vec![]
+    }
+}
+#[async_trait]
+impl Executable for SyncStep {
+    async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
+        let dir:String = if let Some(sb)=&self.sandbox{
+            sb.evaluate(context).await.to_string()
+        } else {
+            format!("data")
+        };
+        let path = format!("./{0}/{1}.json",dir,self.variable.to_string());
+        std::fs::create_dir_all(dir.clone()).unwrap();
+        println!("Wrote to file{0}",path);
+        if let Ok(mut file) = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(path.clone())
+            .await {
+            if let Some(data) = context.get_var_from_store(self.variable.to_string()).await{
+                file.write(data.to_string().as_bytes()).await;
+                println!("Wrote to file{0}",path);
+            }
+
         }
         return vec![]
     }
