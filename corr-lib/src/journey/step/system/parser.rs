@@ -108,17 +108,17 @@ impl Parsable for LoadAssignStep {
 }
 impl Parsable for ConditionalStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map(tuple(((
+        map(tuple((
             ws(tag("if")),
             Expression::parser, ws(tag("{")),
             many0(Step::parser),ws(tag("}")),
-            many0(tuple(((
+            many0(tuple((
                 ws(tag("else")),
                 ws(tag("if")),
                 Expression::parser, ws(tag("{")),
-                many0(Step::parser),ws(tag("}")))))),
+                many0(Step::parser),ws(tag("}"))))),
             opt(tuple((ws(tag("else")), ws(tag("{")),
-                       many0(Step::parser),ws(tag("}")))))))),
+                       many0(Step::parser),ws(tag("}"))))))),
             |(_,fc,_,
                  fb, _,eip,ep)|{
                 let mut if_parts = vec![];

@@ -3,13 +3,13 @@ use crate::parser::{Parsable, ParseResult, ws};
 use nom::branch::alt;
 use nom::combinator::{map, opt};
 use nom::sequence::tuple;
-use crate::template::VariableReferenceName;
+
 use nom::bytes::complete::{  tag};
 use crate::template::text::extractable::{ ExtractableText};
 use crate::template::text::parser::text_block;
 use nom::multi::many0;
 use nom::sequence::{ terminated, preceded};
-use nom::character::complete::{char};
+
 
 impl Parsable for ExtractableText{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -39,11 +39,11 @@ pub fn dynamic_tag<'a>(input: &'a str,tag_value:String) -> ParseResult<'a, Strin
 }
 #[cfg(test)]
 mod tests{
-    use crate::template::object::{FillablePair, FillableObject, FillableMapObject, FillableForLoop};
+    
     use crate::parser::util::assert_if;
     use crate::parser::Parsable;
-    use crate::template::{Expression, VariableReferenceName};
-    use crate::core::{Value, Variable};
+    
+    use crate::core::{Variable};
     use crate::template::text::extractable::ExtractableText;
 
     #[test]

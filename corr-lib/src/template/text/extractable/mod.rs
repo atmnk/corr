@@ -1,9 +1,9 @@
-use crate::template::VariableReferenceName;
-use nom::combinator::{opt, not};
-use nom::bytes::complete::tag;
+
+
+
 use crate::core::runtime::Context;
 use crate::core::{Variable, convert, DataType};
-use nom::sequence::tuple;
+
 use crate::template::text::extractable::parser::dynamic_tag;
 
 pub mod parser;
@@ -28,7 +28,7 @@ impl ExtractableText{
                 let mut remaining = input.clone();
                 let mut vars_to_define = vec![] ;
                 if let Some(f) = first {
-                    if let Some((i,t))=dynamic_tag (remaining,f.clone()).ok(){
+                    if let Some((i,_t))=dynamic_tag (remaining,f.clone()).ok(){
                         remaining = i;
                     } else {
                         return false;

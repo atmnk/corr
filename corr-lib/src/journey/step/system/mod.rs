@@ -7,8 +7,8 @@ use crate::core::{Value};
 use crate::template::{VariableReferenceName, Fillable, Assignable, Expression};
 use crate::journey::step::Step;
 use tokio::task::JoinHandle;
-use tokio::fs::{File, OpenOptions};
-use tokio::io::{BufReader, AsyncWriteExt, AsyncReadExt};
+use tokio::fs::{OpenOptions};
+use tokio::io::{AsyncWriteExt, AsyncReadExt};
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum SystemStep{
@@ -175,7 +175,7 @@ impl Executable for LoadAssignStep {
             format!("data")
         };
         let path = format!("./{0}/{1}.json",dir,self.variable.to_string());
-        let val = if let Ok(mut data) = tokio::fs::read(path).await{
+        let val = if let Ok(data) = tokio::fs::read(path).await{
             let file_contents= serde_json::from_str(String::from_utf8_lossy(&data).as_ref());
             // Read the JSON contents of the file as an instance of `User`.
             if let Ok(value) = file_contents{

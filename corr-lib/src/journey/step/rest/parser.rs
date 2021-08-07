@@ -5,7 +5,7 @@ use nom::sequence::{tuple, preceded};
 use crate::template::rest::FillableRequest;
 use nom::bytes::complete::tag;
 use crate::template::rest::extractable::ExtractableResponse;
-use futures::TryFutureExt;
+
 
 impl Parsable for RestSetp{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {

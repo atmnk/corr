@@ -244,9 +244,9 @@ impl Function for Formated{
             let mut vars=HashMap::new();
             let mut index = 0;
             for arg in args{
-                if(index !=0){
+                if index !=0 {
                     let num = arg.evaluate(context).await.to_number().unwrap();
-                    match(num){
+                    match num{
                         Number::Double(d)=>{
                             vars.insert(format!("{0}",index-1),d);
                         },

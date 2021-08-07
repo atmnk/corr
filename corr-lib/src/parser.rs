@@ -73,7 +73,7 @@ pub mod util{
                 assert_eq!(val,to)
             },
             Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e))=>{
-                assert!(false,format!("Unable to parse following errors {}",convert_error(text,e)))
+                assert!(false,"Unable to parse following errors {}",convert_error(text,e))
             },
             _=>{}
         }
@@ -81,7 +81,7 @@ pub mod util{
     pub fn assert_no_error<'a,T>(text:&'a str, result:ParseResult<'a,T>) where T:PartialEq+std::fmt::Debug{
         match result {
             Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e))=>{
-                assert!(false,format!("Unable to parse following errors {}",convert_error(text,e)))
+                assert!(false,"Unable to parse following errors {}",convert_error(text,e))
             },
             _=>{}
         }

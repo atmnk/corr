@@ -1,17 +1,17 @@
 #![feature(generators, generator_trait)]
 #![feature(async_closure)]
 use async_trait::async_trait;
-use corr_lib::core::runtime::{Context, Client, IO};
+use corr_lib::core::runtime::{Context, Client};
 use std::sync::{Arc, Mutex};
 use std::convert::Infallible;
 use lazy_static::lazy_static;
 use std::net::SocketAddr;
 use hyper::{Body, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
-use corr_lib::core::proto::{Output, Input, ContinueInput, TellMeOutput};
-use corr_lib::core::{Value, Variable, DataType};
+use corr_lib::core::proto::{Output, Input, TellMeOutput};
+use corr_lib::core::{Value};
 use corr_lib::journey::step::system::AssignmentStep;
-use corr_lib::template::{VariableReferenceName, Assignable, Expression, Fillable};
+use corr_lib::template::{VariableReferenceName, Assignable, Expression};
 use corr_lib::journey::Executable;
 
 lazy_static! {
@@ -52,13 +52,13 @@ impl Client for SystemRuntime{
 async fn main() {
     // We'll bind to 127.0.0.1:3000
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let store = 1123;
+    let _store = 1123;
     let assmnt = AssignmentStep::WithVariableName(VariableReferenceName::from("name"),Assignable::Expression(Expression::Constant(Value::String(format!("Hello World")))));
     assmnt.execute(&GlobalContext).await;
     // A `Service` is needed for every connection, so this
     // creates one from our `hello_world` function.
     let make_svc = make_service_fn(|_conn| async {
-        Ok::<_, Infallible>(service_fn::<_,_, _>( async move |req: Request<Body>|->Result<Response<Body>, Infallible>{
+        Ok::<_, Infallible>(service_fn::<_,_, _>( async move |_req: Request<Body>|->Result<Response<Body>, Infallible>{
             let value = GlobalContext.get_var_from_store(format!("name")).await;
             return Ok(Response::new(format!("{0}",value.unwrap().to_string()).into()));
         }))

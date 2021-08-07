@@ -71,7 +71,7 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableResponse>,con
 
             } else {
                 match i_response {
-                    Ok(mut rb)=>{
+                    Ok(rb)=>{
                         if rb.status().as_u16() > 399 {
                             {
                                 eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.unwrap().to_string_body(), rb.status())

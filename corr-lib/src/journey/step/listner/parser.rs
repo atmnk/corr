@@ -1,15 +1,15 @@
 use crate::parser::{Parsable, ParseResult, ws};
 use nom::combinator::{map, opt};
-use nom::sequence::{tuple, preceded};
-use crate::template::rest::{FillableRequest, RestVerb};
+use nom::sequence::{tuple};
+use crate::template::rest::{RestVerb};
 use nom::bytes::complete::tag;
-use crate::template::rest::extractable::ExtractableResponse;
+
 use crate::journey::step::listner::{StartListenerStep, Stub, StubResponse};
-use crate::core::parser::{port, string, positive_integer};
+use crate::core::parser::{positive_integer};
 use nom::multi::many0;
 use crate::template::Expression;
 use crate::journey::step::Step;
-use rand::distributions::Exp;
+
 use crate::template::text::extractable::ExtractableText;
 
 impl Parsable for Stub {
@@ -23,7 +23,7 @@ impl Parsable for Stub {
                 ExtractableText::parser,
                 ws(tag("{")),
                 many0(Step::parser),
-                tuple(((
+                tuple((
                     ws(tag("respond")),
                     ws(tag("with")),
                     opt(tuple((
@@ -32,7 +32,7 @@ impl Parsable for Stub {
                         ws(tag("and"))))),
                     ws(tag("body")),
                     Expression::parser,
-                ))),
+                )),
                 ws(tag("}")),
             )),
             |(_,
