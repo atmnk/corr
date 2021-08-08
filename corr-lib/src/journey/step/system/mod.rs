@@ -181,12 +181,9 @@ impl Executable for LoadAssignStep {
             if let Ok(value) = file_contents{
                 Value::from_json_value(value)
             } else {
-                println!("Shit 1");
                 self.default_value.evaluate(context).await
             }
-
         } else {
-            println!("Shit 2");
             self.default_value.evaluate(context).await
         };
         context.define(self.variable.to_string(),val).await;
