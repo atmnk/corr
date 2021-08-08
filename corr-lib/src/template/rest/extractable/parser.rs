@@ -1,5 +1,5 @@
 use crate::parser::{Parsable, ParseResult, ws};
-use crate::template::rest::extractable::{ExtractableResponse, ExtractableResponseBody, ExtractableResponseHeaders, ExtractableResponseHeaderPair, ExtractableResponseHeaderValue};
+use crate::template::rest::extractable::{ExtractableRestData, ExtractableBody, ExtractableHeaders, ExtractableHeaderPair, ExtractableHeaderValue};
 use nom::branch::alt;
 use nom::sequence::{preceded, tuple, terminated};
 use nom::bytes::complete::tag;
@@ -10,7 +10,7 @@ use nom::multi::separated_list1;
 use crate::core::parser::string;
 use crate::template::VariableReferenceName;
 
-impl Parsable for ExtractableResponse{
+impl Parsable for ExtractableRestData {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
             extractableresponse_starting_with_body,
@@ -18,60 +18,60 @@ impl Parsable for ExtractableResponse{
             ))(input)
     }
 }
-fn extractableresponse_starting_with_body<'a>(input: &'a str) -> ParseResult<'a, ExtractableResponse> {
+fn extractableresponse_starting_with_body<'a>(input: &'a str) -> ParseResult<'a, ExtractableRestData> {
     map(
         tuple((
-                  preceded(ws(tag("body")),ws(ExtractableResponseBody::parser)),
-                    opt(preceded(tuple((ws(tag("and")),ws(tag("headers")))),ws(ExtractableResponseHeaders::parser)))
-              )),|(body,headers)|ExtractableResponse{
+            preceded(ws(tag("body")),ws(ExtractableBody::parser)),
+            opt(preceded(tuple((ws(tag("and")),ws(tag("headers")))),ws(ExtractableHeaders::parser)))
+              )),|(body,headers)| ExtractableRestData {
             body:Option::Some(body),
             headers
         })(input)
 }
-fn extractableresponse_starting_with_headers<'a>(input: &'a str) -> ParseResult<'a, ExtractableResponse> {
+fn extractableresponse_starting_with_headers<'a>(input: &'a str) -> ParseResult<'a, ExtractableRestData> {
     map(
         tuple((
-            preceded(ws(tag("headers")),ws(ExtractableResponseHeaders::parser)),
-            opt(preceded(tuple((ws(tag("and")),ws(tag("body")))),ws(ExtractableResponseBody::parser)))
-        )),|(headers,body)|ExtractableResponse{
+            preceded(ws(tag("headers")),ws(ExtractableHeaders::parser)),
+            opt(preceded(tuple((ws(tag("and")),ws(tag("body")))),ws(ExtractableBody::parser)))
+        )),|(headers,body)| ExtractableRestData {
             body,
             headers:Option::Some(headers)
         })(input)
 }
-impl Parsable for ExtractableResponseBody{
+impl Parsable for ExtractableBody {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(ExtractableObject::parser,|eo|
-        ExtractableResponseBody::WithObject(eo))(input)
+        ExtractableBody::WithObject(eo))(input)
     }
 }
-impl Parsable for ExtractableResponseHeaders{
+impl Parsable for ExtractableHeaders {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(
             preceded(
                 ws(char('{')),
                 terminated(
-                    separated_list1(ws(char(',')),ws(ExtractableResponseHeaderPair::parser)),
-                    ws(char('}')))),|headers|ExtractableResponseHeaders{
+                    separated_list1(ws(char(',')),ws(ExtractableHeaderPair::parser)),
+                    ws(char('}')))),|headers| ExtractableHeaders {
                 headers
             })(input)
     }
 }
-impl Parsable for ExtractableResponseHeaderPair{
+impl Parsable for ExtractableHeaderPair {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(tuple((
             ws(string),
             ws(char(':')),
-            ws(ExtractableResponseHeaderValue::parser)
-            )),|(key,_,value)|ExtractableResponseHeaderPair{
+            ws(ExtractableHeaderValue::parser)
+            )),|(key,_,value)| ExtractableHeaderPair {
             key,
             value
         })(input)
     }
 }
-impl Parsable for ExtractableResponseHeaderValue{
+impl Parsable for ExtractableHeaderValue {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(VariableReferenceName::parser,
-        |var|ExtractableResponseHeaderValue::WithVariableReference(var))(input)
+        |var| ExtractableHeaderValue::WithVariableReference(var))(input)
     }
 }
 
@@ -79,7 +79,7 @@ impl Parsable for ExtractableResponseHeaderValue{
 mod tests{
     use crate::parser::util::assert_if;
     use crate::parser::Parsable;
-    use crate::template::rest::extractable::{ExtractableResponse, ExtractableResponseBody, ExtractableResponseHeaders, ExtractableResponseHeaderPair, ExtractableResponseHeaderValue};
+    use crate::template::rest::extractable::{ExtractableRestData, ExtractableBody, ExtractableHeaders, ExtractableHeaderPair, ExtractableHeaderValue};
     use crate::template::object::extractable::{ExtractableObject, ExtractableMapObject, ExtractablePair};
     use crate::template::VariableReferenceName;
 
@@ -87,14 +87,14 @@ mod tests{
     #[test]
     fn should_parse_extractableresponse_starting_with_body(){
         let text=r#"body object {"name":name } and headers { "X-API-KEY": x_api_key}"#;
-        let a=ExtractableResponse::parser(text);
+        let a= ExtractableRestData::parser(text);
         let emo = ExtractableMapObject::WithPairs(vec![ExtractablePair::WithKeyValue(format!("name"),ExtractableObject::WithVariableReference(VariableReferenceName::from("name")))]);
-        assert_if(text,a,ExtractableResponse{
-            body:Option::Some(ExtractableResponseBody::WithObject(ExtractableObject::WithMapObject(emo))),
-            headers:Option::Some(ExtractableResponseHeaders{
-                headers:vec![ExtractableResponseHeaderPair{
+        assert_if(text, a, ExtractableRestData {
+            body:Option::Some(ExtractableBody::WithObject(ExtractableObject::WithMapObject(emo))),
+            headers:Option::Some(ExtractableHeaders {
+                headers:vec![ExtractableHeaderPair {
                     key:format!("X-API-KEY"),
-                    value:ExtractableResponseHeaderValue::WithVariableReference(VariableReferenceName::from("x_api_key"))
+                    value: ExtractableHeaderValue::WithVariableReference(VariableReferenceName::from("x_api_key"))
                 }]
             })
         });
@@ -102,26 +102,26 @@ mod tests{
     #[test]
     fn should_parse_extractableresponsebody(){
         let text=r#"object {"name":name, "place" :place }"#;
-        let a=ExtractableResponseBody::parser(text);
+        let a= ExtractableBody::parser(text);
         let emo = ExtractableMapObject::WithPairs(vec![
             ExtractablePair::WithKeyValue(format!("name"),ExtractableObject::WithVariableReference(VariableReferenceName::from("name"))),
             ExtractablePair::WithKeyValue(format!("place"),ExtractableObject::WithVariableReference(VariableReferenceName::from("place")))
         ]);
-        assert_if(text,a,ExtractableResponseBody::WithObject(ExtractableObject::WithMapObject(emo)));
+        assert_if(text, a, ExtractableBody::WithObject(ExtractableObject::WithMapObject(emo)));
     }
     #[test]
     fn should_parse_extractableresponseheaders(){
         let text=r#"{"name":name, "place" :place }"#;
-        let a=ExtractableResponseHeaders::parser(text);
-        assert_if(text,a,ExtractableResponseHeaders{
+        let a= ExtractableHeaders::parser(text);
+        assert_if(text, a, ExtractableHeaders {
             headers:vec![
-                ExtractableResponseHeaderPair{
+                ExtractableHeaderPair {
                 key:format!("name"),
-                value:ExtractableResponseHeaderValue::WithVariableReference(VariableReferenceName::from("name"))
+                value: ExtractableHeaderValue::WithVariableReference(VariableReferenceName::from("name"))
             },
-            ExtractableResponseHeaderPair{
+                ExtractableHeaderPair {
                 key:format!("place"),
-                value:ExtractableResponseHeaderValue::WithVariableReference(VariableReferenceName::from("place"))
+                value: ExtractableHeaderValue::WithVariableReference(VariableReferenceName::from("place"))
             }
             ]
         });
@@ -129,18 +129,18 @@ mod tests{
     #[test]
     fn should_parse_extractableresponseheaderpair(){
         let text=r#""name":name"#;
-        let a=ExtractableResponseHeaderPair::parser(text);
-        assert_if(text,a,
-                ExtractableResponseHeaderPair{
+        let a= ExtractableHeaderPair::parser(text);
+        assert_if(text, a,
+                  ExtractableHeaderPair {
                     key:format!("name"),
-                    value:ExtractableResponseHeaderValue::WithVariableReference(VariableReferenceName::from("name"))
+                    value: ExtractableHeaderValue::WithVariableReference(VariableReferenceName::from("name"))
                 });
     }
     #[test]
     fn should_parse_extractableresponseheadervalue(){
         let text=r#"name"#;
-        let a=ExtractableResponseHeaderValue::parser(text);
-        assert_if(text,a,
-                  ExtractableResponseHeaderValue::WithVariableReference(VariableReferenceName::from("name")));
+        let a= ExtractableHeaderValue::parser(text);
+        assert_if(text, a,
+                  ExtractableHeaderValue::WithVariableReference(VariableReferenceName::from("name")));
     }
 }

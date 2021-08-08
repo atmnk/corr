@@ -405,6 +405,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "log",
+ "nom 6.1.2",
  "regex",
  "serde",
  "serde_json",

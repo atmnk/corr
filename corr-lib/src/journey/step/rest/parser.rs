@@ -4,7 +4,7 @@ use nom::combinator::{map, opt};
 use nom::sequence::{tuple, preceded};
 use crate::template::rest::FillableRequest;
 use nom::bytes::complete::tag;
-use crate::template::rest::extractable::ExtractableResponse;
+use crate::template::rest::extractable::ExtractableRestData;
 
 
 impl Parsable for RestSetp{
@@ -13,7 +13,7 @@ impl Parsable for RestSetp{
             tuple((
                 opt(ws(tag("async"))),
                 ws(FillableRequest::parser),
-                opt(preceded(ws(tag("matching")),ExtractableResponse::parser))
+                opt(preceded(ws(tag("matching")), ExtractableRestData::parser))
                 )),
             |(ia,request,response)|RestSetp{
                 is_async:ia.map(|_| true).unwrap_or(false),
@@ -31,7 +31,7 @@ mod tests{
     use crate::template::rest::{FillableRequest, URL, RestVerb, FillableRequestHeaders, FillableRequestHeaderPair, FillableRequestHeaderValue};
     use crate::template::{Expression, VariableReferenceName};
     use crate::core::Value;
-    use crate::template::rest::extractable::{ExtractableResponse, ExtractableResponseBody, ExtractableResponseHeaders, ExtractableResponseHeaderPair, ExtractableResponseHeaderValue};
+    use crate::template::rest::extractable::{ExtractableRestData, ExtractableBody, ExtractableHeaders, ExtractableHeaderPair, ExtractableHeaderValue};
     use crate::template::object::extractable::{ExtractableObject, ExtractablePair, ExtractableMapObject};
 
 
@@ -59,12 +59,12 @@ mod tests{
                         }]
                     })
                 },
-                response:Option::Some(ExtractableResponse{
-                    body:Option::Some(ExtractableResponseBody::WithObject(ExtractableObject::WithMapObject(emo))),
-                    headers:Option::Some(ExtractableResponseHeaders{
-                        headers:vec![ExtractableResponseHeaderPair{
+                response:Option::Some(ExtractableRestData {
+                    body:Option::Some(ExtractableBody::WithObject(ExtractableObject::WithMapObject(emo))),
+                    headers:Option::Some(ExtractableHeaders {
+                        headers:vec![ExtractableHeaderPair {
                             key:format!("X-API-KEY"),
-                            value:ExtractableResponseHeaderValue::WithVariableReference(VariableReferenceName::from("x_api_key"))
+                            value: ExtractableHeaderValue::WithVariableReference(VariableReferenceName::from("x_api_key"))
                         }]
                     })
                 })

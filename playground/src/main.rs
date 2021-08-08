@@ -17,7 +17,7 @@ use corr_lib::journey::Executable;
 lazy_static! {
     static ref LastAsk: Mutex<Vec<TellMeOutput>> = Mutex::new(vec![]);
     static ref GlobalContext: Context = {
-        Context::new(Arc::new(futures::lock::Mutex::new(SystemRuntime)))
+        Context::new(Arc::new(futures::lock::Mutex::new(SystemRuntime)),vec![])
     };
 
 }

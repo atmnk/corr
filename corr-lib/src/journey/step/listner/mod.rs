@@ -25,6 +25,11 @@ use tokio::task::JoinHandle;
 
 use crate::journey::step::Step;
 use crate::template::text::extractable::ExtractableText;
+use crate::template::object::extractable::{ExtractableObject, Extractable};
+use crate::template::rest::extractable::{ExtractableRestData, CorrResponse};
+use crate::journey::step::rest::CorrRequest;
+use nom::Parser;
+use hyper::http::HeaderValue;
 
 async fn handle(
     context: Context,
@@ -38,6 +43,22 @@ async fn handle(
         for stub in sls.stubs{
             let context = Context::from(&context).await;
             if stub.url.capture(&req.uri().to_string(),&context).await && req.method().to_string().to_lowercase().eq(&stub.method.as_str().to_lowercase()) {
+                let (parts, body) = req.into_parts();
+                if let Ok(data) = hyper::body::to_bytes(body).await {
+                    let sv = serde_json::from_str(String::from_utf8_lossy(&data).as_ref());;
+                    match  sv  {
+                        Ok(val)=>{
+                            stub.rest_data.extract_from(&context,(val,parts.headers.clone())).await;
+                        },
+                        Err(e)=>{
+                            eprintln!("{:?}",e)
+                        }
+                    }
+
+                } else {
+                    eprintln!("Shit 1")
+                }
+
                 let context = Context::from(&context).await;
                 for step in stub.steps {
                     step.execute(&context).await;
@@ -47,6 +68,7 @@ async fn handle(
 
                 return Response::builder()
                     .status(StatusCode::from_u16(stub.response.status).unwrap_or(StatusCode::OK))
+                    .header("Content-Type","application/json")
                     .body(Body::from(resp.to_string()));
             }
         }
@@ -125,6 +147,7 @@ impl Client for SystemRuntime{
 pub struct Stub{
     method: RestVerb,
     url: ExtractableText,
+    rest_data:ExtractableRestData,
     steps:Vec<Step>,
     response: StubResponse
 }

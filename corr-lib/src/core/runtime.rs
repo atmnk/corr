@@ -6,6 +6,7 @@ use async_recursion::async_recursion;
 use async_trait::async_trait;
 use crate::core::proto::{Input, Output};
 use std::future::Future;
+use crate::journey::Journey;
 
 pub enum HeapObject{
     Final(Value),
@@ -264,6 +265,7 @@ impl IO for Context {
 }
 #[derive(Clone)]
 pub struct Context{
+    pub journeys:Vec<Journey>,
     pub user:Arc<Mutex<dyn Client>>,
     pub store:ReferenceStore,
 }
@@ -275,8 +277,9 @@ impl Context {
             Option::None
         }
     }
-    pub fn new(user:Arc<Mutex<dyn Client>>)->Self{
+    pub fn new(user:Arc<Mutex<dyn Client>>,journeys:Vec<Journey>)->Self{
         Context{
+            journeys,
             user:user,
             store:ReferenceStore::new()
         }
@@ -289,6 +292,7 @@ impl Context {
     }
     pub async fn from(context:&Context)->Self{
         Context{
+            journeys:context.journeys.clone(),
             user:context.user.clone(),
             store:ReferenceStore::from(&context.store).await
         }
@@ -390,7 +394,7 @@ pub mod tests{
     impl Context{
         pub fn mock(inputs:Vec<Input>,buffer:Arc<Mutex<Vec<Output>>>)->Self{
             let user=Arc::new(futures::lock::Mutex::new(MockClient::new(inputs,buffer)));
-            Context::new(user)
+            Context::new(user,vec![])
         }
     }
 

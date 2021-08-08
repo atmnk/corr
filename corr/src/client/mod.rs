@@ -12,8 +12,7 @@ use corr_lib::journey::{Journey, Executable};
 use std::sync::Arc;
 use futures::lock::Mutex;
 use async_recursion::async_recursion;
-
-
+use nom::error::convert_error;
 
 use tokio::sync::{mpsc};
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -37,7 +36,7 @@ impl CliDriver{
             jrns.get(0).map(|j|j.clone())
         } else {
             let mut jn = Option::None;
-            for jrn in jrns {
+            for jrn in &jrns {
                 if jrn.name.eq(&journey.clone()) {
                     jn = Option::Some(jrn.clone());
                     break;
@@ -47,7 +46,7 @@ impl CliDriver{
         };
         if let Some(jn) = j {
             let mut terminal = Terminal::new();
-            let context = CorrContext::new(Arc::new(Mutex::new(terminal.get_if())));
+            let context = CorrContext::new(Arc::new(Mutex::new(terminal.get_if())),jrns);
             tokio::spawn(async move {
                 start(jn,context).await;
             });
@@ -167,10 +166,21 @@ async fn get_journeis_in(path: impl AsRef<Path> + std::marker::Send + 'static)->
         } else {
             let path:PathBuf = child.path();
             if let Some(Some(ext)) = path.extension().map(|ext|ext.to_str()) {
-                if ext.eq("journey") {
-                    let contents = tokio::fs::read_to_string(child.path()).await.unwrap();
-                    let (_,jrn) = Journey::parser(contents.as_str()).unwrap();
-                    js.push(jrn);
+                if ext.to_lowercase().eq("journey") {
+                    let text = tokio::fs::read_to_string(child.path()).await.unwrap();
+                    let result = Journey::parser(text.as_str());
+                    match result {
+                        Err(nom::Err::Error(er)) | Err(nom::Err::Failure(er))=>{
+                            eprintln!("Unable to parse following errors {}",convert_error(text.as_str(),er))
+                        },
+                        Ok((i,jrn))=>{
+                            js.push(jrn);
+                        },
+                        _=>{
+                            eprintln!("Some Other Error")
+                        }
+                    }
+
                 }
             }
         }

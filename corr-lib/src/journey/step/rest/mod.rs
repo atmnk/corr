@@ -1,7 +1,7 @@
 pub mod parser;
 use crate::template::object::extractable::{Extractable};
 use crate::template::rest::{ RequestBody, RequestHeaders, RestVerb, FillableRequest};
-use crate::template::rest::extractable::{ ExtractableResponse, CorrResponse};
+use crate::template::rest::extractable::{ExtractableRestData, CorrResponse};
 use crate::journey::Executable;
 use crate::core::runtime::Context;
 use isahc::prelude::*;
@@ -13,7 +13,7 @@ use tokio::task::JoinHandle;
 pub struct RestSetp{
     is_async:bool,
     request: FillableRequest,
-    response:Option<ExtractableResponse>
+    response:Option<ExtractableRestData>
 }
 #[derive(Debug, Clone,PartialEq)]
 pub struct CorrRequest {
@@ -29,7 +29,7 @@ impl Executable for RestSetp{
         return vec![]
     }
 }
-pub async fn rest(request: CorrRequest, response:Option<ExtractableResponse>,context:&Context,is_async:bool) {
+pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, context:&Context, is_async:bool) {
     let mut builder = match request.method {
         RestVerb::GET => Request::get(request.url.clone()),
         RestVerb::POST => Request::post(request.url.clone()),

@@ -11,6 +11,7 @@ use crate::template::Expression;
 use crate::journey::step::Step;
 
 use crate::template::text::extractable::ExtractableText;
+use crate::template::rest::extractable::ExtractableRestData;
 
 impl Parsable for Stub {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -21,6 +22,7 @@ impl Parsable for Stub {
                 ws(tag("with")),
                 ws(tag("url")),
                 ExtractableText::parser,
+                opt(tuple((ws(tag("matching")), ws(tag("request")),ExtractableRestData::parser))),
                 ws(tag("{")),
                 many0(Step::parser),
                 tuple((
@@ -37,10 +39,13 @@ impl Parsable for Stub {
             )),
             |(_,
                  method,_,_,
-                 url,_,
+                 url,
+                 rd,
+                 _,
                  steps,
                  (_,_,status,_,body),_)| {
                 Stub{
+                    rest_data:rd.map(|(_,_,r)|r).unwrap_or(ExtractableRestData{headers:Option::None,body:Option::None}),
                     method,
                     url,
                     steps,
@@ -78,6 +83,7 @@ mod tests{
     use crate::template::Expression;
     use crate::template::text::extractable::ExtractableText;
     use crate::core::Variable;
+    use crate::template::rest::extractable::ExtractableRestData;
 
     #[tokio::test]
     async fn should_parse_start_listner_step(){
@@ -90,6 +96,11 @@ mod tests{
         assert_if(j,StartListenerStep::parser(j),StartListenerStep{
             port:Expression::Variable(format!("p1"),Option::None),
             stubs:vec![Stub{
+                rest_data:ExtractableRestData
+                {
+                    headers:Option::None,
+                    body:Option::None
+                },
                 method:RestVerb::GET,
                 steps:vec![],
                 url:ExtractableText::Multi(Option::Some("/values/".to_string()),vec![]
@@ -106,16 +117,16 @@ mod tests{
     #[tokio::test]
     async fn should_parse_start_listner_step_with_variables(){
         let j= r#"listen on p1 with {
-            on get with url text `/values/<%id%>` {
-           print text `GET`
-           let resp = object {}
-           objects.for(obj)=>{
-               if obj.id==id {
-                  let resp = obj
-               }
-           }
-           respond with body resp
-           }
+            on post with url text `/values` matching request body object { "name":name,"place":place } {
+                print text `POST`
+                let obj.id = id
+                let id = id + 1
+                let obj.name = concat(fake("FirstName")," ",fake("LastName"))
+                let obj.company = concat(fake("CompanyName"))
+                objects.push(obj)
+                sync objects
+                respond with body objects
+            }
         }"#;
         assert_no_error(j,StartListenerStep::parser(j))
 
