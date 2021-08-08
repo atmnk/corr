@@ -70,7 +70,7 @@ fn unpack(target:String) -> Result<String, std::io::Error> {
     let tar_gz = File::open(target)?;
     let tar = GzDecoder::new(tar_gz);
     let mut archive = Archive::new(tar);
-    create_dir_all("./target");
+    create_dir_all("./target")?;
     let jp = format!("./target/{}",name.unwrap().to_str().unwrap());
     archive.unpack(jp.clone())?;
     Ok(jp)
@@ -114,8 +114,16 @@ impl Terminal{
             Message::Output(Output::TellMe(tm))=>{
                 println!("Please Enter value for {} of type {:?}",tm.name,tm.data_type);
                 let nl=self.reader.next_line().await.unwrap().unwrap();
-                self.tx.send(Message::Input(Input::new_continue(tm.name.clone(),nl,tm.data_type.clone()))).await;
-                false
+                match self.tx.send(Message::Input(Input::new_continue(tm.name.clone(),nl,tm.data_type.clone()))).await
+                {
+                    Ok(_)=>{
+                        false
+                    },
+                    Err(e)=> {
+                        eprintln!("{:?}",e);
+                        true
+                    }
+                }
             },
             Message::Output(Output::Done(dom))=>{
                 println!("{}",dom.message);

@@ -26,7 +26,7 @@ fn pack(target:String) -> Result<String, std::io::Error> {
     if Path::new(toml.as_str()).exists() {
         config = toml::from_str(read_to_string(toml).unwrap().as_str()).unwrap();
     }
-    create_dir_all(format!("{}/build",target));
+    create_dir_all(format!("{}/build",target))?;
     let result = format!("{}/build/{}.jpack",target,config.package.name.clone());
     let tar_gz = File::create(result.clone())?;
     let enc = GzEncoder::new(tar_gz, Compression::default());
