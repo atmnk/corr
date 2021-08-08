@@ -7,7 +7,7 @@ use warp::hyper::http::HeaderValue;
 use crate::core::Value;
 use isahc::prelude::Response;
 use isahc::Body;
-use crate::journey::step::rest::CorrRequest;
+
 use hyper::HeaderMap;
 
 #[derive(Debug, Clone,PartialEq)]

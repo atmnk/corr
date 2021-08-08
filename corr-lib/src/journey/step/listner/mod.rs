@@ -25,11 +25,11 @@ use tokio::task::JoinHandle;
 
 use crate::journey::step::Step;
 use crate::template::text::extractable::ExtractableText;
-use crate::template::object::extractable::{ExtractableObject, Extractable};
-use crate::template::rest::extractable::{ExtractableRestData, CorrResponse};
-use crate::journey::step::rest::CorrRequest;
+use crate::template::object::extractable::{Extractable};
+use crate::template::rest::extractable::{ExtractableRestData};
+
 use nom::Parser;
-use hyper::http::HeaderValue;
+
 
 async fn handle(
     context: Context,

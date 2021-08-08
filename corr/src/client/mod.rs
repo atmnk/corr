@@ -173,7 +173,7 @@ async fn get_journeis_in(path: impl AsRef<Path> + std::marker::Send + 'static)->
                         Err(nom::Err::Error(er)) | Err(nom::Err::Failure(er))=>{
                             eprintln!("Unable to parse following errors {}",convert_error(text.as_str(),er))
                         },
-                        Ok((i,jrn))=>{
+                        Ok((_i,jrn))=>{
                             js.push(jrn);
                         },
                         _=>{
