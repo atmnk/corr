@@ -15,8 +15,8 @@ use corr_lib::template::{VariableReferenceName, Assignable, Expression};
 use corr_lib::journey::Executable;
 
 lazy_static! {
-    static ref LastAsk: Mutex<Vec<TellMeOutput>> = Mutex::new(vec![]);
-    static ref GlobalContext: Context = {
+    static ref LAST_ASK: Mutex<Vec<TellMeOutput>> = Mutex::new(vec![]);
+    static ref GLOBAL_CONTEXT: Context = {
         Context::new(Arc::new(futures::lock::Mutex::new(SystemRuntime)),vec![])
     };
 
@@ -27,7 +27,7 @@ impl Client for SystemRuntime{
     async fn send(&self, output: Output) {
         match output {
             Output::TellMe(a)=>{
-                LastAsk.lock().unwrap().push(a);
+                LAST_ASK.lock().unwrap().push(a);
                 // eprintln!("Don't know value for {:?} of type {:?}",a.name,a.data_type)
             },
             Output::KnowThat(k)=>{
@@ -40,7 +40,7 @@ impl Client for SystemRuntime{
     }
 
     async fn get_message(&mut self) -> Input {
-        let ask = LastAsk.lock().unwrap().pop().unwrap();
+        let ask = LAST_ASK.lock().unwrap().pop().unwrap();
         if ask.name.ends_with("::length") {
             Input::new_continue(ask.name.clone(),format!("0"),ask.data_type.clone())
         } else {
@@ -54,12 +54,12 @@ async fn main() {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let _store = 1123;
     let assmnt = AssignmentStep::WithVariableName(VariableReferenceName::from("name"),Assignable::Expression(Expression::Constant(Value::String(format!("Hello World")))));
-    assmnt.execute(&GlobalContext).await;
+    assmnt.execute(&GLOBAL_CONTEXT).await;
     // A `Service` is needed for every connection, so this
     // creates one from our `hello_world` function.
     let make_svc = make_service_fn(|_conn| async {
         Ok::<_, Infallible>(service_fn::<_,_, _>( async move |_req: Request<Body>|->Result<Response<Body>, Infallible>{
-            let value = GlobalContext.get_var_from_store(format!("name")).await;
+            let value = GLOBAL_CONTEXT.get_var_from_store(format!("name")).await;
             return Ok(Response::new(format!("{0}",value.unwrap().to_string()).into()));
         }))
     });

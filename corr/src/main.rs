@@ -21,7 +21,7 @@ async fn main(){
     };
 }
 #[derive(Clap,Debug)]
-#[clap(version = "0.0.32", author = "Atmaram Naik <atmnk@yahoo.com>",setting = AppSettings::InferSubcommands)]
+#[clap(version = crate_version!(), author = "Atmaram Naik <atmnk@yahoo.com>",setting = AppSettings::InferSubcommands)]
 enum Opts {
     #[clap(alias = "run")]
     Run(RunCommand),
@@ -29,7 +29,7 @@ enum Opts {
     Build(BuildCommand),
 }
 #[derive(Clap,Debug)]
-#[clap(version = "0.0.32", author = "Atmaram Naik <atmnk@yahoo.com>")]
+#[clap(version = crate_version!(), author = "Atmaram Naik <atmnk@yahoo.com>")]
 pub struct RunCommand{
     #[clap(short, long)]
     package:bool,

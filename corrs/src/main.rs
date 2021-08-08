@@ -1,6 +1,7 @@
 #![feature(generators, generator_trait)]
 use corrs::server::Server;
 use clap::Clap;
+use clap::{crate_version};
 use std::fs::read_to_string;
 use corrs::Config;
 
@@ -14,7 +15,7 @@ async fn main() {
     server.run(config).await;
 }
 #[derive(Clap,Debug)]
-#[clap(version = "0.1.0", author = "Atmaram Naik <atmnk@yahoo.com>")]
+#[clap(version = crate_version!(), author = "Atmaram Naik <atmnk@yahoo.com>")]
 struct Opts {
     #[clap(short, long, default_value = "8765")]
     port:u16,
