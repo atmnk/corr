@@ -8,7 +8,7 @@ use crate::template::{VariableReferenceName, Fillable, Assignable, Expression};
 use crate::journey::step::Step;
 use tokio::task::JoinHandle;
 use tokio::fs::{OpenOptions};
-use tokio::io::{AsyncWriteExt, AsyncReadExt};
+use tokio::io::{AsyncWriteExt};
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum SystemStep{
@@ -211,8 +211,12 @@ impl Executable for SyncStep {
             .open(path.clone())
             .await {
             if let Some(data) = context.get_var_from_store(self.variable.to_string()).await{
-                file.write(data.to_string().as_bytes()).await;
-                println!("Wrote to file{0}",path);
+                if let Ok(_)=file.write(data.to_string().as_bytes()).await{
+                    println!("Wrote to file: {0}",path);
+                } else {
+                    eprintln!("Failed to write to file: {0}",path)
+                }
+
             }
 
         }

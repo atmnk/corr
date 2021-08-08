@@ -3,8 +3,7 @@ pub mod parser;
 use crate::template::rest::{ RestVerb};
 
 use crate::journey::Executable;
-use crate::core::runtime::{Context, IO, Client};
-use isahc::prelude::*;
+use crate::core::runtime::{Context, Client};
 use crate::template::{Expression};
 use std::convert::Infallible;
 use std::net::SocketAddr;
@@ -28,9 +27,6 @@ use crate::template::text::extractable::ExtractableText;
 use crate::template::object::extractable::{Extractable};
 use crate::template::rest::extractable::{ExtractableRestData};
 
-use nom::Parser;
-
-
 async fn handle(
     context: Context,
     sls:StartListenerStep,
@@ -45,7 +41,7 @@ async fn handle(
             if stub.url.capture(&req.uri().to_string(),&context).await && req.method().to_string().to_lowercase().eq(&stub.method.as_str().to_lowercase()) {
                 let (parts, body) = req.into_parts();
                 if let Ok(data) = hyper::body::to_bytes(body).await {
-                    let sv = serde_json::from_str(String::from_utf8_lossy(&data).as_ref());;
+                    let sv = serde_json::from_str(String::from_utf8_lossy(&data).as_ref());
                     match  sv  {
                         Ok(val)=>{
                             stub.rest_data.extract_from(&context,(val,parts.headers.clone())).await;
@@ -113,9 +109,10 @@ async fn start_imposter_on_port(context:&Context,sls :StartListenerStep)->Vec<Jo
     let server = Server::bind(&addr).serve(make_service);
     println!("starting server on {:}",port);
     let handle = tokio::spawn(async {
-        server.await;
-
-        return true
+        if let Some(_) = server.await.ok(){
+            return true
+        }
+        return false
     });
     vec![handle]
     // if let Err(e) = server.await {
@@ -171,9 +168,6 @@ impl StubResponse {
     }
 }
 
-async fn hello_world(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    Ok(Response::new("Hello, World".into()))
-}
 #[async_trait]
 impl Executable for StartListenerStep {
     async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {

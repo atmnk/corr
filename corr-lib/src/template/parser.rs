@@ -61,12 +61,12 @@ impl Operator {
         ))(input)
 
     }
-    fn pure_binary_expression<'a>(input: &'a str) -> ParseResult<'a, Expression> {
-        map(tuple((ws(Operator::non_binary_expression), ws(BinaryOperator::parser), ws(Operator::non_binary_expression))), |(left,op,right)|{
-                Expression::Operator(Operator::Binary(op),vec![left,right])
-            })(input)
-
-    }
+    // fn pure_binary_expression<'a>(input: &'a str) -> ParseResult<'a, Expression> {
+    //     map(tuple((ws(Operator::non_binary_expression), ws(BinaryOperator::parser), ws(Operator::non_binary_expression))), |(left,op,right)|{
+    //             Expression::Operator(Operator::Binary(op),vec![left,right])
+    //         })(input)
+    //
+    // }
     // fn binary_expression<'a>(input: &'a str) -> ParseResult<'a, Expression> {
     //     map(tuple((ws(Operator::binary_expression_chain), ws(BinaryOperator::parser), ws(Operator::non_binary_expression))), |(left,op,right)|{
     //             Expression::Operator(Operator::Binary(op),vec![left,right])

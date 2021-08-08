@@ -12,7 +12,7 @@ use base64::encode;
 use fake::Fake;
 use rand::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
-use strfmt::{Format, Formatter, strfmt_map};
+use strfmt::{ Formatter, strfmt_map};
 use std::collections::HashMap;
 
 //Concat Function

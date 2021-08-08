@@ -91,144 +91,145 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, co
         }
 
     }
-    #[cfg(test)]
-    mod tests {
-        use crate::core::proto::{Input};
-        use std::sync::{Arc, Mutex};
-        use crate::journey::{Executable};
-        use crate::core::runtime::{Context};
-        use crate::parser::Parsable;
-        use crate::journey::step::rest::RestSetp;
-        use crate::core::{DataType, Value};
-        use mockito::mock;
 
-        #[tokio::test]
-        async fn should_execute_get_rest_step() {
-            let mock = mock("GET", "/hello")
-                .with_status(200)
-                .with_body(r#"{"id" : 1 }"#)
-                .with_header("A", "Hello")
-                .match_header("Hello", "hello")
-                .create();
+}
+#[cfg(test)]
+mod tests {
+    use crate::core::proto::{Input};
+    use std::sync::{Arc, Mutex};
+    use crate::journey::{Executable};
+    use crate::core::runtime::{Context};
+    use crate::parser::Parsable;
+    use crate::journey::step::rest::RestSetp;
+    use crate::core::{DataType, Value};
+    use mockito::mock;
 
-            let text = r#"get request {
+    #[tokio::test]
+    async fn should_execute_get_rest_step() {
+        let mock = mock("GET", "/hello")
+            .with_status(200)
+            .with_body(r#"{"id" : 1 }"#)
+            .with_header("A", "Hello")
+            .match_header("Hello", "hello")
+            .create();
+
+        let text = r#"get request {
             url: text `<%base_url%>/hello`,
             headers: { "Hello": "hello" }
         } matching body object { "id": id } and headers { "A": a }"#;
-            let (_, step) = RestSetp::parser(text).unwrap();
-            let input = vec![
-                Input::new_continue("base_url".to_string(), mockito::server_url(), DataType::String)
-            ];
-            let buffer = Arc::new(Mutex::new(vec![]));
-            let context = Context::mock(input, buffer.clone());
-            step.execute(&context).await;
-            mock.assert();
-            assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
-            assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
-        }
+        let (_, step) = RestSetp::parser(text).unwrap();
+        let input = vec![
+            Input::new_continue("base_url".to_string(), mockito::server_url(), DataType::String)
+        ];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context = Context::mock(input, buffer.clone());
+        step.execute(&context).await;
+        mock.assert();
+        assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
+        assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
+    }
 
-        #[tokio::test]
-        async fn should_execute_post_rest_step() {
-            let mock = mock("POST", "/hello")
-                .with_status(200)
-                .with_body(r#"{"id" : 1 }"#)
-                .with_header("A", "Hello")
-                .match_header("Hello", "3")
-                .create();
+    #[tokio::test]
+    async fn should_execute_post_rest_step() {
+        let mock = mock("POST", "/hello")
+            .with_status(200)
+            .with_body(r#"{"id" : 1 }"#)
+            .with_header("A", "Hello")
+            .match_header("Hello", "3")
+            .create();
 
-            let text = r#"post request {
+        let text = r#"post request {
             url: text `<%base_url%>/hello`,
             body: object { "name" : name },
             headers: { "Hello": add(1,2) }
         } matching body object { "id": id } and headers { "A": a }"#;
-            let (_, step) = RestSetp::parser(text).unwrap();
-            let input = vec![
-                Input::new_continue("name".to_string(), "Atmaram".to_string(), DataType::String),
-                Input::new_continue("base_url".to_string(), mockito::server_url(), DataType::String)
-            ];
-            let buffer = Arc::new(Mutex::new(vec![]));
-            let context = Context::mock(input, buffer.clone());
-            step.execute(&context).await;
-            mock.assert();
-            assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
-            assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
-        }
+        let (_, step) = RestSetp::parser(text).unwrap();
+        let input = vec![
+            Input::new_continue("name".to_string(), "Atmaram".to_string(), DataType::String),
+            Input::new_continue("base_url".to_string(), mockito::server_url(), DataType::String)
+        ];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context = Context::mock(input, buffer.clone());
+        step.execute(&context).await;
+        mock.assert();
+        assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
+        assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
+    }
 
-        #[tokio::test]
-        async fn should_execute_put_rest_step() {
-            let mock = mock("PUT", "/hello")
-                .with_status(200)
-                .with_body(r#"{"id" : 1 }"#)
-                .with_header("A", "Hello")
-                .match_header("Hello", "AB")
-                .create();
+    #[tokio::test]
+    async fn should_execute_put_rest_step() {
+        let mock = mock("PUT", "/hello")
+            .with_status(200)
+            .with_body(r#"{"id" : 1 }"#)
+            .with_header("A", "Hello")
+            .match_header("Hello", "AB")
+            .create();
 
-            let text = r#"put request {
+        let text = r#"put request {
             url: text `<%base_url%>/hello`,
             body: object { "name" : name },
             headers: { "Hello": concat("A","B") }
         } matching body object { "id": id } and headers { "A": a }"#;
-            let (_, step) = RestSetp::parser(text).unwrap();
-            let input = vec![
-                Input::new_continue("name".to_string(), "Atmaram".to_string(), DataType::String),
-                Input::new_continue("base_url".to_string(), mockito::server_url(), DataType::String)
-            ];
-            let buffer = Arc::new(Mutex::new(vec![]));
-            let context = Context::mock(input, buffer.clone());
-            step.execute(&context).await;
-            mock.assert();
-            assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
-            assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
-        }
+        let (_, step) = RestSetp::parser(text).unwrap();
+        let input = vec![
+            Input::new_continue("name".to_string(), "Atmaram".to_string(), DataType::String),
+            Input::new_continue("base_url".to_string(), mockito::server_url(), DataType::String)
+        ];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context = Context::mock(input, buffer.clone());
+        step.execute(&context).await;
+        mock.assert();
+        assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
+        assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
+    }
 
-        #[tokio::test]
-        async fn should_execute_patch_rest_step() {
-            let mock = mock("PATCH", "/hello")
-                .with_status(200)
-                .with_body(r#"{"id" : 1 }"#)
-                .with_header("A", "Hello")
-                .create();
+    #[tokio::test]
+    async fn should_execute_patch_rest_step() {
+        let mock = mock("PATCH", "/hello")
+            .with_status(200)
+            .with_body(r#"{"id" : 1 }"#)
+            .with_header("A", "Hello")
+            .create();
 
-            let text = r#"patch request {
+        let text = r#"patch request {
             url: text `<%base_url%>/hello`,
             body: object { "name" : name }
         } matching body object { "id": id } and headers { "A": a }"#;
-            let (_, step) = RestSetp::parser(text).unwrap();
-            let input = vec![
-                Input::new_continue("name".to_string(), "Atmaram".to_string(), DataType::String),
-                Input::new_continue("base_url".to_string(), mockito::server_url(), DataType::String)
-            ];
-            let buffer = Arc::new(Mutex::new(vec![]));
-            let context = Context::mock(input, buffer.clone());
-            step.execute(&context).await;
-            mock.assert();
-            assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
-            assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
-        }
+        let (_, step) = RestSetp::parser(text).unwrap();
+        let input = vec![
+            Input::new_continue("name".to_string(), "Atmaram".to_string(), DataType::String),
+            Input::new_continue("base_url".to_string(), mockito::server_url(), DataType::String)
+        ];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context = Context::mock(input, buffer.clone());
+        step.execute(&context).await;
+        mock.assert();
+        assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
+        assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
+    }
 
-        #[tokio::test]
-        async fn should_execute_delete_rest_step() {
-            let mock = mock("DELETE", "/1")
-                .with_status(200)
-                .with_body(r#"{"id" : 1 }"#)
-                .with_header("A", "Hello")
-                .match_header("Hello", "hello")
-                .create();
+    #[tokio::test]
+    async fn should_execute_delete_rest_step() {
+        let mock = mock("DELETE", "/1")
+            .with_status(200)
+            .with_body(r#"{"id" : 1 }"#)
+            .with_header("A", "Hello")
+            .match_header("Hello", "hello")
+            .create();
 
-            let text = r#"delete request {
+        let text = r#"delete request {
             url: text `<%base_url%>/1`,
             headers: { "Hello": "hello" }
         } matching body object { "id": id } and headers { "A": a }"#;
-            let (_, step) = RestSetp::parser(text).unwrap();
-            let input = vec![
-                Input::new_continue("base_url".to_string(), mockito::server_url(), DataType::String)
-            ];
-            let buffer = Arc::new(Mutex::new(vec![]));
-            let context = Context::mock(input, buffer.clone());
-            step.execute(&context).await;
-            mock.assert();
-            assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
-            assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
-        }
+        let (_, step) = RestSetp::parser(text).unwrap();
+        let input = vec![
+            Input::new_continue("base_url".to_string(), mockito::server_url(), DataType::String)
+        ];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context = Context::mock(input, buffer.clone());
+        step.execute(&context).await;
+        mock.assert();
+        assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
+        assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
     }
 }

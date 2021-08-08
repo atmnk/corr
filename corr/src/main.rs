@@ -2,7 +2,7 @@
 use clap::Clap;
 use clap::AppSettings;
 use crate::launcher::{build, run};
-
+use clap::{crate_version};
 use async_trait::async_trait;
 pub mod client;
 pub mod launcher;
@@ -43,7 +43,7 @@ pub struct RunCommand{
 }
 
 #[derive(Clap,Debug)]
-#[clap(version = "0.0.32", author = "Atmaram Naik <atmnk@yahoo.com>")]
+#[clap(version = crate_version!(), author = "Atmaram Naik <atmnk@yahoo.com>")]
 pub struct BuildCommand{
     #[clap(default_value = ".")]
     target:String,
