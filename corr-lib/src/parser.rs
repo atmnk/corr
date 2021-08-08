@@ -1,10 +1,10 @@
 use nom::error::{VerboseError};
 use nom::IResult;
 use nom::bytes::complete::{take_while, tag, escaped_transform, is_not};
-use nom::sequence::{preceded, terminated, pair};
+use nom::sequence::{preceded, terminated, pair, delimited, tuple};
 use nom::combinator::{map, verify, recognize, opt};
 use nom::branch::alt;
-use nom::multi::{ many0_count};
+use nom::multi::{many0_count, many0};
 use nom::character::complete::{alphanumeric1, alpha1, char};
 use crate::core::parser::boolean;
 use nom::error::convert_error;
@@ -15,7 +15,16 @@ pub trait Parsable:Sized{
     fn parser<'a>(input:&'a str)->ParseResult<'a,Self>;
 }
 pub type ParseResult<'a,O> = IResult<&'a str,O,VerboseError<&'a str>>;
-pub fn sp<'a>(i: &'a str) -> ParseResult<'a, &'a str> {
+pub fn comment<'a>(i:&'a str)->ParseResult<'a,()>{
+    alt((
+        map(preceded(tag("//"),is_not("\n\r")),|_:&str|()),
+        map(delimited(tag("/*"), is_not("*/"), tag("*/")),|_:&str|()),
+        ))(i)
+}
+pub fn sp<'a>(i: &'a str) -> ParseResult<'a, ()> {
+    map(tuple((many0(comment),spaces)),|(_,_)|())(i)
+}
+pub fn spaces<'a>(i: &'a str) -> ParseResult<'a, &'a str> {
     let chars = " \t\r\n";
     take_while(move |c| chars.contains(c))(i)
 }

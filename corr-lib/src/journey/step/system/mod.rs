@@ -19,7 +19,7 @@ pub enum SystemStep{
     Push(PushStep),
     LoadAssign(LoadAssignStep),
     Sync(SyncStep),
-    Comment(String)
+    // Comment(String)
 
 }
 #[derive(Debug, Clone,PartialEq)]
@@ -149,7 +149,7 @@ impl Executable for SystemStep{
                 pt.execute(context).await
             }
             SystemStep::Assignment(asst)=>asst.execute(context).await,
-            SystemStep::Comment(_)=>{vec![]}
+            // SystemStep::Comment(_)=>{vec![]}
         }
 
     }

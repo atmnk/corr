@@ -3,7 +3,7 @@ use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, Assignmen
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
 use nom::sequence::{preceded, terminated, tuple};
-use nom::bytes::complete::tag;
+use nom::bytes::complete::{tag};
 use crate::template::text::{Text};
 use nom::character::complete::char;
 use nom::branch::alt;
@@ -77,7 +77,8 @@ fn arged_for_parser<'a>(input: &'a str) -> ParseResult<'a, (Option<VariableRefer
 impl Parsable for SystemStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
-            // map(preceded(ws(tag("//")),rest_of_the_line),|line|{SystemStep::Comment(line)}),
+            // map(preceded(tag("//"),is_not("\n\r")),|val:&str|SystemStep::Comment(val.to_string())),
+            // map(delimited(tag("/*"), is_not("*/"), tag("*/")),|val:&str|SystemStep::Comment(val.to_string())),
             map(ConditionalStep::parser,|ps|{SystemStep::Condition(ps)}),
             map(PrintStep::parser,|ps|{SystemStep::Print(ps)}),
             map(ForLoopStep::parser,|fls|{SystemStep::ForLoop(fls)}),
