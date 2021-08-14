@@ -14,10 +14,40 @@ use rand::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
 use strfmt::{ Formatter, strfmt_map};
 use std::collections::HashMap;
+use captcha::Captcha;
+use captcha::filters::{Noise, Wave, Dots};
+use crate::journey::step::rest::CorrRequest;
 
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Concat;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Contains;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct CorrCaptcha;
+
+#[async_trait]
+impl Function for CorrCaptcha{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let chars = if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await.parse::<u32>().unwrap_or(5)
+        } else {
+            5
+        };
+        let mut cp = Captcha::new();
+        let mut cb = cp.add_chars(chars);
+        let g = cb.text_area().clone();
+        cb = cb.extract(g);
+        let mut retval = HashMap::new();
+        retval.insert("image".to_string(),Value::String(cb.as_base64().unwrap()));
+        retval.insert("value".to_string(),Value::String(cb.chars_as_string()));
+        Value::Map(retval)
+    }
+}
 
 #[async_trait]
 impl Function for Concat{
@@ -27,6 +57,22 @@ impl Function for Concat{
             buffer.push_str(arg.evaluate(context).await.to_string().as_str());
         }
         Value::String(buffer)
+    }
+}
+#[async_trait]
+impl Function for Contains{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let mut tof = args.get(0).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
+        let mut i = 0;
+        for arg in args {
+            if i!=0{
+                if !tof.contains(arg.evaluate(context).await.to_string()) {
+                    return Value::Boolean(false)
+                }
+            }
+            i = i+1
+        }
+        Value::Boolean(true);
     }
 }
 
@@ -465,6 +511,7 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("now",Arc::new(Now{})),
         ("uuid",Arc::new(Uuid{})),
         ("add",Arc::new(Add{})),
+        ("captcha",Arc::new(CorrCaptcha{})),
         ("mod",Arc::new(Mod{})),
         ("sub",Arc::new(Subtract{})),
         ("mul",Arc::new(Multiply{})),
@@ -474,6 +521,7 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("fake",Arc::new(FakeValue{})),
         ("encode",Arc::new(Encode{})),
         ("random",Arc::new(Random{})),
+        ("contains",Arc::new(Contains{})),
         ("random_element",Arc::new(RandomElement{}))
     ]
 }

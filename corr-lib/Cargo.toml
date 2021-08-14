@@ -29,3 +29,4 @@ rand = "0.7.3"
 strfmt = "0.1.6"
 hyper = { version = "0.14", features = ["full"] }
 regex = "1.5.4"
+captcha = "0.0.8"
