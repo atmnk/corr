@@ -10,6 +10,7 @@ use crate::core::parser::boolean;
 use nom::error::convert_error;
 use crate::{get_keywords};
 use crate::template::functions::function_names;
+use crate::template::VariableReferenceName;
 
 pub trait Parsable:Sized{
     fn parser<'a>(input:&'a str)->ParseResult<'a,Self>;
@@ -43,11 +44,19 @@ pub fn non_back_quote<'a>(input:&'a str) ->ParseResult<'a,String>{
 
 }
 pub fn identifier_part<'a>(input: &'a str) -> ParseResult<'a,&str> {
+    // recognize(
+    //     pair(
+    //         alt((alpha1, tag("_"))),
+    //         many0(alt((alphanumeric1, tag("_"))))
+    //     )
+    // )(input)
+    // pair( alt((alpha1,tag("_"))),is_not(terminated(alphanumeric1,tag("("))))
     verify(recognize(
         pair(
             alt((alpha1,tag("_"))),
             many0_count(preceded(opt(char('_')),alphanumeric1)))),|val:&&str|{!get_keywords().contains(val)})(input)
 }
+
 pub fn function_name<'a>(input: &'a str) -> ParseResult<'a,&str> {
     verify(recognize(
         pair(
@@ -98,12 +107,18 @@ pub mod util{
 }
 #[cfg(test)]
 mod tests{
-    use crate::parser::function_name;
+    use crate::parser::{function_name, identifier_part};
 
     #[test]
     fn should_recognize_function_names(){
         let txt = r#"concat"#;
         let (_,name) = function_name(txt).unwrap();
         assert_eq!(name,"concat")
+    }
+    #[test]
+    fn should_parse_identifier(){
+        let txt = r#"name"#;
+        let (_,name) = identifier_part(txt).unwrap();
+        assert_eq!(name,"name")
     }
 }

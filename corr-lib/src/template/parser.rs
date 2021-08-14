@@ -1,6 +1,6 @@
 use crate::parser::{Parsable, ParseResult, ws, identifier_part, function_name};
-use crate::template::{Expression, VariableReferenceName, Assignable, BinaryOperator, Operator, UnaryOperator};
-use nom::combinator::{map};
+use crate::template::{Expression, VariableReferenceName, Assignable, BinaryOperator, Operator, UnaryOperator, FunctionReferenceName};
+use nom::combinator::{map, verify, recognize};
 use crate::core::{Value, Variable};
 use nom::sequence::{tuple};
 use nom::branch::alt;
@@ -9,6 +9,7 @@ use nom::multi::{separated_list0, separated_list1, many1, many0};
 use crate::template::text::Text;
 use crate::template::object::FillableObject;
 use nom::bytes::complete::tag;
+use crate::template::functions::function_names;
 
 impl Parsable for Assignable {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -103,11 +104,18 @@ impl Parsable for Expression{
        alt((operator_expression,non_operator_expression))(input)
     }
 }
+
 fn non_operator_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
     alt((
             stack_expression,
         map(Value::parser,|val|Expression::Constant(val)),
-        map(tuple((function_name, ws(char('(')), separated_list0(ws(char(',')), Expression::parser), ws(char(')')))), |(name,_,expressions,_)|Expression::Function(name.to_string(), expressions)),
+            map(tuple((FunctionReferenceName::parser, ws(char('(')), separated_list0(ws(char(',')), Expression::parser), ws(char(')')))), |(frn,_,expressions,_)|{
+                frn.left.as_ref().map(|vrn|{
+                    let mut formed = vec![Expression::Variable(vrn.to_string(),Option::None)];
+                    formed.append(&mut expressions.clone());
+                    Expression::Function(frn.function.clone(), formed)}).unwrap_or(Expression::Function(frn.function, expressions))
+            }),
+        // map(tuple((function_name, ws(char('(')), separated_list0(ws(char(',')), Expression::parser), ws(char(')')))), |(name,_,expressions,_)|Expression::Function(name.to_string(), expressions)),
         map(Variable::parser,|val|Expression::Variable(val.name,val.data_type)),
     ))(input)
 }
@@ -122,6 +130,13 @@ impl Parsable for VariableReferenceName {
         map(
             separated_list1(ws(char('.')),
                             map(identifier_part,|val|{val.to_string()})),|parts| { VariableReferenceName {parts}})(input)
+    }
+}
+
+
+impl Parsable for FunctionReferenceName {
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map(verify(VariableReferenceName::parser,|vrn|{vrn.parts.last().map(|lst|function_names().contains(&lst.as_str())).unwrap_or(false)}),|vrn|{FunctionReferenceName::from(vrn)})(input)
     }
 }
 #[cfg(test)]
@@ -219,6 +234,12 @@ mod tests{
         let text=r#"concat("Atmaram","Naik")"#;
         let a=Expression::parser(text);
         assert_if(text,a,Expression::Function("concat".to_string(),vec![Expression::Constant(Value::String("Atmaram".to_string())),Expression::Constant(Value::String("Naik".to_string()))]))
+    }
+    #[test]
+    fn should_parse_expression_when_dot_function(){
+        let text=r#"name.contains("Naik")"#;
+        let a=Expression::parser(text);
+        assert_if(text,a,Expression::Function("contains".to_string(),vec![Expression::Variable(format!("name"),Option::None),Expression::Constant(Value::String("Naik".to_string()))]))
     }
     #[test]
     fn should_parse_expression_when_variable(){

@@ -116,6 +116,35 @@ pub enum Expression{
 pub struct VariableReferenceName {
     pub parts:Vec<String>
 }
+#[derive(Clone,Debug,PartialEq)]
+struct FunctionReferenceName{
+    left:Option<VariableReferenceName>,
+    function:String,
+}
+impl FunctionReferenceName{
+    pub fn from(vrn:VariableReferenceName)->Self{
+        let mut parts = vrn.parts.clone();
+        let mut opt_last = parts.pop();
+        if let Some(last) = opt_last{
+            if parts.len()>0 {
+                Self{
+                    left :Option::Some(VariableReferenceName{
+                        parts
+                    }),
+                    function:last
+                }
+
+            } else {
+                Self{
+                    left :Option::None,
+                    function:last
+                }
+            }
+        } else {
+            panic!("Impposiible VRN")
+        }
+    }
+}
 
 impl VariableReferenceName {
     pub fn to_string(&self)->String{

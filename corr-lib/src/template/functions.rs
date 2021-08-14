@@ -66,13 +66,13 @@ impl Function for Contains{
         let mut i = 0;
         for arg in args {
             if i!=0{
-                if !tof.contains(arg.evaluate(context).await.to_string()) {
+                if !tof.contains(&arg.evaluate(context).await.to_string()) {
                     return Value::Boolean(false)
                 }
             }
             i = i+1
         }
-        Value::Boolean(true);
+        Value::Boolean(true)
     }
 }
 
@@ -560,6 +560,8 @@ mod tests{
         assert_eq!(result,Value::String("123hello".to_string()));
         assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"one".to_string(),data_type:DataType::PositiveInteger}));
     }
+
+
 
     #[tokio::test]
     async fn should_add(){
