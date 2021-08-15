@@ -10,7 +10,6 @@ use crate::core::parser::boolean;
 use nom::error::convert_error;
 use crate::{get_keywords};
 use crate::template::functions::function_names;
-use crate::template::VariableReferenceName;
 
 pub trait Parsable:Sized{
     fn parser<'a>(input:&'a str)->ParseResult<'a,Self>;

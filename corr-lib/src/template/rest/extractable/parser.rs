@@ -9,6 +9,7 @@ use nom::character::complete::char;
 use nom::multi::separated_list1;
 use crate::core::parser::string;
 use crate::template::VariableReferenceName;
+use crate::template::form::extractable::ExtractableForm;
 
 impl Parsable for ExtractableRestData {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -40,8 +41,13 @@ fn extractableresponse_starting_with_headers<'a>(input: &'a str) -> ParseResult<
 }
 impl Parsable for ExtractableBody {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        alt((
+        map(ExtractableForm::parser,|ef|
+            ExtractableBody::WithForm(ef)),
         map(ExtractableObject::parser,|eo|
-        ExtractableBody::WithObject(eo))(input)
+            ExtractableBody::WithObject(eo)),
+
+        ))(input)
     }
 }
 impl Parsable for ExtractableHeaders {
@@ -82,10 +88,18 @@ mod tests{
     use crate::template::rest::extractable::{ExtractableRestData, ExtractableBody, ExtractableHeaders, ExtractableHeaderPair, ExtractableHeaderValue};
     use crate::template::object::extractable::{ExtractableObject, ExtractableMapObject, ExtractablePair};
     use crate::template::VariableReferenceName;
-
+    use crate::template::form::extractable::ExtractableForm;
 
     #[test]
-    fn should_parse_extractableresponse_starting_with_body(){
+    fn should_parse_extractable_body_with_form(){
+        let text=r#"form {"name":name }"#;
+        let a= ExtractableBody::parser(text);
+        let emo = ExtractableBody::WithForm(ExtractableForm::WithFields(vec![("name".to_string(),VariableReferenceName::from("name"))]));
+        assert_if(text, a, emo);
+    }
+
+    #[test]
+    fn should_parse_extractableresponse_starting_with_body_object(){
         let text=r#"body object {"name":name } and headers { "X-API-KEY": x_api_key}"#;
         let a= ExtractableRestData::parser(text);
         let emo = ExtractableMapObject::WithPairs(vec![ExtractablePair::WithKeyValue(format!("name"),ExtractableObject::WithVariableReference(VariableReferenceName::from("name")))]);

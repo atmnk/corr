@@ -30,3 +30,6 @@ strfmt = "0.1.6"
 hyper = { version = "0.14", features = ["full"] }
 regex = "1.5.4"
 captcha = "0.0.8"
+#formdata = "0.13.0"
+#multipart-async = "0.0.2"
+multer = "2.0.1"

@@ -15,8 +15,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use strfmt::{ Formatter, strfmt_map};
 use std::collections::HashMap;
 use captcha::Captcha;
-use captcha::filters::{Noise, Wave, Dots};
-use crate::journey::step::rest::CorrRequest;
 
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
@@ -62,7 +60,7 @@ impl Function for Concat{
 #[async_trait]
 impl Function for Contains{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
-        let mut tof = args.get(0).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
+        let tof = args.get(0).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
         let mut i = 0;
         for arg in args {
             if i!=0{

@@ -1,6 +1,6 @@
 pub mod parser;
 
-use crate::template::rest::{ RestVerb};
+use crate::template::rest::{RestVerb, MultipartField};
 
 use crate::journey::Executable;
 use crate::core::runtime::{Context, Client};
@@ -26,6 +26,7 @@ use crate::journey::step::Step;
 use crate::template::text::extractable::ExtractableText;
 use crate::template::object::extractable::{Extractable};
 use crate::template::rest::extractable::{ExtractableRestData};
+use multer::Multipart;
 
 async fn handle(
     context: Context,
@@ -39,21 +40,64 @@ async fn handle(
         for stub in sls.stubs{
             let context = Context::from(&context).await;
             if stub.url.capture(&req.uri().to_string(),&context).await && req.method().to_string().to_lowercase().eq(&stub.method.as_str().to_lowercase()) {
+                let opt_bd = req.headers().get(hyper::header::CONTENT_TYPE).and_then(|ct|ct.to_str().ok()).and_then(|ct|multer::parse_boundary(ct).ok());
                 let (parts, body) = req.into_parts();
-                if let Ok(data) = hyper::body::to_bytes(body).await {
-                    let sv = serde_json::from_str(String::from_utf8_lossy(&data).as_ref());
-                    match  sv  {
-                        Ok(val)=>{
-                            stub.rest_data.extract_from(&context,(val,parts.headers.clone())).await;
-                        },
-                        Err(e)=>{
-                            eprintln!("{:?}",e)
-                        }
-                    }
+                if let Some(boundary) = opt_bd {
+                    let mut mp = Multipart::new(body,boundary);
+                    let mut fields = vec![];
+                    while let Ok(Some(field)) = mp.next_field().await{
+                        fields.push(
+                        MultipartField {
+                            name:field.name().map(|n|n.to_string()),
+                            content_type: field.content_type().map(|ct|ct.to_string()),
+                            file_name: field.file_name().map(|n|n.to_string()),
+                            contents:field.bytes().await.ok(),
 
+                        });
+                    }
+                    stub.rest_data.extract_from(&context,(fields,parts.headers.clone())).await;
+                    // while let Some(mut field) = mp.next_field().await.unwrap() {
+                    //     // Get the field name.
+                    //     let name = field.name();
+                    //
+                    //     // Get the field's filename if provided in "Content-Disposition" header.
+                    //     let file_name = field.file_name();
+                    //
+                    //     // Get the "Content-Type" header as `mime::Mime` type.
+                    //     let content_type = field.content_type();
+                    //
+                    //     println!(
+                    //         "Name: {:?}, FileName: {:?}, Content-Type: {:?}",
+                    //         name, file_name, content_type
+                    //     );
+                    //
+                    //     // Process the field data chunks e.g. store them in a file.
+                    //     // let mut field_bytes_len = 0;
+                    //     let size = field.bytes().await.ok();//.map(|b|b.len());
+                    //     // while let Some(field_chunk) = field.chunk().await.unwrap() {
+                    //     //     // Do something with field chunk.
+                    //     //     field_bytes_len += field_chunk.len();
+                    //     // }
+                    //
+                    //     println!("Field Bytes Length: {:?}", size);
+                    // }
                 } else {
-                    eprintln!("Shit 1")
+                    if let Ok(data) = hyper::body::to_bytes(body).await {
+                        let sv = serde_json::from_str::<serde_json::Value>(String::from_utf8_lossy(&data).as_ref());
+                        match  sv  {
+                            Ok(val)=>{
+                                stub.rest_data.extract_from(&context,(val,parts.headers.clone())).await;
+                            },
+                            Err(e)=>{
+                                eprintln!("{:?}",e)
+                            }
+                        }
+
+                    } else {
+                        eprintln!("Shit 1")
+                    }
                 }
+
 
                 let context = Context::from(&context).await;
                 for step in stub.steps {

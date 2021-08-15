@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use crate::template::object::FillableObject;
 use crate::core::Value;
 use crate::journey::step::rest::CorrRequest;
+use multer::bytes::Bytes;
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum RestVerb{
@@ -37,6 +38,20 @@ pub struct FillableRequest {
 #[derive(Debug, Clone,PartialEq)]
 pub struct FillableRequestHeaders{
     pub headers:Vec<FillableRequestHeaderPair>
+}
+pub struct MultipartField{
+    pub name:Option<String>,
+    pub file_name:Option<String>,
+    pub content_type:Option<String>,
+    pub contents: Option<Bytes>
+}
+impl MultipartField {
+    pub fn to_value(&self)->Value{
+        if self.file_name.is_none() {
+            return Value::String(String::from_utf8_lossy(&self.contents.clone().unwrap_or(Bytes::new())).to_string())
+        }
+        return Value::Null
+    }
 }
 #[derive(Debug, Clone,PartialEq)]
 pub struct RequestHeaders{

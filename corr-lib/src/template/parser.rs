@@ -1,6 +1,6 @@
-use crate::parser::{Parsable, ParseResult, ws, identifier_part, function_name};
+use crate::parser::{Parsable, ParseResult, ws, identifier_part};
 use crate::template::{Expression, VariableReferenceName, Assignable, BinaryOperator, Operator, UnaryOperator, FunctionReferenceName};
-use nom::combinator::{map, verify, recognize};
+use nom::combinator::{map, verify};
 use crate::core::{Value, Variable};
 use nom::sequence::{tuple};
 use nom::branch::alt;

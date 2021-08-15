@@ -4,6 +4,7 @@ pub mod text;
 pub mod functions;
 pub mod parser;
 pub mod rest;
+pub mod form;
 use crate::core::{DataType, runtime::Context, Value, runtime::IO, Variable};
 use std::fmt::Debug;
 use async_trait::async_trait;
@@ -124,7 +125,7 @@ struct FunctionReferenceName{
 impl FunctionReferenceName{
     pub fn from(vrn:VariableReferenceName)->Self{
         let mut parts = vrn.parts.clone();
-        let mut opt_last = parts.pop();
+        let opt_last = parts.pop();
         if let Some(last) = opt_last{
             if parts.len()>0 {
                 Self{

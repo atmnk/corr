@@ -3,6 +3,8 @@ use async_trait::async_trait;
 use crate::template::VariableReferenceName;
 use crate::core::runtime::Context;
 use crate::core::Value;
+// use formdata::FormData;
+// use std::collections::HashMap;
 
 pub mod parser;
 #[derive(Clone,Debug,PartialEq)]
@@ -50,6 +52,33 @@ impl Extractable<serde_json::Value> for ExtractableObject{
         }
     }
 }
+// #[async_trait]
+// impl Extractable<FormData> for ExtractableObject{
+//     async fn extract_from(&self, context: &Context, value: FormData) {
+//         match self {
+//             ExtractableObject::WithVariableReference(vrn)=>{
+//                 let mut hm = HashMap::new();
+//                 for (name,dv) in value.fields{
+//                     hm.insert(name.clone(),Value::String(dv.clone()));
+//                 }
+//                 context.define(vrn.to_string(),Value::Map(hm)).await;
+//             },
+//             ExtractableObject::WithMapObject(mpobj)=>{
+//                 mpobj.extract_from(context,value).await;
+//                 // mpobj.extract_from(context,value).await
+//             },
+//             _=>{
+//                 panic!("Not Supported")
+//             }
+//             // ExtractableObject::WithForLoop(efl)=>{
+//             //     efl.extract_from(context,value).await
+//             // }
+//             // ExtractableObject::WithFixedArray(vec_templates)=>{
+//             //     vec_templates.extract_from(context,value).await
+//             // }
+//         }
+//     }
+// }
 #[async_trait]
 impl Extractable<serde_json::Value> for Vec<ExtractableObject>{
     async fn extract_from(&self, context: &Context, value: serde_json::Value) {
@@ -86,6 +115,19 @@ impl Extractable<serde_json::Value> for ExtractableMapObject{
         }
     }
 }
+// #[async_trait]
+// impl Extractable<FormData> for ExtractableMapObject{
+//     async fn extract_from(&self, context: &Context, value: FormData) {
+//         match self {
+//             ExtractableMapObject::WithPairs(pairs)=>{
+//                 for pair in pairs {
+//                     let val = value.clone();
+//                     pair.extract_from(context,val).await
+//                 }
+//             }
+//         }
+//     }
+// }
 #[async_trait]
 impl Extractable<serde_json::Value> for ExtractablePair{
     async fn extract_from(&self, context: &Context, value: serde_json::Value) {
@@ -100,6 +142,20 @@ impl Extractable<serde_json::Value> for ExtractablePair{
         }
     }
 }
+// #[async_trait]
+// impl Extractable<FormData> for ExtractablePair{
+//     async fn extract_from(&self, context: &Context, value: FormData) {
+//         match self {
+//             ExtractablePair::WithKeyValue(key,value_template)=>{
+//                 if let Some((_,val)) = value.fields.iter().find(|(index,_)|{index.eq(key)}){
+//                     if let ExtractableObject::WithVariableReference(vrn) = value_template{
+//                         context.define(vrn.to_string(),Value::String(val.clone())).await;
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
 #[cfg(test)]
 mod tests{
     use crate::template::object::extractable::{ExtractablePair, Extractable, ExtractableMapObject, ExtractableObject, ExtractableForLoop};
