@@ -235,7 +235,7 @@ impl IO for Context {
                 name:variable.name.clone(),
                 value:o_val.clone()
             }
-        } else {
+        } else if self.fallback{
             let dt=if let Some(dt)= &variable.data_type{
                 dt.clone()
             } else {
@@ -259,6 +259,11 @@ impl IO for Context {
                     self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone())).await;
                 }
             }
+        } else {
+            VariableValue{
+                name:variable.name.clone(),
+                value:Value::Null
+            }
         }
 
     }
@@ -268,6 +273,7 @@ pub struct Context{
     pub journeys:Vec<Journey>,
     pub user:Arc<Mutex<dyn Client>>,
     pub store:ReferenceStore,
+    pub fallback:bool
 }
 impl Context {
     pub async fn get_var_from_store(&self,name:String)->Option<Value>{
@@ -281,7 +287,8 @@ impl Context {
         Context{
             journeys,
             user:user,
-            store:ReferenceStore::new()
+            store:ReferenceStore::new(),
+            fallback:true
         }
     }
     pub async fn define(&self,var:String,value:Value){
@@ -294,7 +301,16 @@ impl Context {
         Context{
             journeys:context.journeys.clone(),
             user:context.user.clone(),
-            store:ReferenceStore::from(&context.store).await
+            store:ReferenceStore::from(&context.store).await,
+            fallback:true
+        }
+    }
+    pub async fn from_without_fallback(context:&Context)->Self{
+        Context{
+            journeys:context.journeys.clone(),
+            user:context.user.clone(),
+            store:ReferenceStore::from(&context.store).await,
+            fallback:false
         }
     }
     pub async fn delete(&self,path:String){

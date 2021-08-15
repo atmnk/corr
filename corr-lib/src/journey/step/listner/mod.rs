@@ -38,7 +38,7 @@ async fn handle(
     let _ = lock.write().await;
     {
         for stub in sls.stubs{
-            let context = Context::from(&context).await;
+            let context = Context::from_without_fallback(&context).await;
             if stub.url.capture(&req.uri().to_string(),&context).await && req.method().to_string().to_lowercase().eq(&stub.method.as_str().to_lowercase()) {
                 let opt_bd = req.headers().get(hyper::header::CONTENT_TYPE).and_then(|ct|ct.to_str().ok()).and_then(|ct|multer::parse_boundary(ct).ok());
                 let (parts, body) = req.into_parts();
@@ -56,31 +56,7 @@ async fn handle(
                         });
                     }
                     stub.rest_data.extract_from(&context,(fields,parts.headers.clone())).await;
-                    // while let Some(mut field) = mp.next_field().await.unwrap() {
-                    //     // Get the field name.
-                    //     let name = field.name();
-                    //
-                    //     // Get the field's filename if provided in "Content-Disposition" header.
-                    //     let file_name = field.file_name();
-                    //
-                    //     // Get the "Content-Type" header as `mime::Mime` type.
-                    //     let content_type = field.content_type();
-                    //
-                    //     println!(
-                    //         "Name: {:?}, FileName: {:?}, Content-Type: {:?}",
-                    //         name, file_name, content_type
-                    //     );
-                    //
-                    //     // Process the field data chunks e.g. store them in a file.
-                    //     // let mut field_bytes_len = 0;
-                    //     let size = field.bytes().await.ok();//.map(|b|b.len());
-                    //     // while let Some(field_chunk) = field.chunk().await.unwrap() {
-                    //     //     // Do something with field chunk.
-                    //     //     field_bytes_len += field_chunk.len();
-                    //     // }
-                    //
-                    //     println!("Field Bytes Length: {:?}", size);
-                    // }
+
                 } else {
                     if let Ok(data) = hyper::body::to_bytes(body).await {
                         let sv = serde_json::from_str::<serde_json::Value>(String::from_utf8_lossy(&data).as_ref());
