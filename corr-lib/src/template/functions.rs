@@ -22,6 +22,26 @@ pub struct Concat;
 
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
+pub struct LPad;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct RPad;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Mid;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Left;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Right;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
 pub struct Contains;
 
 //Concat Function
@@ -58,6 +78,75 @@ impl Function for Concat{
     }
 }
 #[async_trait]
+impl Function for LPad{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let base = args.get(0).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
+        let pad = args.get(1).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
+        let till:usize = args.get(2).unwrap_or(&Expression::Constant(Value::String(base.len().to_string()))).evaluate(context).await.parse().unwrap_or(base.len());
+        let mut new_str = base.clone();
+        while new_str.len()<till {
+            new_str = format!("{}{}",pad,new_str)
+        }
+        Value::String(new_str)
+    }
+}
+#[async_trait]
+impl Function for RPad{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let base = args.get(0).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
+        let pad = args.get(1).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
+        let till:usize = args.get(2).unwrap_or(&Expression::Constant(Value::String(base.len().to_string()))).evaluate(context).await.parse().unwrap_or(base.len());
+        let mut new_str = base.clone();
+        while new_str.len()<till {
+            new_str = format!("{}{}",new_str,pad)
+        }
+        Value::String(new_str)
+    }
+}
+#[async_trait]
+impl Function for Mid{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let base = args.get(0).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
+        let length:usize = args.get(2).unwrap_or(&Expression::Constant(Value::String("1".to_string()))).evaluate(context).await.parse().unwrap_or(1);
+        let start = args.get(1).unwrap_or(&Expression::Constant(Value::String("0".to_string()))).evaluate(context).await.parse().unwrap_or(0);
+        if start+length<base.len() {
+            let sub_str = format!("{}",&base[start..start+length]);
+            Value::String(sub_str)
+        } else if start < base.len(){
+            Value::String(format!("{}",base))
+        } else {
+            Value::String(format!(""))
+        }
+    }
+}
+#[async_trait]
+impl Function for Left{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let base = args.get(0).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
+        let length:usize = args.get(1).unwrap_or(&Expression::Constant(Value::String("1".to_string()))).evaluate(context).await.parse().unwrap_or(1);
+        if length<base.len() {
+            let sub_str = format!("{}",&base[0..length]);
+            Value::String(sub_str)
+        } else {
+            Value::String(format!("{}",base))
+        }
+    }
+}
+#[async_trait]
+impl Function for Right{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let base = args.get(0).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
+        let length:usize = args.get(1).unwrap_or(&Expression::Constant(Value::String("1".to_string()))).evaluate(context).await.parse().unwrap_or(1);
+        if length > base.len() {
+            Value::String(format!("{}",base))
+        } else {
+            let start = base.len() - length;
+            let sub_str = format!("{}",&base[start..start+length]);
+            Value::String(sub_str)
+        }
+    }
+}
+#[async_trait]
 impl Function for Contains{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
         let tof = args.get(0).unwrap_or(&Expression::Constant(Value::String("".to_string()))).evaluate(context).await.to_string();
@@ -80,6 +169,22 @@ impl Function for Contains{
 pub struct Add;
 #[derive(Debug,Clone,PartialEq)]
 pub struct Equal;
+
+
+// #[derive(Debug,Clone,PartialEq)]
+// pub struct NotEqual;
+
+// #[derive(Debug,Clone,PartialEq)]
+// pub struct GreaterThan;
+//
+// #[derive(Debug,Clone,PartialEq)]
+// pub struct GreaterThanEqual;
+//
+// #[derive(Debug,Clone,PartialEq)]
+// pub struct LessThan;
+//
+// #[derive(Debug,Clone,PartialEq)]
+// pub struct LessThanEqual;
 
 //Random Element Function
 #[derive(Debug,Clone,PartialEq)]
@@ -515,6 +620,11 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("mul",Arc::new(Multiply{})),
         ("div",Arc::new(Divide{})),
         ("concat",Arc::new(Concat{})),
+        ("lpad",Arc::new(LPad{})),
+        ("rpad",Arc::new(RPad{})),
+        ("mid",Arc::new(Mid{})),
+        ("left",Arc::new(Left{})),
+        ("right",Arc::new(Right{})),
         ("from_json",Arc::new(FromJson{})),
         ("fake",Arc::new(FakeValue{})),
         ("encode",Arc::new(Encode{})),
@@ -544,9 +654,75 @@ mod tests{
     use crate::core::{DataType, Value};
     use crate::core::proto::{Input, ContinueInput, Output, TellMeOutput};
     use std::sync::{Arc, Mutex};
-    use crate::template::functions::{Concat, Add, Subtract, Multiply, Divide, Formated, get_fake};
+    use crate::template::functions::{Concat, Add, Subtract, Multiply, Divide, Formated, get_fake,LPad,RPad,Mid,Left,Right};
     use crate::core::runtime::Context;
     use crate::template::{Expression, Function};
+
+    #[tokio::test]
+    async fn should_lpad(){
+        let a=LPad{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::PositiveInteger(2)),
+            Expression::Constant(Value::String("0".to_string())),
+            Expression::Constant(Value::String("3".to_string()))
+        ],&context).await;
+        assert_eq!(result,Value::String(format!("002")));
+    }
+    #[tokio::test]
+    async fn should_rpad(){
+        let a=RPad{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::PositiveInteger(2)),
+            Expression::Constant(Value::String("0".to_string())),
+            Expression::Constant(Value::String("3".to_string()))
+        ],&context).await;
+        assert_eq!(result,Value::String(format!("200")));
+    }
+
+    #[tokio::test]
+    async fn should_mid(){
+        let a=Mid{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::String("0123456789".to_string())),
+            Expression::Constant(Value::String("1".to_string())),
+            Expression::Constant(Value::String("3".to_string()))
+        ],&context).await;
+        assert_eq!(result,Value::String(format!("123")));
+    }
+    #[tokio::test]
+    async fn should_left(){
+        let a=Left{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::String("0123456789".to_string())),
+            Expression::Constant(Value::String("4".to_string())),
+        ],&context).await;
+        assert_eq!(result,Value::String(format!("0123")));
+    }
+
+    #[tokio::test]
+    async fn should_right(){
+        let a=Right{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::String("0123456789".to_string())),
+            Expression::Constant(Value::String("4".to_string())),
+        ],&context).await;
+        assert_eq!(result,Value::String(format!("6789")));
+    }
 
     #[tokio::test]
     async fn should_concat(){

@@ -115,7 +115,7 @@ async fn start_imposter_on_port(context:&Context,sls :StartListenerStep)->Vec<Jo
         let lock = lock.clone();
 
         // Create a `Service` for responding to the request.
-        let service = service_fn(move |req| {
+        let service = service_fn( move |req| {
             handle(context.clone(),sls.clone(), addr, req,lock.clone())
         });
 
