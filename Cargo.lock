@@ -429,7 +429,7 @@ dependencies = [
 
 [[package]]
 name = "corr"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "app_dirs2",
  "async-recursion",
@@ -455,7 +455,7 @@ dependencies = [
 
 [[package]]
 name = "corr-lib"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -485,7 +485,7 @@ dependencies = [
 
 [[package]]
 name = "corrs"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "app_dirs2",
  "async-recursion",
@@ -1758,7 +1758,7 @@ checksum = "3831453b3449ceb48b6d9c7ad7c96d5ea673e9b470a1dc578c2ce6521230884c"
 
 [[package]]
 name = "playground"
-version = "0.1.0"
+version = "0.1.5"
 dependencies = [
  "app_dirs2",
  "async-recursion",

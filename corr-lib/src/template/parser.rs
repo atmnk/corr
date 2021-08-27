@@ -24,6 +24,7 @@ impl Parsable for BinaryOperator {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
             map(tag("=="),|_| BinaryOperator::Equal),
+            map(tag("!="),|_| BinaryOperator::NotEqual),
             map(tag("+"),|_| BinaryOperator::Add),
             map(tag("-"),|_| BinaryOperator::Subtract),
             map(tag("*"),|_| BinaryOperator::Multiply),
@@ -165,6 +166,12 @@ mod tests{
     async fn should_parse_simple_stack_expression(){
         let txt = r#"(20 + 20)"#;
         let _a = stack_expression(txt).unwrap();
+    }
+
+    #[tokio::test]
+    async fn should_parse_not_eq(){
+        let txt = r#"20 != 20"#;
+        let _a = Expression::parser(txt).unwrap();
     }
 
     #[tokio::test]

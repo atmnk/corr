@@ -1,5 +1,5 @@
 `Server`(){
-    listen on 8188
-    listen on 8189
-    print text `Hello <%StopMe%>`
+    listen on 8088 with {
+        on get with url text `/` { respond with body "Hello" }
+    }
 }

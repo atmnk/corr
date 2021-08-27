@@ -1,6 +1,6 @@
 [package]
 name = "corrs"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Atmaram Naik <naik.atmaram@gmail.com>"]
 edition = "2018"
 

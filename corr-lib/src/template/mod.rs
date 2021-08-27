@@ -8,7 +8,7 @@ pub mod form;
 use crate::core::{DataType, runtime::Context, Value, runtime::IO, Variable};
 use std::fmt::Debug;
 use async_trait::async_trait;
-use crate::template::functions::{get_function, Add, Subtract, Multiply, Divide, Mod, Increment, Decrement,Equal};
+use crate::template::functions::{get_function, Add, Subtract, Multiply, Divide, Mod, Increment, Decrement,Equal,NotEqual};
 use crate::template::text::Text;
 use crate::template::object::FillableObject;
 use std::sync::Arc;
@@ -40,7 +40,8 @@ pub enum BinaryOperator {
     Divide,
     Multiply,
     Mod,
-    Equal
+    Equal,
+    NotEqual,
     // Range,
     // Increment,
     // Decrement
@@ -73,6 +74,9 @@ impl BinaryOperator {
             },
             BinaryOperator::Equal=>{
                 Arc::new(Equal{})
+            },
+            BinaryOperator::NotEqual=>{
+                Arc::new(NotEqual{})
             },
         }
     }

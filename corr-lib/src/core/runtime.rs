@@ -235,7 +235,7 @@ impl IO for Context {
                 name:variable.name.clone(),
                 value:o_val.clone()
             }
-        } else if self.fallback{
+        } else if self.fallback {
             let dt=if let Some(dt)= &variable.data_type{
                 dt.clone()
             } else {
@@ -302,7 +302,7 @@ impl Context {
             journeys:context.journeys.clone(),
             user:context.user.clone(),
             store:ReferenceStore::from(&context.store).await,
-            fallback:true
+            fallback:context.fallback
         }
     }
     pub async fn from_without_fallback(context:&Context)->Self{

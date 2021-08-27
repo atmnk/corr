@@ -171,8 +171,8 @@ pub struct Add;
 pub struct Equal;
 
 
-// #[derive(Debug,Clone,PartialEq)]
-// pub struct NotEqual;
+#[derive(Debug,Clone,PartialEq)]
+pub struct NotEqual;
 
 // #[derive(Debug,Clone,PartialEq)]
 // pub struct GreaterThan;
@@ -220,6 +220,22 @@ impl Function for Equal{
             ret = ret && first.eq(&res);
         }
         Value::Boolean(ret)
+    }
+}
+#[async_trait]
+impl Function for NotEqual{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let first = if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        let second = if let  Some(exp)= args.get(1){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        Value::Boolean(!first.eq(&second))
     }
 }
 
@@ -313,18 +329,6 @@ impl Function for Now{
     }
 }
 
-// #[async_trait]
-// impl Function for Now{
-//     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
-//         let  value = if args.len() == 1 {
-//             let format = args.get(0).unwrap().evaluate(context).await.to_string();
-//             chrono::Utc::now().format(format.as_str()).to_string()
-//         } else {
-//             chrono::Utc::now().to_rfc3339().to_string()
-//         };
-//         Value::String(value)
-//     }
-// }
 
 //Subtarct Function
 #[derive(Debug,Clone,PartialEq)]
