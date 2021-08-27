@@ -87,8 +87,14 @@ impl Extractable<serde_json::Value> for Vec<ExtractableObject>{
             for inner in self {
                 if let Some(val) = vals.get(index){
                     inner.extract_from(context,val.clone()).await
+                } else {
+                    inner.extract_from(context,serde_json::Value::Null).await
                 }
                 index =  index + 1
+            }
+        } else {
+            for inner in self {
+                inner.extract_from(context,serde_json::Value::Null).await
             }
         }
     }
@@ -100,6 +106,8 @@ impl Extractable<serde_json::Value> for ExtractableForLoop{
             context.iterate_like(vec_val,self.on.clone().to_string(),self.with.clone().to_string(),async move |context,_,value|{
                 self.inner.clone().extract_from(&context,value).await
             }).await;
+        } else {
+            context.define(self.on.to_string(),Value::Array(vec![])).await
         }
     }
 }
@@ -136,7 +144,11 @@ impl Extractable<serde_json::Value> for ExtractablePair{
                 if let serde_json::Value::Object(mp)=value{
                     if let Some(property_value) = mp.get(key) {
                         value_template.extract_from(context,property_value.clone()).await
+                    } else {
+                        value_template.extract_from(context,serde_json::Value::Null).await
                     }
+                } else {
+                    value_template.extract_from(context,serde_json::Value::Null).await
                 }
             }
         }
