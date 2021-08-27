@@ -105,3 +105,11 @@ jobs:
           formula-name: corr
           download-url: ${{format('{0}{1}{2}', 'https://github.com/atmnk/corr/releases/download/', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
           commit-message: 'Bump up {{formulaName}} formula to v{{version}} version'
+      - name: Delete old releases
+        uses: dev-drprasad/delete-older-releases@v0.2.0
+        with:
+          repo: atmnk/corr # defaults to current repo
+          keep_latest: 3
+          delete_tag_pattern: beta # defaults to ""
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
