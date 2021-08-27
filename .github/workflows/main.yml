@@ -110,6 +110,5 @@ jobs:
         with:
           repo: atmnk/corr # defaults to current repo
           keep_latest: 10
-          delete_tag_pattern: beta # defaults to ""
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
