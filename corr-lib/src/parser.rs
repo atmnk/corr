@@ -22,7 +22,7 @@ pub fn comment<'a>(i:&'a str)->ParseResult<'a,()>{
         ))(i)
 }
 pub fn sp<'a>(i: &'a str) -> ParseResult<'a, ()> {
-    map(tuple((many0(comment),spaces)),|(_,_)|())(i)
+    map(tuple((spaces,many0(tuple((comment,spaces))))),|(_,_)|())(i)
 }
 pub fn spaces<'a>(i: &'a str) -> ParseResult<'a, &'a str> {
     let chars = " \t\r\n";

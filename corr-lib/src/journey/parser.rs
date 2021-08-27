@@ -10,7 +10,7 @@ use crate::journey::step::Step;
 use crate::parser::Parsable;
 impl Parsable for Journey{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map( tuple((parse_name,tag("()"),ws(char('{')),steps,ws(char('}')))),|(name,_,_,steps,_)|{
+        map( tuple((parse_name,ws(tag("()")),ws(char('{')),steps,ws(char('}')))),|(name,_,_,steps,_)|{
             Journey{
                 name,
                 steps
@@ -41,6 +41,23 @@ mod tests{
             print text `Hello <%name%>`
             print text `Hello <%name%>`
         }"#;
+        assert_no_error(j
+                        ,Journey::parser(j)
+        )
+    }
+    #[tokio::test]
+    async fn should_parse_journey_with_comments(){
+        let j= r#"`Server`(){
+//    print text `Hello1`
+//    print text `Hello2`
+//    print text `Hello3`
+//    listen on 9088 with {
+//        on post with url text `/` matching request body object {"filed1":fields.for(field)=>field.name} {
+//            respond with body concat(fields,james)
+//        }
+//    }
+    print text `Hello`
+}"#;
         assert_no_error(j
                         ,Journey::parser(j)
         )
