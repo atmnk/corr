@@ -3,10 +3,11 @@ use crate::core::runtime::Context;
 use crate::template::VariableReferenceName;
 use crate::template::object::extractable::{ExtractableObject, Extractable};
 use async_trait::async_trait;
-use warp::hyper::http::HeaderValue;
+// use warp::hyper::http::HeaderValue;
 use crate::core::Value;
-use isahc::prelude::Response;
-use isahc::Body;
+use hyper::{header::HeaderValue};
+// use isahc::prelude::Response;
+// use isahc::Body;
 
 use hyper::HeaderMap;
 use crate::template::rest::MultipartField;
@@ -30,7 +31,8 @@ pub enum ExtractableHeaderValue {
 }
 pub struct CorrResponse{
     pub body:String,
-    pub original_response:Response<Body>
+    pub headers:HeaderMap,
+    pub status:u16
 }
 pub struct Header{
     pub key:&'static str,
@@ -46,15 +48,15 @@ impl Header{
 }
 impl CorrResponse {
     pub fn new(body:&str,headers:Vec<Header>,status:u16)->Self{
-        let mut resp = Response::builder()
-            .status(status);
+        let mut hm = HeaderMap::new();
         for header in headers {
-            resp= resp.header(header.key,header.value)
+            hm.insert(header.key,HeaderValue::from_str(header.value).unwrap());
         }
 
         CorrResponse{
             body:body.to_string(),
-            original_response:resp.body(Body::from_bytes(body.as_bytes())).unwrap()
+            headers:hm,
+            status
         }
     }
 }
@@ -146,7 +148,7 @@ impl Extractable<(Vec<MultipartField>,HeaderMap)> for ExtractableRestData {
 impl Extractable<CorrResponse> for ExtractableHeaders {
     async fn extract_from(&self, context: &Context, value: CorrResponse) {
         for header in &self.headers {
-            if let Some(hv) = value.original_response.headers().get(header.key.clone()){
+            if let Some(hv) = value.headers.get(header.key.clone()){
                 header.value.extract_from(context,hv.clone()).await
             }
         }

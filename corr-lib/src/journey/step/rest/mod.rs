@@ -4,10 +4,11 @@ use crate::template::rest::{ RequestBody, RequestHeaders, RestVerb, FillableRequ
 use crate::template::rest::extractable::{ExtractableRestData, CorrResponse};
 use crate::journey::Executable;
 use crate::core::runtime::Context;
-use isahc::prelude::*;
 use crate::template::Fillable;
 use async_trait::async_trait;
 use tokio::task::JoinHandle;
+use hyper::{Request,Body};
+use hyper::body::Bytes;
 
 #[derive(Debug, Clone,PartialEq)]
 pub struct RestSetp{
@@ -48,17 +49,21 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, co
         },
         _ => {}
     };
-    if let Ok(i_req) = builder.body(request.body.clone().map(|bd| { bd.to_string_body() }).unwrap_or("".to_string())) {
+    if let Ok(i_req) = builder.body(Body::from(request.body.clone().map(|bd| { bd.to_string_body() }).unwrap_or("".to_string()))) {
         let context = context.clone();
         let step = async move|| {
-            let i_response = i_req.send_async().await;
+            let i_response = hyper::Client::new().request(i_req).await;
             if let Some(er) = response {
                 match i_response {
-                    Ok(mut rb)=>{
+                    Ok(rb)=>{
                         if rb.status().as_u16() < 399 {
+                            let (parts,body) = rb.into_parts();
+                            let body_bytes = hyper::body::to_bytes(body).await.unwrap_or(Bytes::from(""));
+
                             er.extract_from(&context, CorrResponse {
-                                body: rb.text_async().await.unwrap().to_string(),
-                                original_response: rb
+                                body: String::from_utf8(body_bytes.to_vec()).unwrap_or("".to_string()), //text_async().await.unwrap().to_string(),
+                                headers: parts.headers,
+                                status:parts.status.as_u16()
                             }).await
                         } else {
                             eprintln!("Rest api {} Failed with code {}", request.url, rb.status())
