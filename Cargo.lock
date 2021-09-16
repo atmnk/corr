@@ -423,7 +423,7 @@ dependencies = [
 
 [[package]]
 name = "corr"
-version = "0.2.0"
+version = "0.1.6"
 dependencies = [
  "app_dirs2",
  "async-recursion",
@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "corr-lib"
-version = "0.2.0"
+version = "0.1.6"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -478,7 +478,7 @@ dependencies = [
 
 [[package]]
 name = "corrs"
-version = "0.2.0"
+version = "0.1.6"
 dependencies = [
  "app_dirs2",
  "async-recursion",

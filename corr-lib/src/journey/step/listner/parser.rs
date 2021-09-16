@@ -5,7 +5,6 @@ use crate::template::rest::{RestVerb};
 use nom::bytes::complete::tag;
 
 use crate::journey::step::listner::{StartListenerStep, Stub, StubResponse};
-use crate::core::parser::{positive_integer};
 use nom::multi::many0;
 use crate::template::Expression;
 use crate::journey::step::Step;
@@ -30,7 +29,7 @@ impl Parsable for Stub {
                     ws(tag("with")),
                     opt(tuple((
                         ws(tag("status")),
-                        ws(positive_integer),
+                        ws(Expression::parser),
                         ws(tag("and"))))),
                     ws(tag("body")),
                     ws(Expression::parser),
@@ -82,7 +81,7 @@ mod tests{
     use crate::template::rest::RestVerb;
     use crate::template::Expression;
     use crate::template::text::extractable::ExtractableText;
-    use crate::core::Variable;
+    use crate::core::{Variable, Value};
     use crate::template::rest::extractable::ExtractableRestData;
 
     #[tokio::test]
@@ -106,7 +105,7 @@ mod tests{
                 url:ExtractableText::Multi(Option::Some("/values/".to_string()),vec![]
                     ,Option::Some(Variable::new("id"))),
                 response:StubResponse{
-                    status:200,
+                    status:Expression::Constant(Value::PositiveInteger(200)),
                     body:Expression::Variable(format!("name"),Option::None)
                 }
             }]
