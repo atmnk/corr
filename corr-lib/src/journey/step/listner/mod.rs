@@ -27,6 +27,7 @@ use crate::template::text::extractable::ExtractableText;
 use crate::template::object::extractable::{Extractable};
 use crate::template::rest::extractable::{ExtractableRestData};
 use multer::Multipart;
+use crate::core::Value;
 
 async fn handle(
     context: Context,
@@ -81,9 +82,10 @@ async fn handle(
                 }
 
                 let resp = stub.response.body.evaluate(&context).await;
+                let status:Option<u16> = stub.response.status.evaluate(&context).await.parse();
 
                 return Response::builder()
-                    .status(StatusCode::from_u16(stub.response.status).unwrap_or(StatusCode::OK))
+                    .status(StatusCode::from_u16(status.unwrap_or(200)).unwrap_or(StatusCode::OK))
                     .header("Content-Type","application/json")
                     .body(Body::from(resp.to_string()));
             }
@@ -176,13 +178,13 @@ pub struct StartListenerStep{
 }
 #[derive(Debug, Clone,PartialEq)]
 pub struct StubResponse{
-    status : u16,
+    status : Expression,
     body : Expression
 }
 impl StubResponse {
-    pub fn from(status:Option<u128>,body:Expression)->Self{
+    pub fn from(status:Option<Expression>,body:Expression)->Self{
         Self {
-            status:status.map(|s|s as u16).unwrap_or(200),
+            status:status.map(|s|s ).unwrap_or(Expression::Constant(Value::PositiveInteger(200))),
             body
         }
     }
