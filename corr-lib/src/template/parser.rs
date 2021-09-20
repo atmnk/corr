@@ -9,7 +9,7 @@ use nom::multi::{separated_list0, separated_list1, many1, many0};
 use crate::template::text::Text;
 use crate::template::object::FillableObject;
 use nom::bytes::complete::tag;
-use crate::template::functions::function_names;
+use crate::template::functions::{function_names};
 
 impl Parsable for Assignable {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -24,6 +24,10 @@ impl Parsable for BinaryOperator {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
             map(tag("=="),|_| BinaryOperator::Equal),
+            map(tag(">="),|_| BinaryOperator::GreaterThanEqual),
+            map(tag("<="),|_| BinaryOperator::LessThanEqual),
+            map(tag(">"),|_| BinaryOperator::GreaterThan),
+            map(tag("<"),|_| BinaryOperator::LessThan),
             map(tag("!="),|_| BinaryOperator::NotEqual),
             map(tag("+"),|_| BinaryOperator::Add),
             map(tag("-"),|_| BinaryOperator::Subtract),

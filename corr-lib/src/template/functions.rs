@@ -170,6 +170,15 @@ pub struct Add;
 #[derive(Debug,Clone,PartialEq)]
 pub struct Equal;
 
+#[derive(Debug,Clone,PartialEq)]
+pub struct GreaterThanEqual;
+#[derive(Debug,Clone,PartialEq)]
+pub struct GreaterThan;
+#[derive(Debug,Clone,PartialEq)]
+pub struct LessThanEqual;
+#[derive(Debug,Clone,PartialEq)]
+pub struct LessThan;
+
 
 #[derive(Debug,Clone,PartialEq)]
 pub struct NotEqual;
@@ -220,6 +229,70 @@ impl Function for Equal{
             ret = ret && first.eq(&res);
         }
         Value::Boolean(ret)
+    }
+}
+#[async_trait]
+impl Function for GreaterThanEqual{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let first = if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        let second = if let  Some(exp)= args.get(1){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        return first.ge(second);
+    }
+}
+#[async_trait]
+impl Function for LessThanEqual{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let first = if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        let second = if let  Some(exp)= args.get(1){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        return first.le(second);
+    }
+}
+#[async_trait]
+impl Function for GreaterThan{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let first = if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        let second = if let  Some(exp)= args.get(1){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        return first.gt(second);
+    }
+}
+#[async_trait]
+impl Function for LessThan{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let first = if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        let second = if let  Some(exp)= args.get(1){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(true)
+        };
+        return first.lt(second);
     }
 }
 #[async_trait]
@@ -658,7 +731,7 @@ mod tests{
     use crate::core::{DataType, Value};
     use crate::core::proto::{Input, ContinueInput, Output, TellMeOutput};
     use std::sync::{Arc, Mutex};
-    use crate::template::functions::{Concat, Add, Subtract, Multiply, Divide, Formated, get_fake,LPad,RPad,Mid,Left,Right};
+    use crate::template::functions::*;
     use crate::core::runtime::Context;
     use crate::template::{Expression, Function};
 
@@ -752,6 +825,18 @@ mod tests{
             Expression::Constant(Value::String("3".to_string()))
         ],&context).await;
         assert_eq!(result,Value::PositiveInteger(5));
+    }
+    #[tokio::test]
+    async fn should_ge(){
+        let a=GreaterThanEqual{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::PositiveInteger(2)),
+            Expression::Constant(Value::String("3".to_string()))
+        ],&context).await;
+        assert_eq!(result,Value::Boolean(false));
     }
     #[tokio::test]
     async fn should_get_zipcode(){

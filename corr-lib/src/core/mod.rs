@@ -70,6 +70,106 @@ impl Number{
             },
         }
     }
+    pub fn ge(&self,number:Number)->bool{
+        match self {
+            Number::PositiveInteger(lng1)=> {
+                match number {
+                    Number::PositiveInteger(lng2)=>lng1.ge(&lng2),
+                    Number::Integer(lng2)=>(lng1.clone() as i128).ge(&lng2),
+                    Number::Double(dbl1)=>(lng1.clone() as f64).ge(&dbl1)
+                }
+            },
+            Number::Integer(lng1)=> {
+                match number {
+                    Number::PositiveInteger(lng2)=>lng1.ge(&(lng2 as i128)),
+                    Number::Integer(lng2)=>lng1.ge(&lng2),
+                    Number::Double(dbl1)=>(lng1.clone() as f64).ge(&dbl1)
+                }
+            },
+            Number::Double(dbl1)=> {
+                match number {
+                    Number::PositiveInteger(lng1)=>dbl1.ge(&(lng1 as f64)),
+                    Number::Integer(lng1)=>dbl1.ge(&(lng1 as f64)),
+                    Number::Double(dbl2)=>dbl1.ge(&dbl2)
+                }
+            },
+        }
+    }
+    pub fn le(&self,number:Number)->bool{
+        match self {
+            Number::PositiveInteger(lng1)=> {
+                match number {
+                    Number::PositiveInteger(lng2)=>lng1.le(&lng2),
+                    Number::Integer(lng2)=>(lng1.clone() as i128).le(&lng2),
+                    Number::Double(dbl1)=>(lng1.clone() as f64).le(&dbl1)
+                }
+            },
+            Number::Integer(lng1)=> {
+                match number {
+                    Number::PositiveInteger(lng2)=>lng1.le(&(lng2 as i128)),
+                    Number::Integer(lng2)=>lng1.le(&lng2),
+                    Number::Double(dbl1)=>(lng1.clone() as f64).le(&dbl1)
+                }
+            },
+            Number::Double(dbl1)=> {
+                match number {
+                    Number::PositiveInteger(lng1)=>dbl1.le(&(lng1 as f64)),
+                    Number::Integer(lng1)=>dbl1.le(&(lng1 as f64)),
+                    Number::Double(dbl2)=>dbl1.le(&dbl2)
+                }
+            },
+        }
+    }
+    pub fn gt(&self,number:Number)->bool{
+        match self {
+            Number::PositiveInteger(lng1)=> {
+                match number {
+                    Number::PositiveInteger(lng2)=>lng1.gt(&lng2),
+                    Number::Integer(lng2)=>(lng1.clone() as i128).gt(&lng2),
+                    Number::Double(dbl1)=>(lng1.clone() as f64).gt(&dbl1)
+                }
+            },
+            Number::Integer(lng1)=> {
+                match number {
+                    Number::PositiveInteger(lng2)=>lng1.gt(&(lng2 as i128)),
+                    Number::Integer(lng2)=>lng1.gt(&lng2),
+                    Number::Double(dbl1)=>(lng1.clone() as f64).gt(&dbl1)
+                }
+            },
+            Number::Double(dbl1)=> {
+                match number {
+                    Number::PositiveInteger(lng1)=>dbl1.gt(&(lng1 as f64)),
+                    Number::Integer(lng1)=>dbl1.gt(&(lng1 as f64)),
+                    Number::Double(dbl2)=>dbl1.gt(&dbl2)
+                }
+            },
+        }
+    }
+    pub fn lt(&self,number:Number)->bool{
+        match self {
+            Number::PositiveInteger(lng1)=> {
+                match number {
+                    Number::PositiveInteger(lng2)=>lng1.lt(&lng2),
+                    Number::Integer(lng2)=>(lng1.clone() as i128).lt(&lng2),
+                    Number::Double(dbl1)=>(lng1.clone() as f64).lt(&dbl1)
+                }
+            },
+            Number::Integer(lng1)=> {
+                match number {
+                    Number::PositiveInteger(lng2)=>lng1.lt(&(lng2 as i128)),
+                    Number::Integer(lng2)=>lng1.lt(&lng2),
+                    Number::Double(dbl1)=>(lng1.clone() as f64).lt(&dbl1)
+                }
+            },
+            Number::Double(dbl1)=> {
+                match number {
+                    Number::PositiveInteger(lng1)=>dbl1.lt(&(lng1 as f64)),
+                    Number::Integer(lng1)=>dbl1.lt(&(lng1 as f64)),
+                    Number::Double(dbl2)=>dbl1.lt(&dbl2)
+                }
+            },
+        }
+    }
     pub fn multiply(&self,number:Number)->Number{
         match self {
             Number::PositiveInteger(lng1)=> {
@@ -178,8 +278,85 @@ impl Number{
             },
         }
     }
+
 }
 impl Value {
+    pub fn ge(&self,other:Self)->Self{
+        match self {
+            Value::String(s)=>{
+                Value::Boolean(s.ge(&other.to_string()))
+            },
+
+            _=>{
+                if let Some(f_n) = self.to_number() {
+                    if let Some(s_n) = other.to_number() {
+                        Value::Boolean(f_n.ge(s_n))
+                    }else {
+                        Value::Boolean(false)
+                    }
+                } else {
+                    Value::Boolean(false)
+                }
+            }
+        }
+    }
+    pub fn le(&self,other:Self)->Self{
+        match self {
+            Value::String(s)=>{
+                Value::Boolean(s.le(&other.to_string()))
+            },
+
+            _=>{
+                if let Some(f_n) = self.to_number() {
+                    if let Some(s_n) = other.to_number() {
+                        Value::Boolean(f_n.le(s_n))
+                    }else {
+                        Value::Boolean(false)
+                    }
+                } else {
+                    Value::Boolean(false)
+                }
+            }
+        }
+    }
+    pub fn gt(&self,other:Self)->Self{
+        match self {
+            Value::String(s)=>{
+                Value::Boolean(s.gt(&other.to_string()))
+            },
+
+            _=>{
+                if let Some(f_n) = self.to_number() {
+                    if let Some(s_n) = other.to_number() {
+                        Value::Boolean(f_n.gt(s_n))
+                    }else {
+                        Value::Boolean(false)
+                    }
+                } else {
+                    Value::Boolean(false)
+                }
+            }
+        }
+    }
+    pub fn lt(&self,other:Self)->Self{
+        match self {
+            Value::String(s)=>{
+                Value::Boolean(s.lt(&other.to_string()))
+            },
+
+            _=>{
+                if let Some(f_n) = self.to_number() {
+                    if let Some(s_n) = other.to_number() {
+                        Value::Boolean(f_n.lt(s_n))
+                    } else {
+                        Value::Boolean(false)
+                    }
+                } else {
+                    Value::Boolean(false)
+                }
+            }
+        }
+    }
     pub fn parse<T>(&self)->Option<T> where T:FromStr{
         match self {
             Value::String(s)=>{
