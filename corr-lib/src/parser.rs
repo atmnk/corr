@@ -57,10 +57,11 @@ pub fn identifier_part<'a>(input: &'a str) -> ParseResult<'a,&str> {
 }
 
 pub fn function_name<'a>(input: &'a str) -> ParseResult<'a,&str> {
-    verify(recognize(
-        pair(
-            alt((alpha1,tag("_"))),
-            many0_count(preceded(opt(char('_')),alphanumeric1)))),|val:&&str|{function_names().contains(val)})(input)
+    verify(identifier_part,|part|function_names().contains(&part))(input)
+    // verify(recognize(
+    //     pair(
+    //         alt((alpha1,tag("_"))),
+    //         many0_count(preceded(opt(char('_')),alphanumeric1)))),|val:&&str|{function_names().contains(val)})(input)
 }
 pub fn result_option<'a,T>(contents:&str,result:ParseResult<'a,T>)->Option<T>{
     match result {
