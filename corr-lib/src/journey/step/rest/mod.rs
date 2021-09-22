@@ -9,6 +9,9 @@ use async_trait::async_trait;
 use tokio::task::JoinHandle;
 use hyper::{Request,Body};
 use hyper::body::Bytes;
+use hyper_tls::HttpsConnector;
+use hyper::Client;
+use hyper::client::HttpConnector;
 
 #[derive(Debug, Clone,PartialEq)]
 pub struct RestSetp{
@@ -52,7 +55,19 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, co
     if let Ok(i_req) = builder.body(Body::from(request.body.clone().map(|bd| { bd.to_string_body() }).unwrap_or("".to_string()))) {
         let context = context.clone();
         let step = async move|| {
-            let i_response = hyper::Client::new().request(i_req).await;
+            let i_response ={
+                let uri = i_req.uri().to_string();
+                if uri.starts_with("https") {
+                    let https = HttpsConnector::new();
+                    let client = Client::builder().build::<_, hyper::Body>(https);
+                    client.request(i_req).await
+                } else {
+                    let http = HttpConnector::new();
+                    let client = Client::builder().build::<_, hyper::Body>(http);
+                    client.request(i_req).await
+                }
+            };
+
             if let Some(er) = response {
                 match i_response {
                     Ok(rb)=>{
@@ -132,6 +147,23 @@ mod tests {
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
+    }
+
+    #[tokio::test]
+    async fn should_execute_get_rest_step_onhttps() {
+
+        let text = r#"get request {
+            url: text `<%base_url%>/todos/1`,
+            headers: { "Hello": "hello" }
+        } matching body object { "title": title }"#;
+        let (_, step) = RestSetp::parser(text).unwrap();
+        let input = vec![
+            Input::new_continue("base_url".to_string(), "https://jsonplaceholder.typicode.com".to_string(), DataType::String)
+        ];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context = Context::mock(input, buffer.clone());
+        step.execute(&context).await;
+        assert_eq!(context.get_var_from_store(format!("title")).await, Option::Some(Value::String("delectus aut autem".to_string())));
     }
 
     #[tokio::test]
