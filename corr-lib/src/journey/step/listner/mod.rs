@@ -16,7 +16,7 @@ use async_trait::async_trait;
 
 use crate::core::proto::{Output, Input};
 
-use std::sync::{Arc};
+use std::sync::{Arc, RwLock};
 
 
 use hyper::server::conn::AddrStream;
@@ -28,7 +28,11 @@ use crate::template::object::extractable::{Extractable};
 use crate::template::rest::extractable::{ExtractableRestData};
 use multer::Multipart;
 use crate::core::Value;
-
+use lazy_static::lazy_static; // 1.4.0
+use tokio::sync::Mutex;
+lazy_static! {
+    static ref LOGS: Mutex<Vec<Option<u16>>> = Mutex::new(vec![]);
+}
 async fn handle(
     context: Context,
     sls:StartListenerStep,
@@ -36,66 +40,72 @@ async fn handle(
     req: Request<Body>,
     lock:Arc<tokio::sync::RwLock<u16>>
 ) -> hyper::http::Result<Response<Body>> {
-    let _ = lock.write().await;
+    let mut ret = Option::None;
+    let mut ret_st = Option::Some(404);
     {
-        for stub in sls.stubs{
-            let context = Context::from_without_fallback(&context).await;
-            if stub.url.capture(&req.uri().to_string(),&context).await && req.method().to_string().to_lowercase().eq(&stub.method.as_str().to_lowercase()) {
-                let opt_bd = req.headers().get(hyper::header::CONTENT_TYPE).and_then(|ct|ct.to_str().ok()).and_then(|ct|multer::parse_boundary(ct).ok());
-                let (parts, body) = req.into_parts();
-                if let Some(boundary) = opt_bd {
-                    let mut mp = Multipart::new(body,boundary);
-                    let mut fields = vec![];
-                    while let Ok(Some(field)) = mp.next_field().await{
-                        fields.push(
-                        MultipartField {
-                            name:field.name().map(|n|n.to_string()),
-                            content_type: field.content_type().map(|ct|ct.to_string()),
-                            file_name: field.file_name().map(|n|n.to_string()),
-                            contents:field.bytes().await.ok(),
+        let mut logs = LOGS.lock().await;
+        {
+            for stub in sls.stubs {
+                let context = Context::from_without_fallback(&context).await;
+                if stub.url.capture(&req.uri().to_string(), &context).await && req.method().to_string().to_lowercase().eq(&stub.method.as_str().to_lowercase()) {
+                    let opt_bd = req.headers().get(hyper::header::CONTENT_TYPE).and_then(|ct| ct.to_str().ok()).and_then(|ct| multer::parse_boundary(ct).ok());
+                    let (parts, body) = req.into_parts();
+                    if let Some(boundary) = opt_bd {
+                        let mut mp = Multipart::new(body, boundary);
+                        let mut fields = vec![];
+                        while let Ok(Some(field)) = mp.next_field().await {
+                            fields.push(
+                                MultipartField {
+                                    name: field.name().map(|n| n.to_string()),
+                                    content_type: field.content_type().map(|ct| ct.to_string()),
+                                    file_name: field.file_name().map(|n| n.to_string()),
+                                    contents: field.bytes().await.ok(),
 
-                        });
-                    }
-                    stub.rest_data.extract_from(&context,(fields,parts.headers.clone())).await;
-
-                } else {
-                    if let Ok(data) = hyper::body::to_bytes(body).await {
-                        let sv = serde_json::from_str::<serde_json::Value>(String::from_utf8_lossy(&data).as_ref());
-                        match  sv  {
-                            Ok(val)=>{
-                                stub.rest_data.extract_from(&context,(val,parts.headers.clone())).await;
-                            },
-                            Err(e)=>{
-                                eprintln!("{:?}",e)
-                            }
+                                });
                         }
-
+                        stub.rest_data.extract_from(&context, (fields, parts.headers.clone())).await;
                     } else {
-                        eprintln!("Shit 1")
+                        if let Ok(data) = hyper::body::to_bytes(body).await {
+                            let sv = serde_json::from_str::<serde_json::Value>(String::from_utf8_lossy(&data).as_ref());
+                            match sv {
+                                Ok(val) => {
+                                    stub.rest_data.extract_from(&context, (val, parts.headers.clone())).await;
+                                },
+                                Err(e) => {
+                                    eprintln!("{:?}", e)
+                                }
+                            }
+                        } else {
+                            eprintln!("Shit 1")
+                        }
                     }
+
+
+                    let context = Context::from(&context).await;
+                    for step in stub.steps {
+                        step.execute(&context).await;
+                    }
+
+                    let resp = stub.response.body.evaluate(&context).await;
+                    let status: Option<u16> = stub.response.status.evaluate(&context).await.parse();
+                    ret_st = status.clone();
+                    ret = Option::Some(Response::builder()
+                        .status(StatusCode::from_u16(status.unwrap_or(200)).unwrap_or(StatusCode::OK))
+                        .header("Content-Type", "application/json")
+                        .body(Body::from(resp.to_string())));
+                    break;
                 }
-
-
-                let context = Context::from(&context).await;
-                for step in stub.steps {
-                    step.execute(&context).await;
-                }
-
-                let resp = stub.response.body.evaluate(&context).await;
-                let status:Option<u16> = stub.response.status.evaluate(&context).await.parse();
-
-                return Response::builder()
-                    .status(StatusCode::from_u16(status.unwrap_or(200)).unwrap_or(StatusCode::OK))
-                    .header("Content-Type","application/json")
-                    .body(Body::from(resp.to_string()));
             }
         }
+        logs.push(ret_st);
     }
-
-    return Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .body(Body::from("Not found".to_string()));
-
+    if let Some(f_ret) = ret {
+        f_ret
+    } else {
+        Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::from("Not found".to_string()))
+    }
 }
 
 
