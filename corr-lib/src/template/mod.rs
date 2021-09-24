@@ -127,6 +127,7 @@ impl Operator {
 pub enum Expression{
     Function(String,Vec<Expression>),
     Variable(String,Option<DataType>),
+    DotFunction(Box<Expression>,String,Vec<Expression>),
     Constant(Value),
     Operator(Operator, Vec<Expression>)
 }
@@ -135,33 +136,37 @@ pub struct VariableReferenceName {
     pub parts:Vec<String>
 }
 #[derive(Clone,Debug,PartialEq)]
-struct FunctionReferenceName{
-    left:Option<VariableReferenceName>,
-    function:String,
+struct FunctionCallChain {
+    left:Expression,
+    function_chain:Vec<(String, Vec<Expression>)>
 }
-impl FunctionReferenceName{
-    pub fn from(vrn:VariableReferenceName)->Self{
-        let mut parts = vrn.parts.clone();
-        let opt_last = parts.pop();
-        if let Some(last) = opt_last{
-            if parts.len()>0 {
-                Self{
-                    left :Option::Some(VariableReferenceName{
-                        parts
-                    }),
-                    function:last
-                }
-
-            } else {
-                Self{
-                    left :Option::None,
-                    function:last
-                }
-            }
-        } else {
-            panic!("Impposiible VRN")
-        }
-    }
+impl FunctionCallChain {
+    // pub fn from(vrn:VariableReferenceName)->Self{
+    //     let mut parts = vrn.parts.clone();
+    //     let opt_last = parts.pop();
+    //     if let Some(last) = opt_last{
+    //         if parts.len()>0 {
+    //             Self{
+    //                 left :Option::Some(Expression::Variable(parts.join("."),Option::None)),
+    //                 function:last
+    //             }
+    //
+    //         } else {
+    //             Self{
+    //                 left :Option::None,
+    //                 function:last
+    //             }
+    //         }
+    //     } else {
+    //         panic!("Impposiible VRN")
+    //     }
+    // }
+    // pub fn from_expr(expr:Expression,func:String)->Self{
+    //     Self{
+    //         left:Option::Some(expr),
+    //         function:func
+    //     }
+    // }
 }
 
 impl VariableReferenceName {
@@ -194,6 +199,11 @@ impl Expression{
             },
             Expression::Function(func,args)=>{
                 get_function(func.as_str()).evaluate(args.clone(),context).await
+            },
+            Expression::DotFunction(on,func,args)=>{
+                let mut cloned = args.clone();
+                cloned.insert(0,on.as_ref().clone());
+                get_function(func.as_str()).evaluate(cloned,context).await
             },
             Expression::Constant(val)=>{
                 val.clone()
