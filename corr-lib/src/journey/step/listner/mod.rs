@@ -16,7 +16,7 @@ use async_trait::async_trait;
 
 use crate::core::proto::{Output, Input};
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc};
 
 
 use hyper::server::conn::AddrStream;
@@ -38,7 +38,7 @@ async fn handle(
     sls:StartListenerStep,
     _addr: SocketAddr,
     req: Request<Body>,
-    lock:Arc<tokio::sync::RwLock<u16>>
+    _lock:Arc<tokio::sync::RwLock<u16>>
 ) -> hyper::http::Result<Response<Body>> {
     let mut ret = Option::None;
     let mut ret_st = Option::Some(404);

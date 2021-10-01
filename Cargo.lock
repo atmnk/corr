@@ -464,6 +464,7 @@ dependencies = [
  "multer",
  "nom",
  "nom_locate",
+ "num-traits",
  "rand 0.7.3",
  "regex",
  "serde",

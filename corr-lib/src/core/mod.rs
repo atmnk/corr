@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use nom::lib::std::collections::HashMap;
 use crate::core::runtime::HeapObject;
+use num_traits::cast::ToPrimitive;
 use std::sync::Arc;
 use futures::lock::Mutex;
 use core::str::FromStr;
@@ -43,6 +44,34 @@ impl Number{
             Number::PositiveInteger(lng)=>Value::PositiveInteger(lng.clone() as u128),
             Number::Integer(lng)=>Value::Integer(lng.clone() as i128),
             Number::Double(dbl)=>Value::Double(dbl.clone())
+        }
+    }
+    pub fn cint(&self)->Number{
+        match &self {
+            Number::Double(d)=>Number::Integer(d.to_i128().unwrap_or(0)),
+            Number::PositiveInteger(p)=>Number::Integer(p.to_i128().unwrap_or(0)),
+            Number::Integer(p)=>Number::Integer(p.clone())
+        }
+    }
+    pub fn ceil(&self)->Number{
+        match &self {
+            Number::Double(d)=>Number::Double(d.ceil()),
+            Number::PositiveInteger(p)=>Number::PositiveInteger(p.clone()),
+            Number::Integer(p)=>Number::Integer(p.clone())
+        }
+    }
+    pub fn floor(&self)->Number{
+        match &self {
+            Number::Double(d)=>Number::Double(d.floor()),
+            Number::PositiveInteger(p)=>Number::PositiveInteger(p.clone()),
+            Number::Integer(p)=>Number::Integer(p.clone())
+        }
+    }
+    pub fn round(&self)->Number{
+        match &self {
+            Number::Double(d)=>Number::Double(d.round()),
+            Number::PositiveInteger(p)=>Number::PositiveInteger(p.clone()),
+            Number::Integer(p)=>Number::Integer(p.clone())
         }
     }
     pub fn add(&self,number:Number)->Number{

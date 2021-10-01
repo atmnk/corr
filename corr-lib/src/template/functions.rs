@@ -22,6 +22,22 @@ pub struct Concat;
 
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
+pub struct Ceil;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Floor;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct CInt;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Round;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
 pub struct LPad;
 
 //Concat Function
@@ -372,6 +388,64 @@ impl Function for Mod{
 }
 
 #[async_trait]
+impl Function for Ceil{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0){
+            if let Some(first) = arg.evaluate(context).await.to_number(){
+                first.ceil().to_value()
+            } else {
+                Value::Null
+            }
+        } else {
+            Value::Null
+        }
+    }
+}
+#[async_trait]
+impl Function for CInt{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0){
+            if let Some(first) = arg.evaluate(context).await.to_number(){
+                first.cint().to_value()
+            } else {
+                Value::Null
+            }
+        } else {
+            Value::Null
+        }
+    }
+}
+#[async_trait]
+impl Function for Floor{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0){
+            if let Some(first) = arg.evaluate(context).await.to_number(){
+                first.floor().to_value()
+            } else {
+                Value::Null
+            }
+        } else {
+            Value::Null
+        }
+    }
+}
+
+#[async_trait]
+impl Function for Round{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0){
+            if let Some(first) = arg.evaluate(context).await.to_number(){
+                first.round().to_value()
+            } else {
+                Value::Null
+            }
+        } else {
+            Value::Null
+        }
+    }
+}
+
+#[async_trait]
 impl Function for Uuid{
     async fn evaluate(&self, _args: Vec<Expression>, _context: &Context) -> Value {
         let val = uuid::Uuid::new_v4();
@@ -693,6 +767,10 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("add",Arc::new(Add{})),
         ("captcha",Arc::new(CorrCaptcha{})),
         ("mod",Arc::new(Mod{})),
+        ("ceil",Arc::new(Ceil{})),
+        ("floor",Arc::new(Floor{})),
+        ("round",Arc::new(Round{})),
+        ("cint",Arc::new(CInt{})),
         ("sub",Arc::new(Subtract{})),
         ("mul",Arc::new(Multiply{})),
         ("div",Arc::new(Divide{})),
@@ -747,6 +825,64 @@ mod tests{
             Expression::Constant(Value::String("3".to_string()))
         ],&context).await;
         assert_eq!(result,Value::String(format!("002")));
+    }
+    #[tokio::test]
+    async fn should_round_above(){
+        let a=Round{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::Double(15.5)),
+        ],&context).await;
+        assert_eq!(result,Value::Double(16.0));
+    }
+    #[tokio::test]
+    async fn should_round_below(){
+        let a=Round{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::Double(15.4)),
+        ],&context).await;
+        assert_eq!(result,Value::Double(15.0));
+    }
+
+    #[tokio::test]
+    async fn should_ceil(){
+        let a=Ceil{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::Double(15.4)),
+        ],&context).await;
+        assert_eq!(result,Value::Double(16.0));
+    }
+
+    #[tokio::test]
+    async fn should_cint(){
+        let a=CInt{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::Double(15.4)),
+        ],&context).await;
+        assert_eq!(result,Value::Integer(15));
+    }
+
+    #[tokio::test]
+    async fn should_floor(){
+        let a=Floor{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::Double(15.4)),
+        ],&context).await;
+        assert_eq!(result,Value::Double(15.0));
     }
     #[tokio::test]
     async fn should_rpad(){
