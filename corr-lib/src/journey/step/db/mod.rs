@@ -53,7 +53,6 @@ impl Executable for QueryStep {
                     val.to_sql_value()
                 }).collect();
             let mut res = stm.execute_query(vals).await.unwrap();
-            self.
         };
         return vec![]
     }
