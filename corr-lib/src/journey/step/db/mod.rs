@@ -52,7 +52,7 @@ impl Executable for QueryStep {
                 let vals:Vec<rdbc_async::sql::Value> = values.iter().filter_map(|val|{
                     val.to_sql_value()
                 }).collect();
-            let mut res = stm.execute_query(vals).await.unwrap();
+            let _res = stm.execute_query(vals).await.unwrap();
         };
         return vec![]
     }

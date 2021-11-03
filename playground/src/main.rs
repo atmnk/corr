@@ -1,13 +1,13 @@
 #![feature(generators, generator_trait)]
 #![feature(async_closure)]
 
-use rdbc_async_postgres::sql::Driver as PostgresDriver;
-use rdbc_async::sql::Driver;
-use rdbc_async::sql::Result;
+
+
+
 use corr_lib::journey::{Journey, Executable};
 use corr_lib::parser::Parsable;
 use corr_lib::core::runtime::Context;
-use corr_lib::core::proto::{Input, Output};
+use corr_lib::core::proto::{Input};
 use corr_lib::core::DataType;
 use std::sync::{Arc, Mutex};
 

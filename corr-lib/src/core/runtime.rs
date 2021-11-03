@@ -473,8 +473,8 @@ pub mod tests{
     use crate::core::{DataType, Variable};
     use crate::core::proto::{Input, Output};
     use std::sync::{Arc, Mutex};
-    use async_trait::async_trait;
-    use crate::core::runtime::{Context, Client, IO, break_on};
+    
+    use crate::core::runtime::{Context, IO, break_on};
 
 
 

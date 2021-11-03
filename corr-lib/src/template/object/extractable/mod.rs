@@ -36,7 +36,7 @@ pub trait Extractable<T>{
 }
 #[async_trait]
 impl Extractable<Box<dyn rdbc_async::sql::ResultSet>> for ExtractableObject{
-    async fn extract_from(&self, context: &Context, value: Box<dyn ResultSet>) {
+    async fn extract_from(&self, _context: &Context, _value: Box<dyn ResultSet>) {
         todo!()
     }
 }
