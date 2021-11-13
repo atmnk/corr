@@ -15,7 +15,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use strfmt::{ Formatter, strfmt_map};
 use std::collections::HashMap;
 use captcha::Captcha;
-
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Concat;
@@ -27,6 +26,10 @@ pub struct Ceil;
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Floor;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct Array;
 
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
@@ -82,7 +85,30 @@ impl Function for CorrCaptcha{
         Value::Map(retval)
     }
 }
-
+#[async_trait]
+impl Function for Array{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0){
+            if let Some(Some(length)) = arg.evaluate(context).await.to_number().map(|num|num.as_usize()){
+                let exp = if let Some(arg) = args.get(1){
+                    arg.clone()
+                } else {
+                    Expression::Constant(Value::Null)
+                };
+                let mut vals=vec![];
+                for _ in [0..length]{
+                    vals.push(exp.evaluate(context).await);
+                }
+                let val = Value::Array(vals);
+                val
+            } else {
+                Value::Array(vec![])
+            }
+        } else {
+            Value::Array(vec![])
+        }
+    }
+}
 #[async_trait]
 impl Function for Concat{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
@@ -784,6 +810,7 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("fake",Arc::new(FakeValue{})),
         ("encode",Arc::new(Encode{})),
         ("random",Arc::new(Random{})),
+        ("array",Arc::new(Array{})),
         ("contains",Arc::new(Contains{})),
         ("random_element",Arc::new(RandomElement{}))
     ]

@@ -39,6 +39,13 @@ pub enum Number{
     Double(f64)
 }
 impl Number{
+    pub fn as_usize(&self)->Option<usize>{
+        match self {
+            Number::PositiveInteger(lng)=>lng.clone().to_usize(),
+            Number::Integer(lng)=>lng.clone().to_usize(),
+            Number::Double(dbl)=>dbl.clone().to_usize(),
+        }
+    }
     pub fn to_value(&self)->Value{
         match self {
             Number::PositiveInteger(lng)=>Value::PositiveInteger(lng.clone() as u128),
