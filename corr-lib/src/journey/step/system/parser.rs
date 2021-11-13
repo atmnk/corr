@@ -1,5 +1,5 @@
 use crate::parser::{Parsable, ws};
-use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep};
+use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep, JourneyStep};
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
 use nom::sequence::{delimited, preceded, terminated, tuple};
@@ -9,6 +9,9 @@ use nom::character::complete::char;
 use nom::branch::alt;
 use crate::template::{VariableReferenceName, Assignable, Expression};
 use crate::journey::step::Step;
+use nom::multi::{many0, separated_list0};
+use crate::journey::parser::parse_name;
+
 use nom::multi::{many0};
 impl Parsable for PrintStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -25,6 +28,16 @@ impl Parsable for ForLoopStep{
 impl Parsable for AssignmentStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(tuple((ws(tag("let")),ws(VariableReferenceName::parser),ws(char('=')),ws(Assignable::parser))),|(_,var,_,assbl)|{AssignmentStep::WithVariableName(var,assbl)})(input)
+    }
+}
+impl Parsable for JourneyStep{
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map( tuple((parse_name,ws(tag("(")),separated_list0(ws(tag(",")),Expression::parser),ws(tag(")")))),|(journey,_,args,_,)|{
+            JourneyStep{
+                journey,
+                args
+            }
+        })(input)
     }
 }
 impl Parsable for PushStep{

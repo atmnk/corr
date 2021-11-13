@@ -328,6 +328,9 @@ impl Context {
     pub async fn define(&self,var:String,value:Value){
         self.store.set(var,Arc::new(Mutex::new(value.to_heap_object()))).await;
     }
+    pub async fn undefine(&self,var:String){
+        self.store.delete(var).await;
+    }
     pub async fn push(&self,var:String,value:Value){
         self.store.push(var,Arc::new(Mutex::new(value.to_heap_object()))).await;
     }

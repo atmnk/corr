@@ -5,15 +5,18 @@ use nom::sequence::{terminated, preceded, tuple};
 use nom::character::complete::{char};
 use nom::bytes::complete::{tag};
 use nom::combinator::map;
-use nom::multi::{many0};
+use nom::multi::{many0, separated_list0};
 use crate::journey::step::Step;
 use crate::parser::Parsable;
+use crate::core::Variable;
+
 impl Parsable for Journey{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map( tuple((parse_name,ws(tag("()")),ws(char('{')),steps,ws(char('}')))),|(name,_,_,steps,_)|{
+        map( tuple((parse_name,ws(tag("(")),separated_list0(ws(tag(",")),Variable::parser),ws(tag(")")),ws(char('{')),steps,ws(char('}')))),|(name,_,params,_,_,steps,_)|{
             Journey{
                 name,
-                steps
+                steps,
+                params
             }
         })(input)
     }
@@ -38,6 +41,26 @@ mod tests{
     #[tokio::test]
     async fn should_parse_journey(){
         let j= r#"`Hello World`(){
+            print text `Hello <%name%>`
+            print text `Hello <%name%>`
+        }"#;
+        assert_no_error(j
+                        ,Journey::parser(j)
+        )
+    }
+    #[tokio::test]
+    async fn should_parse_journey_with_identifiers(){
+        let j= r#"Hello(){
+            print text `Hello <%name%>`
+            print text `Hello <%name%>`
+        }"#;
+        assert_no_error(j
+                        ,Journey::parser(j)
+        )
+    }
+    #[tokio::test]
+    async fn should_parse_journey_with_parameters(){
+        let j= r#"`Hello World`(name){
             print text `Hello <%name%>`
             print text `Hello <%name%>`
         }"#;
