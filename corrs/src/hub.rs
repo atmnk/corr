@@ -42,7 +42,6 @@ impl Client for User{
                 let message = match result {
                     Ok(msg) => msg,
                     Err(e) => {
-                        eprintln!("{:?}",e);
                         unimplemented!()
                     }
                 };

@@ -72,11 +72,9 @@ async fn handle(
                                     stub.rest_data.extract_from(&context, (val, parts.headers.clone())).await;
                                 },
                                 Err(e) => {
-                                    eprintln!("{:?}", e)
                                 }
                             }
                         } else {
-                            eprintln!("Shit 1")
                         }
                     }
 
