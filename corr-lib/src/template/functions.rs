@@ -128,19 +128,19 @@ impl Function for UniqueRandomElements{
                     vec![]
                 };
                 let mut vals = vec![];
-                let mut toAdd = Value::Null;
+                let mut to_add;
                 let mut rng = rand::thread_rng();
                 for i in 0..total {
                     if i>=array.len(){
                         break
                     }
                     let index = rng.gen_range(0,array.len() -1 );
-                    toAdd =  array[index].clone();
-                    while vals.contains(&toAdd) {
+                    to_add =  array[index].clone();
+                    while vals.contains(&to_add) {
                         let index = rng.gen_range(0,array.len() -1 );
-                        toAdd =  array[index].clone()
+                        to_add =  array[index].clone()
                     }
-                    vals.push(toAdd.clone());
+                    vals.push(to_add.clone());
                 }
                 Value::Array(vals)
             } else {

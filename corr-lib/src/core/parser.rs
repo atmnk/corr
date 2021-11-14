@@ -73,28 +73,6 @@ impl Parsable for Value {
             map(string,|val|Value::String(val)),
             map(positive_integer,|val|Value::PositiveInteger(val)),
             map(integer,|val|Value::Integer(val)),
-            // map(tuple((
-            //     ws(tag("array!")),
-            //     ws(char('[')),
-            //     separated_list0(ws(char(',')),ws(Value::parser)),
-            //     ws(char(']'))
-            //     )),|(_,_,values,_)|{
-            //     Value::Array(values)
-            // }),
-            // map(tuple((
-            //     ws(tag("object!")),
-            //     ws(char('{')),
-            //     separated_list0(ws(char(',')),tuple((
-            //         ws(string),ws(char(':')), Value::parser
-            //         ))),
-            //     ws(char('}'))
-            // )),|(_,_,pairs,_)|{
-            //     let mut map = HashMap::new();
-            //     for (key,_,value) in pairs  {
-            //         map.insert(key,value);
-            //     }
-            //     Value::Map(map)
-            // })
         ))(input)
     }
 }

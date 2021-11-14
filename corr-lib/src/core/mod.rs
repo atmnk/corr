@@ -773,9 +773,4 @@ pub mod tests{
         let a = Value::String("2.0".to_string()).to_number();
         assert_eq!(a.unwrap(),Number::Double(2.0))
     }
-    #[test]
-    fn serde(){
-        let a = serde_json::from_str::<serde_json::Value>("");
-        assert_eq!(a.unwrap(),1)
-    }
 }
