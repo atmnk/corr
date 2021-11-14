@@ -15,7 +15,6 @@ impl Parsable for Assignable {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
             map(Expression::parser,|expr|Assignable::Expression(expr)),
-            map(FillableObject::parser,|flb_obj|Assignable::FillableObject(flb_obj)),
             map(Text::parser,|txt|Assignable::FillableText(txt))
             ))(input)
     }
@@ -115,6 +114,7 @@ fn naked_function_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
 fn non_operator_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
     alt((
             stack_expression,
+            map(FillableObject::parser,|fo|Expression::FillableObject(Box::new(fo))),
             map(Value::parser,|val|Expression::Constant(val)),
             map(FunctionCallChain::parser,|fcc|{
                 let mut exp = fcc.left.clone();
@@ -182,7 +182,7 @@ mod tests{
     use crate::template::{Expression, VariableReferenceName, Assignable, Operator, BinaryOperator, FunctionCallChain};
     use crate::core::{Value};
     use crate::template::text::{Text, Block, Scriplet};
-    use crate::template::object::FillableObject;
+    use crate::template::object::{FillableObject, FillableMapObject};
     
     use crate::template::parser::{stack_expression, naked_function_expression, non_function_call_expression};
 
@@ -230,10 +230,18 @@ mod tests{
     }
 
     #[tokio::test]
+    async fn should_parse_fillableobject_expression(){
+        let txt = r#"object {}"#;
+        let a = Expression::parser(txt);
+        let map:FillableMapObject = FillableMapObject::WithPairs(vec![]);
+        assert_if(txt,a,Expression::FillableObject(Box::new(FillableObject::WithMap(map))));
+    }
+
+    #[tokio::test]
     async fn should_parse_assignable_when_fillableobject(){
         let txt = r#"object name"#;
         let a = Assignable::parser(txt);
-        assert_if(txt,a,Assignable::FillableObject(FillableObject::WithExpression(Expression::Variable(format!("name"),Option::None))))
+        assert_if(txt,a,Assignable::Expression(Expression::FillableObject(Box::new(FillableObject::WithExpression(Expression::Variable(format!("name"),Option::None))))))
     }
 
     // #[tokio::test]

@@ -71,7 +71,7 @@ async fn handle(
                                 Ok(val) => {
                                     stub.rest_data.extract_from(&context, (val, parts.headers.clone())).await;
                                 },
-                                Err(e) => {
+                                Err(_) => {
                                 }
                             }
                         } else {

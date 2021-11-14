@@ -16,8 +16,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone,PartialEq)]
 pub enum Assignable{
     Expression(Expression),
-    FillableText(Text),
-    FillableObject(FillableObject)
+    FillableText(Text)
 }
 #[async_trait]
 impl Fillable<Value> for Assignable{
@@ -25,7 +24,6 @@ impl Fillable<Value> for Assignable{
         match self {
             Assignable::Expression(expr)=>expr.fill(context).await,
             Assignable::FillableText(txt)=>Value::String(txt.fill(context).await),
-            Assignable::FillableObject(obj)=>obj.fill(context).await
         }
     }
 }
@@ -125,6 +123,7 @@ impl Operator {
 }
 #[derive(Clone,Debug,PartialEq)]
 pub enum Expression{
+    FillableObject(Box<FillableObject>),
     Function(String,Vec<Expression>),
     Variable(String,Option<DataType>),
     DotFunction(Box<Expression>,String,Vec<Expression>),
@@ -210,6 +209,9 @@ impl Expression{
             },
             Expression::Operator(op,args)=>{
                 op.get_function().evaluate(args.clone(),context).await
+            }
+            Expression::FillableObject(fo)=>{
+                fo.fill(context).await
             }
         }
     }
