@@ -109,7 +109,6 @@ impl Terminal{
     pub async fn on_message(&mut self,message:Message)->bool{
         match message {
             Message::Output(Output::KnowThat(kt))=>{
-                println!("{}",kt.message);
                 false
             },
             Message::Output(Output::TellMe(tm))=>{
@@ -121,7 +120,6 @@ impl Terminal{
                         false
                     },
                     Err(e)=> {
-                        eprintln!("{:?}",e);
                         true
                     }
                 }

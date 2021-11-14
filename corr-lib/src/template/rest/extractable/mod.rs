@@ -102,7 +102,7 @@ impl Extractable<CorrResponse> for ExtractableRestData {
             if let Some(eb) = &self.body{
                 match eb {
                     ExtractableBody::WithObject(_)=>{
-                        eb.extract_from(context, RestBody::JSON(serde_json::from_str::<serde_json::Value>(value.body.as_str()).unwrap())).await;
+                        eb.extract_from(context, RestBody::JSON(serde_json::from_str::<serde_json::Value>(value.body.as_str()).unwrap_or(serde_json::Value::Null))).await;
                     },
                     _=>{}
                 }
