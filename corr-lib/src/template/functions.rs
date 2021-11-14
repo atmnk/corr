@@ -96,7 +96,7 @@ impl Function for Array{
                     Expression::Constant(Value::Null)
                 };
                 let mut vals=vec![];
-                for _ in [0..length]{
+                for _ in 0..length{
                     vals.push(exp.evaluate(context).await);
                 }
                 let val = Value::Array(vals);
@@ -852,6 +852,23 @@ mod tests{
             Expression::Constant(Value::String("3".to_string()))
         ],&context).await;
         assert_eq!(result,Value::String(format!("002")));
+    }
+    #[tokio::test]
+    async fn should_generate_array(){
+        let a=Array{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::PositiveInteger(2)),
+            Expression::Constant(Value::Array(vec![Value::String("3".to_string())])),
+        ],&context).await;
+        if let Value::Array(vals)=result{
+            assert_eq!(vals.len(),2);
+        } else {
+            panic!("Not even array")
+        }
+
     }
     #[tokio::test]
     async fn should_round_above(){
