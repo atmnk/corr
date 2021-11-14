@@ -30,6 +30,9 @@ pub struct Floor;
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Array;
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct UniqueRandomElements;
 
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
@@ -101,6 +104,45 @@ impl Function for Array{
                 }
                 let val = Value::Array(vals);
                 val
+            } else {
+                Value::Array(vec![])
+            }
+        } else {
+            Value::Array(vec![])
+        }
+    }
+}
+#[async_trait]
+impl Function for UniqueRandomElements{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(total_e) = args.get(0) {
+            if let Some(array_e) = args.get(1) {
+                let total = if let Some(num) = total_e.evaluate(context).await.to_number().map(|num| num.as_usize()).flatten(){
+                    num
+                } else {
+                    0
+                };
+                let array = if let Value::Array(array) = array_e.evaluate(context).await {
+                    array
+                } else {
+                    vec![]
+                };
+                let mut vals = vec![];
+                let mut toAdd = Value::Null;
+                let mut rng = rand::thread_rng();
+                for i in 0..total {
+                    if i>=array.len(){
+                        break
+                    }
+                    let index = rng.gen_range(0,array.len() -1 );
+                    toAdd =  array[index].clone();
+                    while vals.contains(&toAdd) {
+                        let index = rng.gen_range(0,array.len() -1 );
+                        toAdd =  array[index].clone()
+                    }
+                    vals.push(toAdd.clone());
+                }
+                Value::Array(vals)
             } else {
                 Value::Array(vec![])
             }
@@ -811,6 +853,7 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("encode",Arc::new(Encode{})),
         ("random",Arc::new(Random{})),
         ("array",Arc::new(Array{})),
+        ("unique_random_elements",Arc::new(UniqueRandomElements{})),
         ("contains",Arc::new(Contains{})),
         ("random_element",Arc::new(RandomElement{}))
     ]
@@ -865,6 +908,30 @@ mod tests{
         ],&context).await;
         if let Value::Array(vals)=result{
             assert_eq!(vals.len(),2);
+        } else {
+            panic!("Not even array")
+        }
+
+    }
+    #[tokio::test]
+    async fn should_generate_array_of_unique_random_elements(){
+        let a=UniqueRandomElements{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![
+            Expression::Constant(Value::PositiveInteger(2)),
+            Expression::Constant(Value::Array(vec![
+                Value::String("1".to_string()),
+                Value::String("2".to_string()),
+                Value::String("3".to_string()),
+                Value::String("4".to_string()),
+                Value::String("5".to_string()),
+            ])),
+        ],&context).await;
+        if let Value::Array(vals)=result{
+            assert_eq!(vals.len(),2);
+            println!("{:?}",vals)
         } else {
             panic!("Not even array")
         }
