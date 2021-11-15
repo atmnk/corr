@@ -1,5 +1,4 @@
 # corr
-## Edit Your Jouneys in folder
-1. Mac : "/Users/<user>/Library/Application Support/corrs/"
-
-## Now simply Run Your Journeys by plugin
+## Installation
+`brew tap atmnk/corr`
+`brew install corr`
