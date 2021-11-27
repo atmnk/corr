@@ -33,6 +33,8 @@ pub trait Fillable<T>{
 }
 #[derive(Clone,Debug,PartialEq)]
 pub enum BinaryOperator {
+    And,
+    Or,
     Add,
     Subtract,
     Divide,
@@ -49,9 +51,13 @@ pub enum BinaryOperator {
     // Decrement
 }
 #[derive(Clone,Debug,PartialEq)]
-pub enum UnaryOperator {
+pub enum UnaryPostOperator {
     Increment,
-    Decrement,
+    Decrement
+}
+#[derive(Clone,Debug,PartialEq)]
+pub enum UnaryPreOperator {
+    Not
     // Range,
     // Increment,
     // Decrement
@@ -59,6 +65,12 @@ pub enum UnaryOperator {
 impl BinaryOperator {
     pub fn get_function(&self)->Arc<dyn Function>{
         match self {
+            BinaryOperator::And=>{
+                Arc::new(LogicalAnd{})
+            },
+            BinaryOperator::Or=>{
+                Arc::new(LogicalOr{})
+            },
             BinaryOperator::Add=>{
                 Arc::new(Add{})
             },
@@ -92,14 +104,23 @@ impl BinaryOperator {
         }
     }
 }
-impl UnaryOperator {
+impl UnaryPostOperator {
     pub fn get_function(&self)->Arc<dyn Function>{
         match self {
-            UnaryOperator::Increment=>{
+            UnaryPostOperator::Increment=>{
                 Arc::new(Increment{})
             },
-            UnaryOperator::Decrement=>{
+            UnaryPostOperator::Decrement=>{
                 Arc::new(Decrement{})
+            }
+        }
+    }
+}
+impl UnaryPreOperator {
+    pub fn get_function(&self)->Arc<dyn Function>{
+        match self {
+            UnaryPreOperator::Not=>{
+                Arc::new(LogicalNot{})
             }
         }
     }
@@ -107,7 +128,8 @@ impl UnaryOperator {
 #[derive(Clone,Debug,PartialEq)]
 pub enum Operator{
     Binary(BinaryOperator),
-    Unary(UnaryOperator)
+    UnaryPost(UnaryPostOperator),
+    UnaryPre(UnaryPreOperator)
 }
 impl Operator {
     pub fn get_function(&self)->Arc<dyn Function>{
@@ -115,7 +137,10 @@ impl Operator {
             Operator::Binary(bo)=>{
                 bo.get_function()
             },
-            Operator::Unary(uo)=>{
+            Operator::UnaryPost(uo)=>{
+                uo.get_function()
+            },
+            Operator::UnaryPre(uo)=>{
                 uo.get_function()
             }
         }

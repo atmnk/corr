@@ -1,5 +1,5 @@
 use crate::parser::{Parsable, ParseResult, ws, identifier_part, function_name};
-use crate::template::{Expression, VariableReferenceName, Assignable, BinaryOperator, Operator, UnaryOperator, FunctionCallChain};
+use crate::template::{Expression, VariableReferenceName, Assignable, BinaryOperator, Operator, UnaryPostOperator, FunctionCallChain, UnaryPreOperator};
 use nom::combinator::{map, verify};
 use crate::core::{Value, Variable};
 use nom::sequence::{tuple};
@@ -22,6 +22,8 @@ impl Parsable for Assignable {
 impl Parsable for BinaryOperator {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
+            map(tag("&&"),|_| BinaryOperator::And),
+            map(tag("||"),|_| BinaryOperator::Or),
             map(tag("=="),|_| BinaryOperator::Equal),
             map(tag(">="),|_| BinaryOperator::GreaterThanEqual),
             map(tag("<="),|_| BinaryOperator::LessThanEqual),
@@ -36,12 +38,18 @@ impl Parsable for BinaryOperator {
          ))(input)
     }
 }
-impl Parsable for UnaryOperator {
+impl Parsable for UnaryPostOperator {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
-            map(tag("++"),|_| UnaryOperator::Increment),
-            map(tag("--"),|_| UnaryOperator::Decrement)
+            map(tag("++"),|_| UnaryPostOperator::Increment),
+            map(tag("--"),|_| UnaryPostOperator::Decrement)
         ))(input)
+    }
+}
+
+impl Parsable for UnaryPreOperator {
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map(tag("!"),|_| UnaryPreOperator::Not)(input)
     }
 }
 
@@ -55,10 +63,17 @@ impl Operator {
     }
     fn non_binary_expression<'a>(input: &'a str) -> ParseResult<'a, Expression> {
         alt((
-            map(tuple((ws(non_operator_expression), many1(ws(UnaryOperator::parser)))), |(left,ops)|{
+            map(tuple((many1(ws(UnaryPreOperator::parser)),ws(non_operator_expression) )), |(ops,right)|{
+                let mut exp = right.clone();
+                for opt  in ops {
+                    exp = Expression::Operator(Operator::UnaryPre(opt), vec![exp])
+                }
+                exp
+            }),
+            map(tuple((ws(non_operator_expression), many1(ws(UnaryPostOperator::parser)))), |(left,ops)|{
                 let mut exp = left.clone();
                 for opt  in ops {
-                    exp = Expression::Operator(Operator::Unary(opt),vec![exp])
+                    exp = Expression::Operator(Operator::UnaryPost(opt), vec![exp])
                 }
                 exp
             }),
@@ -206,6 +221,24 @@ mod tests{
     #[tokio::test]
     async fn should_parse_not_eq(){
         let txt = r#"20 != 20"#;
+        let _a = Expression::parser(txt).unwrap();
+    }
+
+    #[tokio::test]
+    async fn should_parse_not(){
+        let txt = r#"!is_true"#;
+        let _a = Expression::parser(txt).unwrap();
+    }
+
+    #[tokio::test]
+    async fn should_parse_and(){
+        let txt = r#"a && b"#;
+        let _a = Expression::parser(txt).unwrap();
+    }
+
+    #[tokio::test]
+    async fn should_parse_or(){
+        let txt = r#"a || b"#;
         let _a = Expression::parser(txt).unwrap();
     }
 

@@ -317,6 +317,26 @@ impl Number{
 
 }
 impl Value {
+    pub fn and(&self,other:&Self)->Self{
+        Value::Boolean(self.to_bool() && other.to_bool())
+    }
+    pub fn or(&self,other:&Self)->Self{
+        Value::Boolean(self.to_bool() || other.to_bool())
+    }
+    pub fn not(&self)->Self{
+        Value::Boolean(!self.to_bool())
+    }
+    pub fn to_bool(&self)->bool{
+        match &self {
+            Value::Boolean(val)=>val.clone(),
+            Value::Null=>false,
+            Value::PositiveInteger(p)=>!p.eq(&0),
+            Value::Integer(i)=>!i.eq(&0),
+            Value::Double(d)=>!d.eq(&0.0),
+            Value::String(str)=>str.parse().unwrap_or(true),
+            _=>{true}
+        }
+    }
     pub fn ge(&self,other:Self)->Self{
         match self {
             Value::String(s)=>{

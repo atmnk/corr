@@ -255,6 +255,15 @@ pub struct Add;
 pub struct Equal;
 
 #[derive(Debug,Clone,PartialEq)]
+pub struct LogicalAnd;
+
+#[derive(Debug,Clone,PartialEq)]
+pub struct LogicalOr;
+
+#[derive(Debug,Clone,PartialEq)]
+pub struct LogicalNot;
+
+#[derive(Debug,Clone,PartialEq)]
 pub struct GreaterThanEqual;
 #[derive(Debug,Clone,PartialEq)]
 pub struct GreaterThan;
@@ -313,6 +322,51 @@ impl Function for Equal{
             ret = ret && first.eq(&res);
         }
         Value::Boolean(ret)
+    }
+}
+
+#[async_trait]
+impl Function for LogicalAnd{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let mut ret = true;
+        let mut next = if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(false)
+        };
+        for arg in args {
+            let res=arg.evaluate(context).await;
+            ret = ret && next.and(&res).to_bool();
+            next  = res
+        }
+        Value::Boolean(ret)
+    }
+}
+#[async_trait]
+impl Function for LogicalOr{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let mut ret = true;
+        let mut next = if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await
+        } else {
+            return Value::Boolean(false)
+        };
+        for arg in args {
+            let res=arg.evaluate(context).await;
+            ret = ret && next.or(&res).to_bool();
+            next = res
+        }
+        Value::Boolean(ret)
+    }
+}
+#[async_trait]
+impl Function for LogicalNot{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await.not()
+        } else {
+            return Value::Boolean(false)
+        }
     }
 }
 #[async_trait]
