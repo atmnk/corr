@@ -1,22 +1,25 @@
 use nom::bytes::complete::{ is_not, escaped_transform, tag};
 use nom::character::complete::{char};
 use nom::combinator::{map, opt};
-use nom::sequence::{tuple, terminated, preceded};
+use nom::sequence::{tuple, terminated, preceded, delimited};
 use std::str;
 use nom::branch::alt;
 use nom::multi::{many0};
 use crate::template::text::{Text, Block, Scriplet, TextForLoop, TextLoopInnerTemplate};
 use crate::parser::{Parsable, ParseResult, ws};
 use crate::template::{Expression, VariableReferenceName};
-
+fn scriptlet_contents<'a>(input: &'a str) -> ParseResult<'a, Scriplet> {
+    alt((
+        map(ws(TextForLoop::parser), |val| { Scriplet::ForLoop(val) }),
+        map(ws(Expression::parser), |val| { Scriplet::Expression(val) })
+    ))(input)
+}
 impl Parsable for Scriplet{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        preceded(tag("<%"),terminated(
-                alt((
-                    map(ws(TextForLoop::parser),|val|{Scriplet::ForLoop(val)}),
-                    map(ws(Expression::parser),|val|{Scriplet::Expression(val)})
-                    ))
-            ,tag("%>")))(input)
+        alt((
+            delimited(tag("["),scriptlet_contents,tag("]")),
+            delimited(tag("<%"),scriptlet_contents,tag("%>")),
+            ))(input)
     }
 }
 impl Parsable for TextForLoop{
@@ -97,7 +100,7 @@ impl Parsable for Text{
     }
 }
 pub fn text_block<'a>(input:&'a str) ->ParseResult<'a,String>{
-    map(escaped_transform(is_not(r#"\<`"#), '\\', |i: &'a str| alt((tag("<"),tag("\\"),tag("`")))(i)),|val| val.to_string())(input)
+    map(escaped_transform(is_not(r#"\<[`"#), '\\', |i: &'a str| alt((tag("["),tag("<"),tag("\\"),tag("`")))(i)),|val| val.to_string())(input)
 }
 
 #[cfg(test)]
@@ -105,7 +108,7 @@ mod tests{
     use crate::template::text::{Text, Block, Scriplet, TextLoopInnerTemplate, TextForLoop};
     use crate::parser::util::assert_if;
     use crate::parser::Parsable;
-    use crate::template::{Expression, VariableReferenceName};
+    use crate::template::{Expression, VariableReferenceName, Operator, BinaryOperator};
     use crate::core::DataType;
     use crate::template::text::parser::{text_block, text_for_loop_left_part, text_for_loop_right_part, unarged_text_for_loop, arged_text_for_loop};
 
@@ -151,6 +154,20 @@ mod tests{
         let text=r#"(name,index)=>%>Atmaram<%"#;
         let a=arged_text_for_loop(text);
         assert_if(text,a,(Option::Some(VariableReferenceName::from("name")),Option::Some(VariableReferenceName::from("index")),TextLoopInnerTemplate::Blocks(vec![Block::Text(format!("Atmaram"))])))
+    }
+
+    #[test]
+    fn should_parse_scriplet_with_binary_operator(){
+        let text=r#"[ a + b ]"#;
+        Scriplet::parser(text).unwrap();
+
+    }
+
+    #[test]
+    fn should_parse_scriplet_with_unary(){
+        let text=r#"<% b++ %>"#;
+        Scriplet::parser(text).unwrap();
+
     }
 
     #[test]

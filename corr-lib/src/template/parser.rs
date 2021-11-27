@@ -23,34 +23,34 @@ impl Parsable for Assignable {
 impl Parsable for BinaryOperator {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
-            map(tag("&&"),|_| BinaryOperator::And),
-            map(tag("||"),|_| BinaryOperator::Or),
-            map(tag("=="),|_| BinaryOperator::Equal),
-            map(tag(">="),|_| BinaryOperator::GreaterThanEqual),
-            map(tag("<="),|_| BinaryOperator::LessThanEqual),
-            map(tag(">"),|_| BinaryOperator::GreaterThan),
-            map(tag("<"),|_| BinaryOperator::LessThan),
-            map(tag("!="),|_| BinaryOperator::NotEqual),
-            map(tag("+"),|_| BinaryOperator::Add),
-            map(tag("-"),|_| BinaryOperator::Subtract),
-            map(tag("*"),|_| BinaryOperator::Multiply),
-            map(tag("/"),|_| BinaryOperator::Divide),
-            map(tag("%"),|_| BinaryOperator::Mod),
+            map(ws(tag("&&")),|_| BinaryOperator::And),
+            map(ws(tag("||")),|_| BinaryOperator::Or),
+            map(ws(tag("==")),|_| BinaryOperator::Equal),
+            map(ws(tag(">=")),|_| BinaryOperator::GreaterThanEqual),
+            map(ws(tag("<=")),|_| BinaryOperator::LessThanEqual),
+            map(ws(tag(">")),|_| BinaryOperator::GreaterThan),
+            map(ws(tag("<")),|_| BinaryOperator::LessThan),
+            map(ws(tag("!=")),|_| BinaryOperator::NotEqual),
+            map(ws(tag("+")),|_| BinaryOperator::Add),
+            map(ws(tag("-")),|_| BinaryOperator::Subtract),
+            map(ws(tag("*")),|_| BinaryOperator::Multiply),
+            map(ws(tag("/")),|_| BinaryOperator::Divide),
+            map(ws(tag("%")),|_| BinaryOperator::Mod),
          ))(input)
     }
 }
 impl Parsable for UnaryPostOperator {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
-            map(tag("++"),|_| UnaryPostOperator::Increment),
-            map(tag("--"),|_| UnaryPostOperator::Decrement)
+            map(ws(tag("++")),|_| UnaryPostOperator::Increment),
+            map(ws(tag("--")),|_| UnaryPostOperator::Decrement)
         ))(input)
     }
 }
 
 impl Parsable for UnaryPreOperator {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map(tag("!"),|_| UnaryPreOperator::Not)(input)
+        map(ws(tag("!")),|_| UnaryPreOperator::Not)(input)
     }
 }
 
@@ -195,7 +195,7 @@ mod tests{
     use crate::parser::util::{assert_if, assert_no_error};
     use crate::parser::Parsable;
     use crate::template::{Expression, VariableReferenceName, Assignable, Operator, BinaryOperator, FunctionCallChain};
-    use crate::core::{Value};
+    use crate::core::{Value, Variable};
     use crate::template::text::{Text, Block, Scriplet};
     use crate::template::object::{FillableObject, FillableMapObject};
     
@@ -240,7 +240,10 @@ mod tests{
     #[tokio::test]
     async fn should_parse_and(){
         let txt = r#"a && b"#;
-        let _a = Expression::parser(txt).unwrap();
+        assert_if(txt,Expression::parser(txt),Expression::Operator(Operator::Binary(BinaryOperator::And),vec![
+            Expression::Variable("a".to_string(),Option::None),
+            Expression::Variable("b".to_string(),Option::None)
+        ]));
     }
 
     #[tokio::test]
