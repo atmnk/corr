@@ -10,6 +10,7 @@ use crate::template::text::Text;
 use crate::template::object::FillableObject;
 use nom::bytes::complete::tag;
 use crate::template::functions::{function_names};
+use crate::journey::parser::parse_name;
 
 impl Parsable for Assignable {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -176,8 +177,7 @@ impl VariableReferenceName {
 impl Parsable for VariableReferenceName {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(
-            separated_list1(ws(char('.')),
-                            map(identifier_part,|val|{val.to_string()})),|parts| { VariableReferenceName {parts}})(input)
+            separated_list1(ws(char('.')), parse_name),|parts| { VariableReferenceName {parts}})(input)
     }
 }
 
@@ -200,6 +200,13 @@ mod tests{
     use crate::template::object::{FillableObject, FillableMapObject};
     
     use crate::template::parser::{stack_expression, naked_function_expression, non_function_call_expression};
+
+    #[tokio::test]
+    async fn should_parse_variable_reference_name_when_keyword(){
+        let txt = r#"obj.`status`"#;
+        let a = VariableReferenceName::parser(txt);
+        assert_if(txt,a,VariableReferenceName::from("obj.status"))
+    }
 
     #[tokio::test]
     async fn should_parse_variable_reference_name_when_dot(){

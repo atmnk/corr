@@ -43,13 +43,6 @@ pub fn non_back_quote<'a>(input:&'a str) ->ParseResult<'a,String>{
 
 }
 pub fn identifier_part<'a>(input: &'a str) -> ParseResult<'a,&str> {
-    // recognize(
-    //     pair(
-    //         alt((alpha1, tag("_"))),
-    //         many0(alt((alphanumeric1, tag("_"))))
-    //     )
-    // )(input)
-    // pair( alt((alpha1,tag("_"))),is_not(terminated(alphanumeric1,tag("("))))
     verify(recognize(
         pair(
             alt((alpha1,tag("_"))),
