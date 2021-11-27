@@ -644,6 +644,15 @@ pub fn convert(name:String,value:String,data_type:DataType)->Option<VariableValu
                 Option::None
             }
         },
+        DataType::Boolean=>{
+            if value.trim().to_lowercase().eq("true") || value.trim().to_lowercase().eq("yes") {
+                Option::Some(VariableValue{name,value:Value::Boolean(true)})
+            } else if value.trim().to_lowercase().eq("false") || value.trim().to_lowercase().eq("no") {
+                Option::Some(VariableValue{name,value:Value::Boolean(false)})
+            } else {
+                Option::None
+            }
+        },
         DataType::Double=>{
             if let Ok(val) = value.parse::<f64>(){
                 Option::Some(VariableValue{name,value:Value::Double(val)})
