@@ -10,15 +10,15 @@ use crate::parser::{Parsable, ParseResult, ws};
 use crate::template::{Expression, VariableReferenceName};
 fn scriptlet_contents<'a>(input: &'a str) -> ParseResult<'a, Scriplet> {
     alt((
-        map(ws(TextForLoop::parser), |val| { Scriplet::ForLoop(val) }),
-        map(ws(Expression::parser), |val| { Scriplet::Expression(val) })
+        map(TextForLoop::parser, |val| { Scriplet::ForLoop(val) }),
+        map(Expression::parser, |val| { Scriplet::Expression(val) })
     ))(input)
 }
 impl Parsable for Scriplet{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
-            delimited(tag("["),scriptlet_contents,tag("]")),
-            delimited(tag("<%"),scriptlet_contents,tag("%>")),
+            delimited(tag("${"),ws(scriptlet_contents),tag("}$")),
+            delimited(tag("<%"),ws(scriptlet_contents),tag("%>")),
             ))(input)
     }
 }
@@ -34,7 +34,7 @@ impl Parsable for TextLoopInnerTemplate{
             map(TextForLoop::parser,|val|TextLoopInnerTemplate::ForLoop(val)),
             map(Expression::parser,|val|TextLoopInnerTemplate::Expression(val)),
             map(alt((preceded(tag("%>"),terminated(many0(Block::parser),tag("<%"))),
-                     preceded(tag("]"),terminated(many0(Block::parser),tag("[")))
+                     preceded(tag("${"),terminated(many0(Block::parser),tag("}$")))
             )),|val|TextLoopInnerTemplate::Blocks(val)),
             ))(input)
     }
@@ -102,7 +102,7 @@ impl Parsable for Text{
     }
 }
 pub fn text_block<'a>(input:&'a str) ->ParseResult<'a,String>{
-    map(escaped_transform(is_not(r#"\<[`"#), '\\', |i: &'a str| alt((tag("["),tag("<"),tag("\\"),tag("`")))(i)),|val| val.to_string())(input)
+    map(escaped_transform(is_not(r#"\<`$"#), '\\', |i: &'a str| alt((tag("$"),tag("<"),tag("\\"),tag("`")))(i)),|val| val.to_string())(input)
 }
 
 #[cfg(test)]
@@ -160,8 +160,13 @@ mod tests{
 
     #[test]
     fn should_parse_scriplet_with_binary_operator(){
-        let text=r#"[ a + b ]"#;
-        Scriplet::parser(text).unwrap();
+        let txt=r#"<% a + b %>"#;
+        assert_if(txt,Scriplet::parser(txt),Scriplet::Expression(
+            Expression::Operator(Operator::Binary(BinaryOperator::Add),vec![
+                Expression::Variable("a".to_string(),Option::None),
+                Expression::Variable("b".to_string(),Option::None),
+            ])
+        ))
 
     }
 

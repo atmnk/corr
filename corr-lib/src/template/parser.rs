@@ -5,7 +5,7 @@ use crate::core::{Value, Variable};
 use nom::sequence::{tuple};
 use nom::branch::alt;
 use nom::character::complete::char;
-use nom::multi::{separated_list0, separated_list1, many1, many0};
+use nom::multi::{separated_list0, separated_list1, many1};
 use crate::template::text::Text;
 use crate::template::object::FillableObject;
 use nom::bytes::complete::tag;
@@ -94,18 +94,27 @@ impl Operator {
     //     })(input)
     //
     // }
-    fn expression(mut left:Vec<(Expression,BinaryOperator)>,exp:Expression)->Expression{
+    fn _expression(mut left:Vec<(Expression,BinaryOperator)>,exp:Expression)->Expression{
         if left.len() == 0{
             return exp
         } else if let Some((next_exp,op)) = left.pop(){
-            return Expression::Operator(Operator::Binary(op), vec![Self::expression(left,next_exp),exp]);
+            return Expression::Operator(Operator::Binary(op), vec![Self::_expression(left,next_exp),exp]);
         } else {
             unimplemented!()
         }
     }
+    fn expression_right(mut left:Expression,right:Vec<(BinaryOperator,Expression)>,)->Expression{
+        for (o,e) in right{
+            left = Expression::Operator(Operator::Binary(o.clone()),vec![left,e.clone()])
+        }
+        return left
+    }
     fn binary_expression_chain<'a>(input: &'a str)-> ParseResult<'a, Expression>{
-        map(tuple((many0(tuple((ws(Operator::non_binary_expression),ws(BinaryOperator::parser)))),ws(Operator::non_binary_expression))),|(left,right)|{
-            Operator::expression(left,right)
+        // map(tuple((many0(tuple((ws(Operator::non_binary_expression),ws(BinaryOperator::parser)))),ws(Operator::non_binary_expression))),|(left,right)|{
+        //     Operator::expression(left,right)
+        // })(input)
+        map(tuple((ws(Operator::non_binary_expression),many1(tuple((ws(BinaryOperator::parser),ws(Operator::non_binary_expression)))))),|(left,right)|{
+            Operator::expression_right(left,right)
         })(input)
     }
     // fn binary_expression<'a>(input: &'a str) -> ParseResult<'a, Expression> {
@@ -195,7 +204,7 @@ mod tests{
     use crate::parser::util::{assert_if, assert_no_error};
     use crate::parser::Parsable;
     use crate::template::{Expression, VariableReferenceName, Assignable, Operator, BinaryOperator, FunctionCallChain};
-    use crate::core::{Value, Variable};
+    use crate::core::{Value};
     use crate::template::text::{Text, Block, Scriplet};
     use crate::template::object::{FillableObject, FillableMapObject};
     
@@ -250,6 +259,19 @@ mod tests{
     async fn should_parse_or(){
         let txt = r#"a || b"#;
         let _a = Expression::parser(txt).unwrap();
+    }
+    #[tokio::test]
+    async fn should_parse_chain(){
+        let txt = r#"a && b && c"#;
+        assert_if(txt,Expression::parser(txt),Expression::Operator(
+            Operator::Binary(BinaryOperator::And),
+            vec![Expression::Operator(Operator::Binary(BinaryOperator::And),
+                                      vec![
+                                          Expression::Variable("a".to_string(),Option::None),
+                                          Expression::Variable("b".to_string(),Option::None)]),
+            Expression::Variable("c".to_string(),Option::None)
+        ]
+        ))
     }
 
     #[tokio::test]
