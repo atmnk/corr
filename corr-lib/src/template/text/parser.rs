@@ -33,7 +33,9 @@ impl Parsable for TextLoopInnerTemplate{
         alt((
             map(TextForLoop::parser,|val|TextLoopInnerTemplate::ForLoop(val)),
             map(Expression::parser,|val|TextLoopInnerTemplate::Expression(val)),
-            map(preceded(tag("%>"),terminated(many0(Block::parser),tag("<%"))),|val|TextLoopInnerTemplate::Blocks(val)),
+            map(alt((preceded(tag("%>"),terminated(many0(Block::parser),tag("<%"))),
+                     preceded(tag("]"),terminated(many0(Block::parser),tag("[")))
+            )),|val|TextLoopInnerTemplate::Blocks(val)),
             ))(input)
     }
 }
