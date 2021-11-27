@@ -41,7 +41,7 @@ impl Client for User{
             ret=if let Some(result) = self.user_ws_rx.next().await {
                 let message = match result {
                     Ok(msg) => msg,
-                    Err(e) => {
+                    Err(_e) => {
                         unimplemented!()
                     }
                 };

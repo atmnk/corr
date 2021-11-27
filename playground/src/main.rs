@@ -67,6 +67,6 @@ async fn main() {
     let server = Server::bind(&addr).serve(make_svc);
 
     // Run this server for... forever!
-    if let Err(e) = server.await {
+    if let Err(_e) = server.await {
     }
 }

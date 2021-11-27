@@ -120,7 +120,7 @@ impl Terminal{
                     Ok(_)=>{
                         false
                     },
-                    Err(e)=> {
+                    Err(_e)=> {
                         true
                     }
                 }
