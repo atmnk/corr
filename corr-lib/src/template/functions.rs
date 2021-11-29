@@ -329,15 +329,11 @@ impl Function for Equal{
 impl Function for LogicalAnd{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
         let mut ret = true;
-        let mut next = if let  Some(exp)= args.get(0){
-            exp.evaluate(context).await
-        } else {
-            return Value::Boolean(false)
-        };
+        let mut next = Value::Boolean(true);
         for arg in args {
             let res=arg.evaluate(context).await;
-            ret = ret && next.and(&res).to_bool();
-            next  = res
+            ret = next.and(&res).to_bool();
+            next  = Value::Boolean(ret)
         }
         Value::Boolean(ret)
     }
@@ -346,15 +342,11 @@ impl Function for LogicalAnd{
 impl Function for LogicalOr{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
         let mut ret = true;
-        let mut next = if let  Some(exp)= args.get(0){
-            exp.evaluate(context).await
-        } else {
-            return Value::Boolean(false)
-        };
+        let mut next = Value::Boolean(false);
         for arg in args {
             let res=arg.evaluate(context).await;
-            ret = ret && next.or(&res).to_bool();
-            next = res
+            ret =  next.or(&res).to_bool();
+            next  = Value::Boolean(ret)
         }
         Value::Boolean(ret)
     }
@@ -988,6 +980,66 @@ mod tests{
             println!("{:?}",vals)
         } else {
             panic!("Not even array")
+        }
+
+    }
+    #[tokio::test]
+    async fn should_or(){
+        let a=LogicalOr{};
+        let tests = vec![
+            (true,true,true),
+            (true,false,true),
+            (false,true,true),
+            (false,false,false),
+        ];
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        for (first,second,op) in tests {
+            let result=a.evaluate(vec![
+                Expression::Constant(Value::Boolean(first)),
+                Expression::Constant(Value::Boolean(second)),
+            ],&context).await;
+            assert_eq!(result,Value::Boolean(op));
+        }
+
+    }
+    #[tokio::test]
+    async fn should_and(){
+        let a=LogicalAnd{};
+        let tests = vec![
+            (true,true,true),
+            (true,false,false),
+            (false,true,false),
+            (false,false,false),
+        ];
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        for (first,second,op) in tests {
+            let result=a.evaluate(vec![
+                Expression::Constant(Value::Boolean(first)),
+                Expression::Constant(Value::Boolean(second)),
+            ],&context).await;
+            assert_eq!(result,Value::Boolean(op));
+        }
+
+    }
+    #[tokio::test]
+    async fn should_not(){
+        let a=LogicalNot{};
+        let tests = vec![
+            (true,false),
+            (false,true),
+        ];
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        for (first,op) in tests {
+            let result=a.evaluate(vec![
+                Expression::Constant(Value::Boolean(first)),
+            ],&context).await;
+            assert_eq!(result,Value::Boolean(op));
         }
 
     }
