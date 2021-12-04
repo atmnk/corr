@@ -1,4 +1,1 @@
-# corr
-## Installation
-`brew tap atmnk/corr`
-`brew install corr`
+For complete documentation refer [Documentation Site](https://qalens.com/site/corr).
