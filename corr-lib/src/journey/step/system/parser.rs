@@ -2,15 +2,14 @@ use crate::parser::{Parsable, ws};
 use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep};
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
-use nom::sequence::{preceded, terminated, tuple};
+use nom::sequence::{delimited, preceded, terminated, tuple};
 use nom::bytes::complete::{tag};
 use crate::template::text::{Text};
 use nom::character::complete::char;
 use nom::branch::alt;
 use crate::template::{VariableReferenceName, Assignable, Expression};
 use crate::journey::step::Step;
-use nom::multi::many0;
-
+use nom::multi::{many0};
 impl Parsable for PrintStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         preceded(ws(tag("print")),map(Text::parser,|txt|{PrintStep::WithText(txt)}))(input)
@@ -79,6 +78,8 @@ impl Parsable for SystemStep{
         alt((
             // map(preceded(tag("//"),is_not("\n\r")),|val:&str|SystemStep::Comment(val.to_string())),
             // map(delimited(tag("/*"), is_not("*/"), tag("*/")),|val:&str|SystemStep::Comment(val.to_string())),
+            map(preceded(ws(tag("background")),Step::parser),|step|{SystemStep::Background(vec![step])}),
+            map(preceded(ws(tag("background")),delimited(ws(tag("{")),many0(ws(Step::parser)),ws(tag("}")))),|steps|{SystemStep::Background(steps)}),
             map(ConditionalStep::parser,|ps|{SystemStep::Condition(ps)}),
             map(PrintStep::parser,|ps|{SystemStep::Print(ps)}),
             map(ForLoopStep::parser,|fls|{SystemStep::ForLoop(fls)}),
@@ -338,6 +339,24 @@ mod tests{
     async fn should_parse_if_step(){
         let j= r#"
             if 1==1 {
+                print text `Hello`
+            }
+        "#;
+        assert_no_error(j,SystemStep::parser(j))
+    }
+    #[tokio::test]
+    async fn should_parse_single_background_step(){
+        let j= r#"
+            background if 1==1 {
+                print text `Hello`
+            }
+        "#;
+        assert_no_error(j,SystemStep::parser(j))
+    }
+    #[tokio::test]
+    async fn should_parse_multiple_background_steps(){
+        let j= r#"
+            background {
                 print text `Hello`
             }
         "#;

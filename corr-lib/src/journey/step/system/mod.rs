@@ -19,6 +19,7 @@ pub enum SystemStep{
     Push(PushStep),
     LoadAssign(LoadAssignStep),
     Sync(SyncStep),
+    Background(Vec<Step>)
     // Comment(String)
 
 }
@@ -149,6 +150,20 @@ impl Executable for SystemStep{
                 pt.execute(context).await
             }
             SystemStep::Assignment(asst)=>asst.execute(context).await,
+            SystemStep::Background(steps)=>{
+                let context = context.clone();
+                let steps_to_pass = steps.clone();
+                let step = async move ||{
+                    let mut handles = vec![];
+                    for step in steps_to_pass {
+                        let mut inner_handles = step.execute(&context).await;
+                        handles.append(&mut inner_handles);
+                    }
+                    futures::future::join_all(handles).await;
+                    true
+                };
+                vec![tokio::spawn(step())]
+            },
             // SystemStep::Comment(_)=>{vec![]}
         }
 
