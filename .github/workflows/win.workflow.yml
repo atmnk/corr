@@ -40,5 +40,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: corr.tar.gz
           asset_name: corr.tar.gz
-          tag: ${{version}}
+          tag: ${{github.event.inputs.version}}
           overwrite: true
