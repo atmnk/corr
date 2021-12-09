@@ -1,0 +1,37 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+
+runs-on: windows-latest
+  
+jobs:
+  build:
+    name: Test The Commit
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: dev
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - uses: actions/checkout@v2
+      - run: cargo test --all
+    outputs:
+      job-status: ${{ job.status }}
+  notify-slack:
+    name: Notify on slack
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Slack Failure
+        if: always()
+        uses: kpritam/slack-job-status-action@v1
+        with:
+          job-status: ${{ needs.build.outputs.job-status }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          channel: corr-health
