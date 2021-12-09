@@ -2,6 +2,12 @@ name: Build Windows
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version'     
+        required: true
+        default: '0.0.21'
+
   
 jobs:
   build:
@@ -9,27 +15,30 @@ jobs:
     name: Test The Commit
     steps:
       - uses: actions/checkout@v2
-        with:
-          ref: dev
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
-      - uses: actions/checkout@v2
-      - run: cargo test --all
-    outputs:
-      job-status: ${{ job.status }}
-  notify-slack:
-    name: Notify on slack
-    needs: build
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Slack Failure
-        if: always()
-        uses: kpritam/slack-job-status-action@v1
+      - name: Build corr Package
+        uses: actions-rs/cargo@v1
         with:
-          job-status: ${{ needs.build.outputs.job-status }}
-          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
-          channel: corr-health
+          command: build
+          args: --release --all-features --package corr
+      - name: Compress corr package
+        uses: master-atul/tar-action@v1.0.2
+        id: compress-corr
+        with:
+          command: c
+          cwd: target/release
+          files: |
+            corr
+          outPath: corr.tar.gz
+
+      - name: Upload corr binaries to release
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: corr.tar.gz
+          asset_name: corr.tar.gz
+          tag: ${{version}}
+          overwrite: true
