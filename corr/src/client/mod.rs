@@ -1,4 +1,4 @@
-use corr_lib::core::runtime::{Client};
+use corr_lib::core::runtime::{Client, IO};
 use corr_lib::core::runtime::Context as CorrContext;
 
 use corr_lib::core::proto::{Input, Output};
@@ -58,7 +58,9 @@ impl CliDriver{
     }
 }
 pub async fn start(journey:Journey,context:CorrContext) {
-    println!("Starting Journey");
+    for param in journey.params.clone(){
+        context.read(param).await;
+    }
     let handles = journey.execute(&context).await;
     futures::future::join_all(handles).await;
     context.user.lock().await.send(Output::new_done("Done Executing Journey".to_string())).await;

@@ -8,7 +8,8 @@ use tokio::task::JoinHandle;
 #[derive(Debug, Clone,PartialEq)]
 pub struct Journey{
     pub name:String,
-    pub steps:Vec<Step>
+    pub steps:Vec<Step>,
+    pub params:Vec<Variable>
 }
 
 
@@ -80,7 +81,7 @@ mod tests{
     async fn should_start_journey(){
         let text = r#"print text `Hello World <%name:Double%>`;"#;
         let (_,step)=SystemStep::parser(text).unwrap();
-        let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] }];
+        let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] ,params:vec![]}];
         let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger),Input::new_continue("name".to_string(),"100.01".to_string(),DataType::Double)];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());
@@ -98,7 +99,7 @@ mod tests{
     async fn should_ask_for_choice_again_journey(){
         let text = r#"print text `Hello World`;"#;
         let (_,step)=SystemStep::parser(text).unwrap();
-        let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] }];
+        let journes = vec![Journey{ name:"test".to_string(),steps:vec![Step::System(step)] ,params:vec![]}];
         let input = vec![Input::new_continue("choice".to_string(),"3".to_string(),DataType::PositiveInteger),Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());

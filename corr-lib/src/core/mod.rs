@@ -317,6 +317,27 @@ impl Number{
 
 }
 impl Value {
+
+    pub fn to_sql_value(&self)->Option<rdbc_async::sql::Value>{
+        match self {
+            Value::Map(obj)=>{
+                let value_key = "value".to_string();
+                let type_key = "type".to_string();
+                obj.get(&value_key).map(|val| obj.get(&type_key).map(|ty| val.convert_to_sql_value(ty.to_string()))).flatten()
+            }
+            _=>Option::None
+        }
+    }
+    fn convert_to_sql_value(&self,to:String)->rdbc_async::sql::Value{
+        match to.as_str() {
+            "i32"=>{rdbc_async::sql::Value::Int32(self.to_string().parse().unwrap_or(0))},
+            "i64"=>rdbc_async::sql::Value::Int64(self.to_string().parse().unwrap_or(0)),
+            "f32"=>rdbc_async::sql::Value::Float32(self.to_string().parse().unwrap_or(0.0)),
+            "f64"=>rdbc_async::sql::Value::Float64(self.to_string().parse().unwrap_or(0.0)),
+            "u32"=>rdbc_async::sql::Value::UInt32(self.to_string().parse().unwrap_or(0)),
+            _=>rdbc_async::sql::Value::String(self.to_string())
+        }
+    }
     pub fn and(&self,other:&Self)->Self{
         Value::Boolean(self.to_bool() && other.to_bool())
     }

@@ -1,5 +1,5 @@
 use crate::parser::{Parsable, ws};
-use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep};
+use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep, JourneyStep};
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
 use nom::sequence::{delimited, preceded, terminated, tuple};
@@ -9,7 +9,8 @@ use nom::character::complete::char;
 use nom::branch::alt;
 use crate::template::{VariableReferenceName, Assignable, Expression};
 use crate::journey::step::Step;
-use nom::multi::{many0};
+use nom::multi::{many0, separated_list0};
+use crate::journey::parser::parse_name;
 impl Parsable for PrintStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         preceded(ws(tag("print")),map(Text::parser,|txt|{PrintStep::WithText(txt)}))(input)
@@ -25,6 +26,16 @@ impl Parsable for ForLoopStep{
 impl Parsable for AssignmentStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(tuple((ws(tag("let")),ws(VariableReferenceName::parser),ws(char('=')),ws(Assignable::parser))),|(_,var,_,assbl)|{AssignmentStep::WithVariableName(var,assbl)})(input)
+    }
+}
+impl Parsable for JourneyStep{
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map( tuple((parse_name,ws(tag("(")),separated_list0(ws(tag(",")),Expression::parser),ws(tag(")")))),|(journey,_,args,_,)|{
+            JourneyStep{
+                journey,
+                args
+            }
+        })(input)
     }
 }
 impl Parsable for PushStep{
@@ -78,6 +89,7 @@ impl Parsable for SystemStep{
         alt((
             // map(preceded(tag("//"),is_not("\n\r")),|val:&str|SystemStep::Comment(val.to_string())),
             // map(delimited(tag("/*"), is_not("*/"), tag("*/")),|val:&str|SystemStep::Comment(val.to_string())),
+
             map(preceded(ws(tag("background")),Step::parser),|step|{SystemStep::Background(vec![step])}),
             map(preceded(ws(tag("background")),delimited(ws(tag("{")),many0(ws(Step::parser)),ws(tag("}")))),|steps|{SystemStep::Background(steps)}),
             map(ConditionalStep::parser,|ps|{SystemStep::Condition(ps)}),
@@ -86,7 +98,10 @@ impl Parsable for SystemStep{
             map(LoadAssignStep::parser,|asst| SystemStep::LoadAssign(asst)),
             map(AssignmentStep::parser,|asst| SystemStep::Assignment(asst)),
             map(SyncStep::parser,|asst| SystemStep::Sync(asst)),
-            map(PushStep::parser,|ps|{SystemStep::Push(ps)})))
+            map(PushStep::parser,|ps|{SystemStep::Push(ps)}),
+            map(preceded(ws(tag("call")),ws(JourneyStep::parser)),|js|{SystemStep::JourneyStep(js)}),
+            )
+        )
             // map(tuple((ws(tag("let ")),ws(identifier),ws(char('=')),Expression::parser)),|(_,var,_,expr)|{SystemStep::Assign(var,expr)}),
         (input)
     }

@@ -19,7 +19,8 @@ pub enum SystemStep{
     Push(PushStep),
     LoadAssign(LoadAssignStep),
     Sync(SyncStep),
-    Background(Vec<Step>)
+    Background(Vec<Step>),
+    JourneyStep(JourneyStep)
     // Comment(String)
 
 }
@@ -35,6 +36,11 @@ pub enum PushStep {
 #[derive(Debug, Clone,PartialEq)]
 pub enum PrintStep{
     WithText(Text)
+}
+#[derive(Debug, Clone,PartialEq)]
+pub struct JourneyStep{
+    journey:String,
+    args:Vec<Expression>
 }
 #[derive(Debug, Clone,PartialEq)]
 pub struct IfPart{
@@ -60,6 +66,30 @@ pub struct LoadAssignStep{
 #[derive(Debug, Clone,PartialEq)]
 pub enum ForLoopStep{
     WithVariableReference(VariableReferenceName,Option<VariableReferenceName>,Option<VariableReferenceName>,Vec<Step>)
+}
+#[async_trait]
+impl Executable for JourneyStep{
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        let mut handles = vec![];
+        if let Some(journey)= context.journeys.iter().find(|journey|journey.name.eq(&self.journey)){
+            let mut i = 0;
+            let mut defines = vec![];
+            for arg in self.args.clone() {
+                if let Some(param) = journey.params.get(i) {
+                    context.define(param.name.clone(),arg.evaluate(context).await).await;
+                    defines.push(param.name.clone());
+                }
+                i = i + 1
+            }
+            handles.append(&mut journey.execute(context).await);
+            for var in defines {
+                context.undefine(var).await;
+            }
+        } else {
+            context.write(format!("Skipping call to {0} as {0} is not defined in current bundle",self.journey)).await;
+        }
+        handles
+    }
 }
 #[async_trait]
 impl Executable for ConditionalStep{
@@ -164,6 +194,9 @@ impl Executable for SystemStep{
                 };
                 vec![tokio::spawn(step())]
             },
+            SystemStep::JourneyStep(js)=>{
+                js.execute(context).await
+            }
             // SystemStep::Comment(_)=>{vec![]}
         }
 
