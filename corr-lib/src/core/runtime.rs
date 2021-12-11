@@ -7,11 +7,12 @@ use async_trait::async_trait;
 use crate::core::proto::{Input, Output};
 use std::future::Future;
 use crate::journey::Journey;
+use crate::template::VariableReferenceName;
 
 pub enum HeapObject{
     Final(Value),
     List(Vec<Arc<Mutex<HeapObject>>>),
-    Object(HashMap<String,Arc<Mutex<HeapObject>>>)
+    Object(HashMap<String,Arc<Mutex<HeapObject>>>),
 }
 
 impl HeapObject{
@@ -60,14 +61,18 @@ impl HeapObject{
         }
     }
 }
-
+#[derive(Clone)]
+pub struct ConnectionStore{
+    parent:Option<Box<ConnectionStore>>,
+    references:Arc<Mutex<HashMap<String,Arc<Mutex<Box<dyn rdbc_async::sql::Connection>>>>>>
+}
 #[derive(Debug, Clone)]
 pub struct ReferenceStore{
     parent:Option<Box<ReferenceStore>>,
     references:Arc<Mutex<HashMap<String,Arc<Mutex<HeapObject>>>>>
 }
 
-fn break_on(path:String,chr:char)->Option<(String,String)>{
+pub fn break_on(path:String,chr:char)->Option<(String,String)>{
     let spl:Vec<&str>=path.splitn(2,chr).collect();
     if spl.len() == 2{
         Option::Some((spl[0].to_string(),spl[1].to_string()))
@@ -121,15 +126,42 @@ pub async fn set_value_at(path:String,heap_object_ref:Arc<Mutex<HeapObject>>,val
         _=> Option::None
     }
 }
+impl ConnectionStore{
+    pub fn new()->Self{
+        Self{
+            parent:Option::None,
+            references:Arc::new(Mutex::new(HashMap::new()))
+        }
+    }
+    pub async fn from(rs:&ConnectionStore)->Self{
+        return Self{
+            parent:Option::Some(Box::new(rs.clone())),
+            references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
+        }
+    }
+
+    pub async fn get(&self,path:VariableReferenceName)->Option<Arc<Mutex<Box<dyn rdbc_async::sql::Connection>>>>{
+        let tmp = self.references.lock().await;
+        tmp.get(&(path.to_string())).map(|arc|arc.clone())
+    }
+    pub async fn define(&self,path:String,connection:Box<dyn rdbc_async::sql::Connection>){
+        let mut refs = self.references.lock().await;
+        refs.insert(path,Arc::new(Mutex::new(connection)));
+    }
+    pub async fn undefine(&self,path:String){
+        let mut refs = self.references.lock().await;
+        refs.remove(&path);
+    }
+}
 impl ReferenceStore{
     pub fn new()->Self{
-        ReferenceStore{
+        Self{
             parent:Option::None,
             references:Arc::new(Mutex::new(HashMap::new()))
         }
     }
     pub async fn from(rs:&ReferenceStore)->Self{
-        return ReferenceStore{
+        return Self{
             parent:Option::Some(Box::new(rs.clone())),
             references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
         }
@@ -273,6 +305,7 @@ pub struct Context{
     pub journeys:Vec<Journey>,
     pub user:Arc<Mutex<dyn Client>>,
     pub store:ReferenceStore,
+    pub connection_store:ConnectionStore,
     pub fallback:bool
 }
 impl Context {
@@ -287,6 +320,7 @@ impl Context {
         Context{
             journeys,
             user:user,
+            connection_store:ConnectionStore::new(),
             store:ReferenceStore::new(),
             fallback:true
         }
@@ -301,6 +335,7 @@ impl Context {
         Context{
             journeys:context.journeys.clone(),
             user:context.user.clone(),
+            connection_store:ConnectionStore::from(&context.connection_store).await,
             store:ReferenceStore::from(&context.store).await,
             fallback:context.fallback
         }
@@ -309,6 +344,7 @@ impl Context {
         Context{
             journeys:context.journeys.clone(),
             user:context.user.clone(),
+            connection_store:ConnectionStore::from(&context.connection_store).await,
             store:ReferenceStore::from(&context.store).await,
             fallback:false
         }
@@ -397,7 +433,40 @@ pub trait IO {
     async fn write(&self,data:String);
     async fn read(&self,variable:Variable)->VariableValue;
 }
+pub struct MockClient {
+    cursur:usize,
+    pub messages:Vec<Input>,
+    pub buffer:Arc<std::sync::Mutex<Vec<Output>>>
+}
 
+impl Context{
+    pub fn mock(inputs:Vec<Input>,buffer:Arc<std::sync::Mutex<Vec<Output>>>)->Self{
+        let user=Arc::new(futures::lock::Mutex::new(MockClient::new(inputs,buffer)));
+        Context::new(user,vec![])
+    }
+}
+
+impl MockClient {
+    pub fn new(messages:Vec<Input>,buffer:Arc<std::sync::Mutex<Vec<Output>>>)->Self{
+        return MockClient {
+            cursur:0,
+            messages,
+            buffer
+        };
+    }
+}
+
+#[async_trait]
+impl Client for MockClient {
+    async fn send(&self, output: Output) {
+        self.buffer.lock().unwrap().push(output);
+    }
+
+    async fn get_message(&mut self) -> Input {
+        self.cursur = self.cursur +1;
+        self.messages.get(self.cursur-1).unwrap().clone()
+    }
+}
 
 #[cfg(test)]
 pub mod tests{
@@ -407,40 +476,8 @@ pub mod tests{
     use async_trait::async_trait;
     use crate::core::runtime::{Context, Client, IO, break_on};
 
-    impl Context{
-        pub fn mock(inputs:Vec<Input>,buffer:Arc<Mutex<Vec<Output>>>)->Self{
-            let user=Arc::new(futures::lock::Mutex::new(MockClient::new(inputs,buffer)));
-            Context::new(user,vec![])
-        }
-    }
 
-    pub struct MockClient {
-        cursur:usize,
-        pub messages:Vec<Input>,
-        pub buffer:Arc<Mutex<Vec<Output>>>
-    }
 
-    impl MockClient {
-        pub fn new(messages:Vec<Input>,buffer:Arc<Mutex<Vec<Output>>>)->Self{
-            return MockClient {
-                cursur:0,
-                messages,
-                buffer
-            };
-        }
-    }
-
-    #[async_trait]
-    impl Client for MockClient {
-        async fn send(&self, output: Output) {
-            self.buffer.lock().unwrap().push(output);
-        }
-
-        async fn get_message(&mut self) -> Input {
-            self.cursur = self.cursur +1;
-            self.messages.get(self.cursur-1).unwrap().clone()
-        }
-    }
 
     #[tokio::test]
     async fn should_iterate(){

@@ -10,12 +10,15 @@ use crate::core::runtime::Context;
 use crate::journey::step::rest::RestSetp;
 use crate::journey::step::listner::StartListenerStep;
 use tokio::task::JoinHandle;
+use crate::journey::step::db::{DefineConnectionStep, ExecuteStep};
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum Step{
     System(SystemStep),
     Rest(RestSetp),
-    Listner(StartListenerStep)
+    Listner(StartListenerStep),
+    DefineConnection(DefineConnectionStep),
+    InsertStep(ExecuteStep)
     // Rest(RestStep)
 }
 
@@ -32,6 +35,12 @@ impl Executable for Step{
             }
             Step::Listner(sls)=>{
                 return sls.execute(context).await
+            },
+            Step::DefineConnection(dcs)=>{
+                return dcs.execute(context).await
+            },
+            Step::InsertStep(is)=>{
+                return is.execute(context).await
             }
             // Step::Rest(rest_step)=>{
             //     rest_step.execute(context).await

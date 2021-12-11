@@ -32,3 +32,5 @@ captcha = "0.0.8"
 multer = "2.0.1"
 hyper-tls = "0.5.0"
 num-traits = "0.2.14"
+rdbc-async = { git = "https://github.com/qalens/rdbc-async" }
+rdbc-async-postgres = { git = "https://github.com/qalens/rdbc-async" }

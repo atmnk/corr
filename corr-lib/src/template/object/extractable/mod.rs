@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use crate::template::VariableReferenceName;
 use crate::core::runtime::Context;
 use crate::core::Value;
+use rdbc_async::sql::ResultSet;
 // use formdata::FormData;
 // use std::collections::HashMap;
 
@@ -32,6 +33,12 @@ pub enum ExtractablePair{
 #[async_trait]
 pub trait Extractable<T>{
     async fn extract_from(&self,context:&Context,value:T);
+}
+#[async_trait]
+impl Extractable<Box<dyn rdbc_async::sql::ResultSet>> for ExtractableObject{
+    async fn extract_from(&self, context: &Context, value: Box<dyn ResultSet>) {
+        todo!()
+    }
 }
 #[async_trait]
 impl Extractable<serde_json::Value> for ExtractableObject{
