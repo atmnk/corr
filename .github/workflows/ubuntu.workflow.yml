@@ -31,7 +31,7 @@ jobs:
           command: c
           cwd: target/release
           files: |
-            corr.exe
+            corr
           outPath: corr.tar.gz
 
       - name: Upload corr binaries to release
