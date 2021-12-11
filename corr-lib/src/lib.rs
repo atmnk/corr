@@ -11,7 +11,7 @@ pub fn get_keywords<'a>()->Vec<&'a str>{
     return concatenated;
 }
 pub fn get_journey_keywords<'a>()->Vec<&'a str>{
-    return vec!["print","respond","async","background","connect","postgres","form","push","sync","load","object","text","for","let","request","url","body","headers","get","put","post","patch","delete","matching","and"]
+    return vec!["print","respond","async","call", "background","connect","postgres","form","push","sync","load","object","text","for","let","request","url","body","headers","get","put","post","patch","delete","matching","and"]
 }
 pub fn get_scriptlet_keywords<'a>()->Vec<&'a str>{
     return vec!["null","true","false"]

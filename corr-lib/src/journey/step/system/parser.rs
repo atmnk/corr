@@ -99,7 +99,7 @@ impl Parsable for SystemStep{
             map(AssignmentStep::parser,|asst| SystemStep::Assignment(asst)),
             map(SyncStep::parser,|asst| SystemStep::Sync(asst)),
             map(PushStep::parser,|ps|{SystemStep::Push(ps)}),
-            map(JourneyStep::parser,|js|{SystemStep::JourneyStep(js)}),
+            map(preceded(ws(tag("call")),ws(JourneyStep::parser)),|js|{SystemStep::JourneyStep(js)}),
             )
         )
             // map(tuple((ws(tag("let ")),ws(identifier),ws(char('=')),Expression::parser)),|(_,var,_,expr)|{SystemStep::Assign(var,expr)}),
