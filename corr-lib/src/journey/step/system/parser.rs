@@ -89,6 +89,7 @@ impl Parsable for SystemStep{
         alt((
             // map(preceded(tag("//"),is_not("\n\r")),|val:&str|SystemStep::Comment(val.to_string())),
             // map(delimited(tag("/*"), is_not("*/"), tag("*/")),|val:&str|SystemStep::Comment(val.to_string())),
+
             map(preceded(ws(tag("background")),Step::parser),|step|{SystemStep::Background(vec![step])}),
             map(preceded(ws(tag("background")),delimited(ws(tag("{")),many0(ws(Step::parser)),ws(tag("}")))),|steps|{SystemStep::Background(steps)}),
             map(ConditionalStep::parser,|ps|{SystemStep::Condition(ps)}),
@@ -97,7 +98,10 @@ impl Parsable for SystemStep{
             map(LoadAssignStep::parser,|asst| SystemStep::LoadAssign(asst)),
             map(AssignmentStep::parser,|asst| SystemStep::Assignment(asst)),
             map(SyncStep::parser,|asst| SystemStep::Sync(asst)),
-            map(PushStep::parser,|ps|{SystemStep::Push(ps)})))
+            map(PushStep::parser,|ps|{SystemStep::Push(ps)}),
+            map(JourneyStep::parser,|js|{SystemStep::JourneyStep(js)}),
+            )
+        )
             // map(tuple((ws(tag("let ")),ws(identifier),ws(char('=')),Expression::parser)),|(_,var,_,expr)|{SystemStep::Assign(var,expr)}),
         (input)
     }

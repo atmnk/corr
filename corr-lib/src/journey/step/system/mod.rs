@@ -194,6 +194,9 @@ impl Executable for SystemStep{
                 };
                 vec![tokio::spawn(step())]
             },
+            SystemStep::JourneyStep(js)=>{
+                js.execute(context).await
+            }
             // SystemStep::Comment(_)=>{vec![]}
         }
 
