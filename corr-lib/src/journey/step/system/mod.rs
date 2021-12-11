@@ -19,7 +19,7 @@ pub enum SystemStep{
     Push(PushStep),
     LoadAssign(LoadAssignStep),
     Sync(SyncStep),
-    Background(Vec<Step>)
+    Background(Vec<Step>),
     JourneyStep(JourneyStep)
     // Comment(String)
 

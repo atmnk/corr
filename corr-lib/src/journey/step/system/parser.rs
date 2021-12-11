@@ -11,8 +11,6 @@ use crate::template::{VariableReferenceName, Assignable, Expression};
 use crate::journey::step::Step;
 use nom::multi::{many0, separated_list0};
 use crate::journey::parser::parse_name;
-
-use nom::multi::{many0};
 impl Parsable for PrintStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         preceded(ws(tag("print")),map(Text::parser,|txt|{PrintStep::WithText(txt)}))(input)
