@@ -599,14 +599,63 @@ pub struct Subtract;
 #[derive(Debug,Clone,PartialEq)]
 pub struct FakeValue;
 
-//Fake Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Increment;
 
-//Fake Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Decrement;
 
+#[derive(Debug,Clone,PartialEq)]
+pub struct Length;
+
+#[derive(Debug,Clone,PartialEq)]
+pub struct IndexOf;
+
+#[async_trait]
+impl Function for Length{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let val = args.get(0).unwrap().fill(context).await;
+        match val {
+            Value::String(str)=>{
+                Value::PositiveInteger(str.len() as u128)
+            },
+            Value::Array(arr)=>{
+                Value::PositiveInteger(arr.len() as u128)
+            },
+            _=>{
+                Value::PositiveInteger(1 as u128)
+            }
+        }
+    }
+}
+#[async_trait]
+impl Function for IndexOf{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let val:Value = args.get(0).unwrap().fill(context).await;
+        let of_value:Value = args.get(1).unwrap().fill(context).await;
+        match val {
+            Value::String(str)=>{
+                let index =  str.find(&of_value.to_string());
+                if let Some(ind)= index {
+                    Value::Integer(ind as i128)
+                } else {
+                    Value::Integer(-1)
+                }
+            },
+            Value::Array(arr)=>{
+                let index = arr.iter().position(|el| el.eq(&of_value));
+                if let Some(ind)= index {
+                    Value::Integer(ind as i128)
+                } else {
+                    Value::Integer(-1)
+                }
+            },
+            _=>{
+                Value::Integer(if val.eq(&of_value){0} else {-1})
+            }
+        }
+    }
+}
 #[async_trait]
 impl Function for FakeValue{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
@@ -883,6 +932,7 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("mod",Arc::new(Mod{})),
         ("ceil",Arc::new(Ceil{})),
         ("floor",Arc::new(Floor{})),
+        ("len",Arc::new(Length{})),
         ("round",Arc::new(Round{})),
         ("cint",Arc::new(CInt{})),
         ("sub",Arc::new(Subtract{})),
@@ -929,6 +979,72 @@ mod tests{
     use crate::core::runtime::Context;
     use crate::template::{Expression, Function};
 
+    #[tokio::test]
+    async fn should_find_index_of_array(){
+        let a=IndexOf{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![Expression::Constant(Value::Array(vec![
+            Value::PositiveInteger(2),
+            Value::String("0".to_string()),
+            Value::String("3".to_string())
+        ])),Expression::Constant(Value::String("0".to_string()))],&context).await;
+        assert_eq!(result,Value::Integer(1));
+    }
+    #[tokio::test]
+    async fn should_give_negative_when_cannot_find_index_of_array(){
+        let a=IndexOf{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![Expression::Constant(Value::Array(vec![
+            Value::PositiveInteger(2),
+            Value::String("0".to_string()),
+            Value::String("3".to_string())
+        ])),Expression::Constant(Value::String("5".to_string()))],&context).await;
+        assert_eq!(result,Value::Integer(-1));
+    }
+    #[tokio::test]
+    async fn should_find_index_of_string(){
+        let a=IndexOf{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![ Expression::Constant(Value::String("Atmaram".to_string())),Expression::Constant(Value::String("ma".to_string()))],&context).await;
+        assert_eq!(result,Value::Integer(2));
+    }
+    #[tokio::test]
+    async fn should_give_negative_when_cannot_find_index_of_string(){
+        let a=IndexOf{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![ Expression::Constant(Value::String("Atmaram".to_string())),Expression::Constant(Value::String("Z".to_string()))],&context).await;
+        assert_eq!(result,Value::Integer(-1));
+    }
+    #[tokio::test]
+    async fn should_find_length_of_array(){
+        let a=Length{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![Expression::Constant(Value::Array(vec![
+            Value::PositiveInteger(2),
+            Value::String("0".to_string()),
+            Value::String("3".to_string())
+        ]))],&context).await;
+        assert_eq!(result,Value::PositiveInteger(3));
+    }
+    #[tokio::test]
+    async fn should_find_length_of_string(){
+        let a=Length{};
+        let input=vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let result=a.evaluate(vec![ Expression::Constant(Value::String("Atmaram".to_string()))],&context).await;
+        assert_eq!(result,Value::PositiveInteger(7));
+    }
     #[tokio::test]
     async fn should_lpad(){
         let a=LPad{};
