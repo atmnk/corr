@@ -933,6 +933,7 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("ceil",Arc::new(Ceil{})),
         ("floor",Arc::new(Floor{})),
         ("len",Arc::new(Length{})),
+        ("indexOf",Arc::new(IndexOf{})),
         ("round",Arc::new(Round{})),
         ("cint",Arc::new(CInt{})),
         ("sub",Arc::new(Subtract{})),
