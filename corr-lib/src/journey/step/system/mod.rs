@@ -1,17 +1,22 @@
 pub mod parser;
+
+use std::time::Duration;
 use async_trait::async_trait;
+use num_traits::ToPrimitive;
 use crate::journey::{Executable};
 use crate::template::text::{Text};
 use crate::core::runtime::{Context, IO};
-use crate::core::{Value};
+use crate::core::{Number, Value};
 use crate::template::{VariableReferenceName, Fillable, Assignable, Expression};
 use crate::journey::step::Step;
 use tokio::task::JoinHandle;
 use tokio::fs::{OpenOptions};
 use tokio::io::{AsyncWriteExt};
+use tokio::time::sleep;
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum SystemStep{
+    Wait(WaitStep),
     Print(PrintStep),
     ForLoop(ForLoopStep),
     Condition(ConditionalStep),
@@ -36,6 +41,10 @@ pub enum PushStep {
 #[derive(Debug, Clone,PartialEq)]
 pub enum PrintStep{
     WithText(Text)
+}
+#[derive(Debug, Clone,PartialEq)]
+pub enum WaitStep{
+    WithTime(Expression)
 }
 #[derive(Debug, Clone,PartialEq)]
 pub struct JourneyStep{
@@ -136,6 +145,18 @@ impl Executable for PrintStep{
     }
 }
 #[async_trait]
+impl Executable for WaitStep {
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        match &self {
+            WaitStep::WithTime(time_exp)=>{
+                let wt = time_exp.evaluate(context).await.to_number().unwrap_or(Number::Integer(128)).as_usize().unwrap();
+                sleep(Duration::from_secs(wt.to_u64().unwrap())).await;
+                return vec![];
+            }
+        }
+    }
+}
+#[async_trait]
 impl Executable for ForLoopStep{
     async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
@@ -161,6 +182,9 @@ impl Executable for ForLoopStep{
 impl Executable for SystemStep{
     async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
+            SystemStep::Wait(ws)=>{
+                ws.execute(context).await
+            },
             SystemStep::Print(ps)=>{
                 ps.execute(context).await
             },

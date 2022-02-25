@@ -1,5 +1,5 @@
 use crate::parser::{Parsable, ws};
-use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep, JourneyStep};
+use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep, JourneyStep, WaitStep};
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
 use nom::sequence::{delimited, preceded, terminated, tuple};
@@ -10,6 +10,7 @@ use nom::branch::alt;
 use crate::template::{VariableReferenceName, Assignable, Expression};
 use crate::journey::step::Step;
 use nom::multi::{many0, separated_list0};
+use serde_json::map;
 use crate::journey::parser::parse_name;
 impl Parsable for PrintStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -89,7 +90,7 @@ impl Parsable for SystemStep{
         alt((
             // map(preceded(tag("//"),is_not("\n\r")),|val:&str|SystemStep::Comment(val.to_string())),
             // map(delimited(tag("/*"), is_not("*/"), tag("*/")),|val:&str|SystemStep::Comment(val.to_string())),
-
+            map(WaitStep::parser,|ws|{SystemStep::Wait(ws)}),
             map(preceded(ws(tag("background")),Step::parser),|step|{SystemStep::Background(vec![step])}),
             map(preceded(ws(tag("background")),delimited(ws(tag("{")),many0(ws(Step::parser)),ws(tag("}")))),|steps|{SystemStep::Background(steps)}),
             map(ConditionalStep::parser,|ps|{SystemStep::Condition(ps)}),
@@ -104,6 +105,12 @@ impl Parsable for SystemStep{
         )
             // map(tuple((ws(tag("let ")),ws(identifier),ws(char('=')),Expression::parser)),|(_,var,_,expr)|{SystemStep::Assign(var,expr)}),
         (input)
+    }
+}
+
+impl Parsable for WaitStep {
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map((tuple((ws(tag("wait")),ws(Expression::parser)))),|(_,wt)|{WaitStep::WithTime(wt)})(input)
     }
 }
 impl Parsable for SyncStep {
