@@ -1,5 +1,6 @@
 pub mod parser;
 
+use std::collections::HashMap;
 use crate::template::rest::{RestVerb, MultipartField};
 
 use crate::journey::Executable;
@@ -48,6 +49,7 @@ async fn handle(
             for stub in sls.stubs {
                 let context = Context::from_without_fallback(&context).await;
                 if stub.url.capture(&req.uri().to_string(), &context).await && req.method().to_string().to_lowercase().eq(&stub.method.as_str().to_lowercase()) {
+                    let ct=req.headers().get(hyper::header::CONTENT_TYPE).map(|hv|hv.to_str().ok()).flatten().unwrap_or("application/json").to_lowercase();
                     let opt_bd = req.headers().get(hyper::header::CONTENT_TYPE).and_then(|ct| ct.to_str().ok()).and_then(|ct| multer::parse_boundary(ct).ok());
                     let (parts, body) = req.into_parts();
                     if let Some(boundary) = opt_bd {
@@ -66,7 +68,17 @@ async fn handle(
                         stub.rest_data.extract_from(&context, (fields, parts.headers.clone())).await;
                     } else {
                         if let Ok(data) = hyper::body::to_bytes(body).await {
-                            let sv = serde_json::from_str::<serde_json::Value>(String::from_utf8_lossy(&data).as_ref());
+                            let sv = if ct.eq(&"application/x-www-form-urlencoded") {
+                                let vec =serde_urlencoded::from_str::<Vec<(String, String)>>(
+                                    String::from_utf8_lossy(&data).as_ref()).unwrap_or(vec![]);
+                                let mut hm = HashMap::new();
+                                for (key,value) in vec {
+                                    hm.insert(key,Value::String(value));
+                                }
+                                Ok((Value::Map(hm).to_json_value()))
+                            } else {
+                                serde_json::from_str::<serde_json::Value>(String::from_utf8_lossy(&data).as_ref())
+                            };
                             match sv {
                                 Ok(val) => {
                                     stub.rest_data.extract_from(&context, (val, parts.headers.clone())).await;
