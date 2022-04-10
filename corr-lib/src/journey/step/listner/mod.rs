@@ -75,7 +75,7 @@ async fn handle(
                                 for (key,value) in vec {
                                     hm.insert(key,Value::String(value));
                                 }
-                                Ok((Value::Map(hm).to_json_value()))
+                                Ok(Value::Map(hm).to_json_value())
                             } else {
                                 serde_json::from_str::<serde_json::Value>(String::from_utf8_lossy(&data).as_ref())
                             };
