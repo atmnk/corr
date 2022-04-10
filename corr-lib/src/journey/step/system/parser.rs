@@ -10,7 +10,7 @@ use nom::branch::alt;
 use crate::template::{VariableReferenceName, Assignable, Expression};
 use crate::journey::step::Step;
 use nom::multi::{many0, separated_list0};
-use serde_json::map;
+
 use crate::journey::parser::parse_name;
 impl Parsable for PrintStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -110,7 +110,7 @@ impl Parsable for SystemStep{
 
 impl Parsable for WaitStep {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map((tuple((ws(tag("wait")),ws(Expression::parser)))),|(_,wt)|{WaitStep::WithTime(wt)})(input)
+        map(tuple((ws(tag("wait")),ws(Expression::parser))),|(_,wt)|{WaitStep::WithTime(wt)})(input)
     }
 }
 impl Parsable for SyncStep {
