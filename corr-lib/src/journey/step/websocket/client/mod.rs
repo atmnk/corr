@@ -4,7 +4,7 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use crate::core::runtime::Context;
 use crate::journey::Executable;
-use crate::journey::step::websocket::server::OnMessage;
+// use crate::journey::step::websocket::server::OnMessage;
 use crate::template::{Expression, VariableReferenceName};
 use async_trait::async_trait;
 use url::Url;
@@ -43,14 +43,16 @@ impl Executable for WebSocketClientConnectStep {
         let handle:JoinHandle<bool> = tokio::spawn(async move {
             while true {
                 if let Some(Ok(m)) = ssm.next().await{
-                    let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
-                    new_ct.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
-                    let mut handles = vec![];
-                    for step in &hook.block {
-                        let mut inner_handles = step.execute(&new_ct).await;
-                        handles.append(&mut inner_handles);
+                    if m.is_text(){
+                        let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
+                        new_ct.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
+                        let mut handles = vec![];
+                        for step in &hook.block {
+                            let mut inner_handles = step.execute(&new_ct).await;
+                            handles.append(&mut inner_handles);
+                        }
+                        futures::future::join_all(handles).await;
                     }
-                    futures::future::join_all(handles).await;
                 } else {
                     return true;
                 }
