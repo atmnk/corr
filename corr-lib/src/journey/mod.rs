@@ -23,7 +23,7 @@ pub trait Executable{
 #[async_trait]
 impl Executable for Journey{
     async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>>{
-        context.write(format!("Executing Journey {}",self.name)).await;
+        // context.write(format!("Executing Journey {}",self.name)).await;
         let mut handles = vec![];
         for step in self.steps.iter() {
             handles.append(&mut step.execute(context).await)

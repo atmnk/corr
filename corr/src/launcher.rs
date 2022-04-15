@@ -3,8 +3,10 @@ use std::fs::{File, read_to_string, create_dir_all, remove_dir_all};
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use serde::{Deserialize};
-use crate::client::CliDriver;
+use crate::runners::journey::JourneyRunner;
 use std::path::Path;
+use crate::runners::workload::WorkLoadRunner;
+
 pub fn build(target:String)-> Result<String, std::io::Error>{
     pack(target)
 }
@@ -35,6 +37,11 @@ fn pack(target:String) -> Result<String, std::io::Error> {
     tar.append_dir_all("./src", "./src")?;
     Ok(result)
 }
-pub async fn run(target:String,journey:String){
-    CliDriver::run(target,journey).await;
+pub async fn run(target:String,item:String,isJourney:bool){
+    if isJourney
+    {
+        JourneyRunner::run(target, item).await;
+    } else {
+        WorkLoadRunner::run(target,item).await;
+    }
 }

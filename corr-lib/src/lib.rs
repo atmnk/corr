@@ -5,6 +5,7 @@ pub mod journey;
 pub mod core;
 pub mod template;
 pub mod parser;
+pub mod workload;
 extern crate nom;
 pub fn get_keywords<'a>()->Vec<&'a str>{
     let concatenated = [&get_journey_keywords()[..], &get_scriptlet_keywords()[..]].concat();
