@@ -638,8 +638,8 @@ impl Value {
             Value::Byte(b)=>vec![b.clone()],
             Value::Integer(lng)=>lng.to_le_bytes().iter().map(|b|b.clone()).collect(),
             Value::Double(dbl)=>dbl.to_le_bytes().iter().map(|b|b.clone()).collect(),
-            Value::Boolean(bln)=>panic!("Cant Convert bool"),
-            Value::Map(hm)=>{ panic!("Cant Convert Object")
+            Value::Boolean(_bln)=>panic!("Cant Convert bool"),
+            Value::Map(_hm)=>{ panic!("Cant Convert Object")
             },
             Value::Array(arr)=>{
                 arr.iter().map(|val| val.to_binary()).flatten().collect()

@@ -5,14 +5,14 @@ use crate::core::runtime::Context;
 use crate::journey::Executable;
 use crate::journey::step::Step;
 use crate::template::{Expression, VariableReferenceName};
-use crate::template::object::extractable::{Extractable, ExtractableObject};
+
 use async_trait::async_trait;
 use std::net::SocketAddr;
 use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::{accept_async, tungstenite::Error};
 use tokio_tungstenite::tungstenite::{Message, Result};
 use crate::core::Value;
-use crate::journey::step::websocket::client::WebSocketHook;
+
 #[derive(Debug, Clone,PartialEq)]
 pub struct WebSocketServerHook{
     variable:VariableReferenceName,

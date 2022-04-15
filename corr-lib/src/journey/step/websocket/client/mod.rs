@@ -35,13 +35,13 @@ pub struct WebSocketSendBinaryStep{
 #[async_trait]
 impl Executable for WebSocketClientConnectStep {
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
-        let (mut socket, _)=connect_async(Url::parse(self.url.evaluate(context).await.to_string().as_str()).unwrap()).await.unwrap();
-        let (mut ssk,mut ssm) = socket.split();
+        let (socket, _)=connect_async(Url::parse(self.url.evaluate(context).await.to_string().as_str()).unwrap()).await.unwrap();
+        let (ssk,mut ssm) = socket.split();
         context.websocket_connection_store.define(self.connection_name.evaluate(context).await.to_string(),ssk).await;
-        let mut hook = self.hook.clone();
+        let hook = self.hook.clone();
         let new_ct = context.clone();
         let handle:JoinHandle<bool> = tokio::spawn(async move {
-            while true {
+            loop {
                 if let Some(Ok(m)) = ssm.next().await{
                     if m.is_text(){
                         let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));

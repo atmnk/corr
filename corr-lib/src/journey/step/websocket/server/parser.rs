@@ -7,7 +7,7 @@ use crate::journey::step::Step;
 use crate::journey::step::websocket::server::{WebSocketServerHook, WebSocketServerStep, WebSocketStep};
 use crate::parser::{Parsable, ParseResult, ws};
 use crate::template::{Expression, VariableReferenceName};
-use crate::template::object::extractable::ExtractableObject;
+
 
 
 impl Parsable for WebSocketServerStep{
