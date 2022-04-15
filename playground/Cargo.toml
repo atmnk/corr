@@ -15,3 +15,4 @@ async-recursion = "0.3.1"
 rdbc-async = { git = "https://github.com/qalens/rdbc-async" }
 rdbc-async-postgres = { git = "https://github.com/qalens/rdbc-async" }
 corr-lib={path="../corr-lib"}
+url = "2.2.2"

@@ -1,10 +1,10 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::map;
-use nom::multi::{many0, separated_list0};
+use nom::multi::{many0};
 use nom::sequence::{delimited, preceded, tuple};
 use crate::journey::step::Step;
-use crate::journey::step::websocket::{OnMessage, WebSocketServerStep, WebSocketStep};
+use crate::journey::step::websocket::server::{OnMessage, WebSocketServerStep, WebSocketStep};
 use crate::parser::{Parsable, ParseResult, ws};
 use crate::template::Expression;
 use crate::template::object::extractable::ExtractableObject;

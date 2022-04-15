@@ -12,7 +12,8 @@ use crate::journey::step::rest::RestSetp;
 use crate::journey::step::listner::StartListenerStep;
 use tokio::task::JoinHandle;
 use crate::journey::step::db::{DefineConnectionStep, ExecuteStep};
-use crate::journey::step::websocket::WebSocketServerStep;
+use crate::journey::step::websocket::client::{WebSocketClientConnectStep, WebSocketSendStep};
+use crate::journey::step::websocket::server::WebSocketServerStep;
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum Step{
@@ -22,6 +23,8 @@ pub enum Step{
     DefineConnection(DefineConnectionStep),
     InsertStep(ExecuteStep),
     WebSocketServer(WebSocketServerStep),
+    WebSocketClientConnect(WebSocketClientConnectStep),
+    WebSocketClientSend(WebSocketSendStep),
     // Rest(RestStep)
 }
 
@@ -46,6 +49,12 @@ impl Executable for Step{
                 return is.execute(context).await
             },
             Step::WebSocketServer(ws)=>{
+                ws.execute(context).await
+            },
+            Step::WebSocketClientConnect(ws)=>{
+                ws.execute(context).await
+            },
+            Step::WebSocketClientSend(ws)=>{
                 ws.execute(context).await
             }
             // Step::Rest(rest_step)=>{

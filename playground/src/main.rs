@@ -1,26 +1,16 @@
 #![feature(generators, generator_trait)]
 #![feature(async_closure)]
-
-use corr_lib::journey::{Journey, Executable};
-use corr_lib::parser::Parsable;
-use corr_lib::core::runtime::Context;
-use corr_lib::core::proto::{Input};
-use corr_lib::core::{DataType, Value};
-use std::sync::{Arc, Mutex};
 use futures_util::{SinkExt, StreamExt};
-use std::net::SocketAddr;
-use tokio::net::{TcpListener, TcpStream};
-use tokio_tungstenite::{accept_async, tungstenite::Error};
-use tokio_tungstenite::tungstenite::{Message, Result};
-
+use tokio_tungstenite::{connect_async, tungstenite::Result};
+use tokio_tungstenite::tungstenite::Message;
+use url::Url;
 #[tokio::main]
-async fn main() /*->  Result<()>*/{
-    let addr = "0.0.0.0:9002";
-    let listner = TcpListener::bind(&addr).await.expect("Can't listen");
-    while let Ok((stream,_)) = listner.accept().await{
-        let peer = stream.peer_addr().expect("connected streams should have a peer address");
-        tokio::spawn(accept_connection(peer,stream));
-    }
+async fn main()->Result<()>{
+    let (mut socket, _)=connect_async(Url::parse("ws://localhost:9002").unwrap()).await?;
+    socket.send(Message::Text("{\"name\":\"Atmaram\"}".to_string())).await;
+    let msg=socket.next().await.unwrap()?;
+    println!("{:?}",msg);
+    Ok(())
     // let journey = r#"`PrintCategories`(){
     //     let c_str = "host=localhost user=postgres dbname=dellstore password=postgres port=5436"
     //     let category_table = "categories"
@@ -53,27 +43,4 @@ async fn main() /*->  Result<()>*/{
     // //     println!("{}",results.get_string(1).unwrap())
     // // }
     // // Ok(())
-}
-async fn accept_connection(peer: SocketAddr, stream: TcpStream) {
-    if let Err(e) = handle_connection(peer, stream).await {
-        match e {
-            Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
-            err => println!("Error processing connection: {}", err),
-        }
-    }
-}
-
-async fn handle_connection(peer: SocketAddr, stream: TcpStream) -> Result<()> {
-    let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
-
-    println!("New WebSocket connection: {}", peer);
-
-    while let Some(msg) = ws_stream.next().await {
-        let msg = msg?;
-        if msg.is_text() || msg.is_binary() {
-            ws_stream.send(Message::Text(format!("{}",Value::String("Hello".to_string()).to_json_value())) ).await?;
-        }
-    }
-
-    Ok(())
 }

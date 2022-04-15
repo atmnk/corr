@@ -1,6 +1,6 @@
 [package]
 name = "corr-lib"
-version = "0.1.25"
+version = "0.1.27"
 authors = ["ATM <naik.atmaram@gmail.com>"]
 edition = "2018"
 
@@ -17,7 +17,7 @@ lazy_static = "1.4.0"
 uuid = { version = "0.8.1", features = ["serde", "v4"] }
 futures = "0.3.17"
 futures-util = "*"
-tokio-tungstenite = "*"
+tokio-tungstenite = { version = "*", features = ["tls"] }
 tokio = { version = "1.12.0", features = ["full"] }
 warp = "0.3.1"
 async-trait = "0.1.51"
@@ -37,4 +37,5 @@ hyper-tls = "0.5.0"
 num-traits = "0.2.14"
 rdbc-async = { git = "https://github.com/qalens/rdbc-async" }
 rdbc-async-postgres = { git = "https://github.com/qalens/rdbc-async" }
+url = "2.2.2"
 serde_urlencoded = "0.7.1"

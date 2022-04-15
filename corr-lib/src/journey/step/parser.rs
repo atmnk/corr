@@ -7,17 +7,21 @@ use nom::branch::alt;
 use crate::journey::step::rest::RestSetp;
 use crate::journey::step::listner::StartListenerStep;
 use crate::journey::step::db::{DefineConnectionStep, ExecuteStep};
-use crate::journey::step::websocket::WebSocketServerStep;
+use crate::journey::step::websocket::client::{WebSocketClientConnectStep, WebSocketSendStep};
+use crate::journey::step::websocket::server::WebSocketServerStep;
 
 impl Parsable for Step{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         alt((
+            map(ws(WebSocketClientConnectStep::parser),Step::WebSocketClientConnect),
+            map(ws(WebSocketSendStep::parser),Step::WebSocketClientSend),
+            map(ws(WebSocketServerStep::parser),Step::WebSocketServer),
             map(ws(StartListenerStep::parser),Step::Listner),
             map(ws(SystemStep::parser),Step::System),
             map(ws(DefineConnectionStep::parser),Step::DefineConnection),
             map(ws(ExecuteStep::parser), Step::InsertStep),
             map(ws(RestSetp::parser),Step::Rest),
-            map(ws(WebSocketServerStep::parser),Step::WebSocketServer),
+
 
             ))(input)
     }

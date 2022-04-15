@@ -451,7 +451,7 @@ dependencies = [
 
 [[package]]
 name = "corr-lib"
-version = "0.1.25"
+version = "0.1.27"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -481,6 +481,7 @@ dependencies = [
  "strfmt",
  "tokio",
  "tokio-tungstenite",
+ "url",
  "uuid",
  "warp",
 ]
@@ -1772,6 +1773,7 @@ dependencies = [
  "rdbc-async-postgres",
  "tokio",
  "tokio-tungstenite",
+ "url",
 ]
 
 [[package]]
@@ -2517,8 +2519,10 @@ checksum = "e1a5f475f1b9d077ea1017ecbc60890fda8e54942d680ca0b1d2b47cfa2d861b"
 dependencies = [
  "futures-util",
  "log",
+ "native-tls",
  "pin-project",
  "tokio",
+ "tokio-native-tls",
  "tungstenite",
 ]
 
@@ -2591,6 +2595,7 @@ dependencies = [
  "httparse",
  "input_buffer",
  "log",
+ "native-tls",
  "rand 0.8.4",
  "sha-1",
  "url",
