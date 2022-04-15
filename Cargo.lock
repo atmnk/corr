@@ -462,6 +462,7 @@ dependencies = [
  "fake",
  "futures",
  "futures-util",
+ "hound",
  "hyper",
  "hyper-tls",
  "lazy_static",

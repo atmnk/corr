@@ -24,6 +24,7 @@ pub fn get_journey_keywords<'a>()->Vec<&'a str>{
                 "server",
                 "background",
                 "connect",
+                "listener",
                 "postgres","form","push","sync","load","object","text","for","let","request","url","body","headers","get","put","post","patch","delete","matching","and"]
 }
 pub fn get_scriptlet_keywords<'a>()->Vec<&'a str>{
