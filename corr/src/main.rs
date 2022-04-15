@@ -6,7 +6,8 @@ use clap::{crate_version};
 use async_trait::async_trait;
 pub mod client;
 pub mod launcher;
-
+pub mod interfaces;
+pub mod runners;
 #[tokio::main]
 async fn main(){
     let opt: Opts = Opts::parse();
@@ -37,8 +38,11 @@ pub struct RunCommand{
     #[clap(long,short, default_value = ".")]
     target:String,
 
+    #[clap(short, long)]
+    isWorkload:bool,
+
     #[clap(default_value = "<default>")]
-    journey:String,
+    item:String,
 
 }
 
@@ -62,10 +66,10 @@ impl Executable for BuildCommand{
 impl Executable for RunCommand{
     async fn execute(&self) {
         if self.package {
-            run(self.target.clone(),self.journey.clone()).await
+            run(self.target.clone(), self.item.clone(), !self.isWorkload).await
         } else {
             let target = build((&self.target).clone()).unwrap();
-            run(target,self.journey.clone()).await
+            run(target, self.item.clone(), !self.isWorkload).await
         }
     }
 }

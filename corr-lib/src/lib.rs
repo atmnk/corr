@@ -1,10 +1,13 @@
 #![feature(generators, generator_trait)]
 #![feature(async_closure)]
+#![feature(test)]
 extern crate lazy_static;
+extern crate test;
 pub mod journey;
 pub mod core;
 pub mod template;
 pub mod parser;
+pub mod workload;
 extern crate nom;
 pub fn get_keywords<'a>()->Vec<&'a str>{
     let concatenated = [&get_journey_keywords()[..], &get_scriptlet_keywords()[..]].concat();
@@ -12,6 +15,7 @@ pub fn get_keywords<'a>()->Vec<&'a str>{
 }
 pub fn get_journey_keywords<'a>()->Vec<&'a str>{
     return vec![
+        "transaction",
         "wait",
         "print",
                 "respond",

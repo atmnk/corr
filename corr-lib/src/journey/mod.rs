@@ -23,7 +23,7 @@ pub trait Executable{
 #[async_trait]
 impl Executable for Journey{
     async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>>{
-        context.write(format!("Executing Journey {}",self.name)).await;
+        // context.write(format!("Executing Journey {}",self.name)).await;
         let mut handles = vec![];
         for step in self.steps.iter() {
             handles.append(&mut step.execute(context).await)
@@ -90,9 +90,8 @@ mod tests{
         assert_eq!(buffer.lock().unwrap().get(1).unwrap().clone(),Output::new_know_that("0)\ttest".to_string()));
         assert_eq!(buffer.lock().unwrap().get(2).unwrap().clone(),Output::new_know_that("Please Enter value between 0 to 0".to_string()));
         assert_eq!(buffer.lock().unwrap().get(3).unwrap().clone(),Output::new_tell_me("choice".to_string(),DataType::PositiveInteger));
-        assert_eq!(buffer.lock().unwrap().get(4).unwrap().clone(),Output::new_know_that("Executing Journey test".to_string()));
-        assert_eq!(buffer.lock().unwrap().get(5).unwrap().clone(),Output::new_tell_me("name".to_string(),DataType::Double));
-        assert_eq!(buffer.lock().unwrap().get(6).unwrap().clone(),Output::new_know_that("Hello World 100.01".to_string()));
+        assert_eq!(buffer.lock().unwrap().get(4).unwrap().clone(),Output::new_tell_me("name".to_string(),DataType::Double));
+        assert_eq!(buffer.lock().unwrap().get(5).unwrap().clone(),Output::new_know_that("Hello World 100.01".to_string()));
 
     }
     #[tokio::test]
@@ -113,8 +112,7 @@ mod tests{
             assert_eq!(buffer.lock().unwrap().get(6).unwrap().clone(),Output::new_know_that("0)\ttest".to_string()));
             assert_eq!(buffer.lock().unwrap().get(7).unwrap().clone(),Output::new_know_that("Please Enter value between 0 to 0".to_string()));
             assert_eq!(buffer.lock().unwrap().get(8).unwrap().clone(),Output::new_tell_me("choice".to_string(),DataType::PositiveInteger));
-            assert_eq!(buffer.lock().unwrap().get(9).unwrap().clone(),Output::new_know_that("Executing Journey test".to_string()));
-            assert_eq!(buffer.lock().unwrap().get(10).unwrap().clone(),Output::new_know_that("Hello World".to_string()));
+            assert_eq!(buffer.lock().unwrap().get(9).unwrap().clone(),Output::new_know_that("Hello World".to_string()));
 
 
     }

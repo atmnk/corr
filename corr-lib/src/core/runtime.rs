@@ -7,13 +7,13 @@ use async_trait::async_trait;
 use crate::core::proto::{Input, Output};
 use std::future::Future;
 use futures_util::stream::SplitSink;
-
-
+use num_traits::ToPrimitive;
+use test::stats::Stats;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 use crate::journey::Journey;
+use crate::template::rest::RestVerb;
 use crate::template::VariableReferenceName;
-
 pub enum HeapObject{
     Final(Value),
     List(Vec<Arc<Mutex<HeapObject>>>),
@@ -65,6 +65,16 @@ impl HeapObject{
             }
         }
     }
+}
+#[derive(Clone)]
+pub struct RestStatsStore{
+    parent:Option<Box<RestStatsStore>>,
+    samples:Arc<Mutex<Vec<(RestVerb,String,u128)>>>
+}
+#[derive(Clone)]
+pub struct TransactionsStatsStore{
+    parent:Option<Box<TransactionsStatsStore>>,
+    samples:Arc<Mutex<Vec<(String,u128)>>>
 }
 #[derive(Clone)]
 pub struct WebsocketConnectionStore{
@@ -135,6 +145,108 @@ pub async fn set_value_at(path:String,heap_object_ref:Arc<Mutex<HeapObject>>,val
         },
         _=> Option::None
     }
+}
+impl RestStatsStore{
+    pub fn new()->Self{
+        Self{
+            parent:Option::None,
+            samples:Arc::new(Mutex::new(vec![]))
+        }
+    }
+    pub async fn print_stats(&self){
+        let samples = self.samples.lock().await;
+        for (v,u,t) in &(*samples){
+            println!("{:?}-{}=>{}",v,u,t)
+        }
+    }
+    pub async fn print_stats_summary(&self){
+        let samples = self.samples.lock().await;
+        let samples:Vec<f64> =(&(*samples)).iter().map(|(v,u,t)|t.to_f64().unwrap()).collect();
+        println!("MIN: {}",samples.min());
+        println!("MAX: {}",samples.max());
+        println!("Average: {}",samples.mean());
+
+    }
+    pub async fn get_stats(&self)->Vec<(RestVerb,String,u128)>{
+        let samples = self.samples.lock().await;
+        (&(*samples)).iter().map(|(v,u,t)|(v.clone(),u.clone(),t.clone())).collect()
+    }
+    pub async fn from(rs:&RestStatsStore)->Self{
+        return Self{
+            parent:Option::Some(Box::new(rs.clone())),
+            samples:Arc::new(Mutex::new(rs.samples.lock().await.clone()))
+        }
+    }
+
+    #[async_recursion]
+    pub async fn push_stat(&self,stat:(RestVerb,String,u128)){
+        let mut refs = self.samples.lock().await;
+        refs.push(stat.clone());
+        if let Some(p)=&self.parent{
+            p.push_stat(stat).await;
+        }
+    }
+
+}
+pub fn group_by(samples:Vec<(String,f64)>) -> Vec<(String, Vec<f64>)>
+{
+    let mut map:HashMap<String,Vec<f64>> = HashMap::new();
+    for (key,value) in samples {
+        if map.contains_key(&key) {
+            if let Some(ref mut v) = map.get_mut(&key) {
+                v.push(value)
+            }
+        } else {
+            map.insert(key,vec![value]);
+        }
+    }
+    map.iter().map(|(key,val)|(key.clone(),val.clone())).collect()
+}
+impl TransactionsStatsStore{
+    pub fn new()->Self{
+        Self{
+            parent:Option::None,
+            samples:Arc::new(Mutex::new(vec![]))
+        }
+    }
+    pub async fn print_stats(&self){
+        let samples = self.samples.lock().await;
+        for (tr,tm) in &(*samples){
+            println!("{}=>{}",tr,tm)
+        }
+    }
+    pub async fn print_stats_summary(&self){
+        let samples = self.samples.lock().await;
+        let samples:Vec<(String,f64)> =(&(*samples)).iter().map(|(u,t)|(u.clone(),t.to_f64().unwrap())).collect();
+        let groups = group_by(samples);
+        println!("Transaction\tMIN\tMAX\tAverage\t90%\t95%\tTotalSamples");
+        for (tr,sam) in groups{
+            let samp:Vec<f64> = sam.iter().map(|tm|tm.clone()).collect();
+            println!("{}\t\t{:.2}\t{:.2}\t{:.2}\t{:.2}\t{:.2}\t{}",tr,samp.min(),samp.max(),samp.mean(),samp.percentile(90.0),samp.percentile(95.0,),samp.len());
+
+        }
+
+    }
+    pub async fn get_stats(&self)->Vec<(String,u128)>{
+        let samples = self.samples.lock().await;
+        (&(*samples)).iter().map(|(u,t)|(u.clone(),t.clone())).collect()
+    }
+    pub async fn from(rs:&TransactionsStatsStore)->Self{
+        return Self{
+            parent:Option::Some(Box::new(rs.clone())),
+            samples:Arc::new(Mutex::new(rs.samples.lock().await.clone()))
+        }
+    }
+
+    #[async_recursion]
+    pub async fn push_stat(&self,stat:(String,u128)){
+        let mut refs = self.samples.lock().await;
+        refs.push(stat.clone());
+        if let Some(p)=&self.parent{
+            p.push_stat(stat).await;
+        }
+    }
+
 }
 impl ConnectionStore{
     pub fn new()->Self{
@@ -337,6 +449,7 @@ impl IO for Context {
 
     }
 }
+
 #[derive(Clone)]
 pub struct Context{
     pub journeys:Vec<Journey>,
@@ -344,6 +457,8 @@ pub struct Context{
     pub store:ReferenceStore,
     pub connection_store:ConnectionStore,
     pub websocket_connection_store:WebsocketConnectionStore,
+    pub rest_stats_store:RestStatsStore,
+    pub tr_stats_store:TransactionsStatsStore,
     pub fallback:bool
 }
 impl Context {
@@ -360,6 +475,8 @@ impl Context {
             user:user,
             connection_store:ConnectionStore::new(),
             websocket_connection_store:WebsocketConnectionStore::new(),
+            rest_stats_store:RestStatsStore::new(),
+            tr_stats_store:TransactionsStatsStore::new(),
             store:ReferenceStore::new(),
             fallback:true
         }
@@ -379,6 +496,8 @@ impl Context {
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
             websocket_connection_store:WebsocketConnectionStore::from(&context.websocket_connection_store).await,
+            rest_stats_store:RestStatsStore::from(&context.rest_stats_store).await,
+            tr_stats_store:TransactionsStatsStore::from(&context.tr_stats_store).await,
             store:ReferenceStore::from(&context.store).await,
             fallback:context.fallback
         }
@@ -389,6 +508,8 @@ impl Context {
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
             websocket_connection_store:WebsocketConnectionStore::from(&context.websocket_connection_store).await,
+            rest_stats_store:RestStatsStore::from(&context.rest_stats_store).await,
+            tr_stats_store:TransactionsStatsStore::from(&context.tr_stats_store).await,
             store:ReferenceStore::from(&context.store).await,
             fallback:false
         }

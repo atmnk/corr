@@ -1,6 +1,6 @@
 pub mod parser;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use async_trait::async_trait;
 use num_traits::ToPrimitive;
 use crate::journey::{Executable};
@@ -25,9 +25,15 @@ pub enum SystemStep{
     LoadAssign(LoadAssignStep),
     Sync(SyncStep),
     Background(Vec<Step>),
-    JourneyStep(JourneyStep)
+    JourneyStep(JourneyStep),
+    Transaction(TransactionStep),
     // Comment(String)
 
+}
+#[derive(Debug, Clone,PartialEq)]
+pub struct TransactionStep {
+    name:Expression,
+    block:Vec<Step>,
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum AssignmentStep {
@@ -75,6 +81,21 @@ pub struct LoadAssignStep{
 #[derive(Debug, Clone,PartialEq)]
 pub enum ForLoopStep{
     WithVariableReference(VariableReferenceName,Option<VariableReferenceName>,Option<VariableReferenceName>,Vec<Step>)
+}
+#[async_trait]
+impl Executable for TransactionStep{
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        let name=self.name.evaluate(context).await.to_string();
+        let mut handles = vec![];
+        let start = Instant::now();
+        for step in &self.block {
+            handles.append(&mut step.execute(&context).await);
+        }
+        let duration = start.elapsed();
+        context.tr_stats_store.push_stat((name,duration.as_millis())).await;
+        // context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
+        handles
+    }
 }
 #[async_trait]
 impl Executable for JourneyStep{
@@ -204,6 +225,7 @@ impl Executable for SystemStep{
                 pt.execute(context).await
             }
             SystemStep::Assignment(asst)=>asst.execute(context).await,
+            SystemStep::Transaction(tr)=>tr.execute(context).await,
             SystemStep::Background(steps)=>{
                 let context = context.clone();
                 let steps_to_pass = steps.clone();
