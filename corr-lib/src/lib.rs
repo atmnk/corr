@@ -1,17 +1,35 @@
 #![feature(generators, generator_trait)]
 #![feature(async_closure)]
+#![feature(test)]
 extern crate lazy_static;
+extern crate test;
 pub mod journey;
 pub mod core;
 pub mod template;
 pub mod parser;
+pub mod workload;
 extern crate nom;
 pub fn get_keywords<'a>()->Vec<&'a str>{
     let concatenated = [&get_journey_keywords()[..], &get_scriptlet_keywords()[..]].concat();
     return concatenated;
 }
 pub fn get_journey_keywords<'a>()->Vec<&'a str>{
-    return vec!["wait","print","respond","async","call", "background","connect","postgres","form","push","sync","load","object","text","for","let","request","url","body","headers","get","put","post","patch","delete","matching","and"]
+    return vec![
+        "transaction",
+        "wait",
+        "print",
+                "respond",
+                "connect",
+                "async",
+                "call",
+                "send",
+                "websocket",
+                "named",
+                "server",
+                "background",
+                "connect",
+                "listener",
+                "postgres","form","push","sync","load","object","text","for","let","request","url","body","headers","get","put","post","patch","delete","matching","and"]
 }
 pub fn get_scriptlet_keywords<'a>()->Vec<&'a str>{
     return vec!["null","true","false"]

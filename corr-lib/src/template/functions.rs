@@ -15,6 +15,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use strfmt::{ Formatter, strfmt_map};
 use std::collections::HashMap;
 use captcha::Captcha;
+use num_traits::ToPrimitive;
+
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Concat;
@@ -276,6 +278,8 @@ pub struct LessThan;
 #[derive(Debug,Clone,PartialEq)]
 pub struct NotEqual;
 
+#[derive(Debug,Clone,PartialEq)]
+pub struct Chunked;
 // #[derive(Debug,Clone,PartialEq)]
 // pub struct GreaterThan;
 //
@@ -465,7 +469,25 @@ pub struct TimeStamp;
 //Get Current Date With Now and optional format
 #[derive(Debug,Clone,PartialEq)]
 pub struct Now;
-
+#[async_trait]
+impl Function for Chunked{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        if let Some(arg) = args.get(0){
+            if let Value::Array(items) = arg.evaluate(context).await {
+                let default = Expression::Constant(Value::PositiveInteger(10));
+                if let Value::PositiveInteger(size) = args.get(1).unwrap_or(&default).evaluate(context).await{
+                    Value::Array(items.chunks(size.to_usize().unwrap_or(10)).map(|c| Value::Array(c.iter().map(|i| i.clone()).collect())).collect())
+                } else {
+                    Value::Array(items.chunks(10).map(|c| Value::Array(c.iter().map(|i| i.clone()).collect())).collect())
+                }
+            } else {
+                Value::Array(vec![arg.evaluate(context).await])
+            }
+        } else {
+            Value::Null
+        }
+    }
+}
 #[async_trait]
 impl Function for Multiply{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
@@ -902,6 +924,10 @@ impl Function for Encode{
 #[derive(Debug,Clone,PartialEq)]
 pub struct FromJson;
 
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct ReadWavSamples;
+
 #[async_trait]
 impl Function for FromJson{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
@@ -916,6 +942,18 @@ impl Function for FromJson{
                 Value::Null
             }
 
+        } else {
+            Value::Null
+        }
+
+    }
+}
+#[async_trait]
+impl Function for ReadWavSamples{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let path:String = args.get(0).unwrap().fill(context).await;
+        if let Ok(mut reader) =  hound::WavReader::open(path){
+            Value::Array(reader.samples().map(|s: hound::Result<i16>| {s.unwrap().to_le_bytes()}).flat_map(|b| b).map(|b|Value::Byte(b)).collect())
         } else {
             Value::Null
         }
@@ -946,6 +984,8 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("left",Arc::new(Left{})),
         ("right",Arc::new(Right{})),
         ("from_json",Arc::new(FromJson{})),
+        ("read_wav",Arc::new(ReadWavSamples{})),
+        ("chunked",Arc::new(Chunked{})),
         ("fake",Arc::new(FakeValue{})),
         ("encode",Arc::new(Encode{})),
         ("random",Arc::new(Random{})),

@@ -12,6 +12,13 @@ use hyper::body::Bytes;
 use hyper_tls::HttpsConnector;
 use hyper::Client;
 use hyper::client::HttpConnector;
+use lazy_static::lazy_static;
+use std::time::{Duration, Instant};
+use crate::core::Value;
+lazy_static! {
+    static ref HTTPCLIENT: Client<HttpConnector> = Client::builder().build::<_, hyper::Body>(HttpConnector::new());
+}
+
 
 #[derive(Debug, Clone,PartialEq)]
 pub struct RestSetp{
@@ -29,7 +36,11 @@ pub struct CorrRequest {
 #[async_trait]
 impl Executable for RestSetp{
     async fn execute(&self, context: &Context) ->Vec<JoinHandle<bool>>{
-        rest(self.request.fill(context).await,self.response.clone(),context,self.is_async).await;
+        let start = Instant::now();
+        let req = self.request.fill(context).await;
+        rest(req.clone(),self.response.clone(),context,self.is_async).await;
+        let duration = start.elapsed();
+        context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
         return vec![]
     }
 }
@@ -62,9 +73,9 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, co
                     let client = Client::builder().build::<_, hyper::Body>(https);
                     client.request(i_req).await
                 } else {
-                    let http = HttpConnector::new();
-                    let client = Client::builder().build::<_, hyper::Body>(http);
-                    client.request(i_req).await
+                    // let http = HttpConnector::new();
+                    // let client = Client::builder().build::<_, hyper::Body>(http);
+                    HTTPCLIENT.request(i_req).await
                 }
             };
 

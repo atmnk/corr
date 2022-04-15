@@ -425,7 +425,7 @@ checksum = "ea221b5284a47e40033bf9b66f35f984ec0ea2931eb03505246cd27a963f981b"
 
 [[package]]
 name = "corr"
-version = "0.1.25"
+version = "0.1.27"
 dependencies = [
  "app_dirs2",
  "async-recursion",
@@ -451,7 +451,7 @@ dependencies = [
 
 [[package]]
 name = "corr-lib"
-version = "0.1.25"
+version = "0.1.27"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -461,6 +461,8 @@ dependencies = [
  "env_logger",
  "fake",
  "futures",
+ "futures-util",
+ "hound",
  "hyper",
  "hyper-tls",
  "lazy_static",
@@ -479,13 +481,15 @@ dependencies = [
  "serde_urlencoded 0.7.1",
  "strfmt",
  "tokio",
+ "tokio-tungstenite",
+ "url",
  "uuid",
  "warp",
 ]
 
 [[package]]
 name = "corrs"
-version = "0.1.25"
+version = "0.1.27"
 dependencies = [
  "app_dirs2",
  "async-recursion",
@@ -1764,9 +1768,13 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "corr-lib",
+ "futures",
+ "futures-util",
  "rdbc-async",
  "rdbc-async-postgres",
  "tokio",
+ "tokio-tungstenite",
+ "url",
 ]
 
 [[package]]
@@ -2512,8 +2520,10 @@ checksum = "e1a5f475f1b9d077ea1017ecbc60890fda8e54942d680ca0b1d2b47cfa2d861b"
 dependencies = [
  "futures-util",
  "log",
+ "native-tls",
  "pin-project",
  "tokio",
+ "tokio-native-tls",
  "tungstenite",
 ]
 
@@ -2586,6 +2596,7 @@ dependencies = [
  "httparse",
  "input_buffer",
  "log",
+ "native-tls",
  "rand 0.8.4",
  "sha-1",
  "url",
