@@ -46,18 +46,6 @@ impl Executable for WebSocketServerStep {
                 println!("New WebSocket connection: {}", peer);
                 while let Some(Ok(m)) = ws_stream.next().await {
                     if m.is_text() {
-                        // let strng=msg.to_string();
-                        // om.extract.extract_from(&ctx,serde_json::from_str::<serde_json::Value>(strng.as_str()).unwrap()).await;
-                        // for step in &om.steps {
-                        //     match step {
-                        //         WebSocketStep::SendStep(snd)=>{
-                        //             ws_stream.send(Message::Text(format!("{}",snd.evaluate(&ctx).await.to_string()) )).await?;
-                        //         },
-                        //         WebSocketStep::NormalStep(stp)=>{
-                        //             stp.execute(&ctx).await;
-                        //         }
-                        //     }
-                        // }
                         let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
                         ctx.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
                         let mut handles = vec![];
@@ -73,7 +61,6 @@ impl Executable for WebSocketServerStep {
                             }
                         }
                         futures::future::join_all(handles).await;
-
                     }
                 }
 
