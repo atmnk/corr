@@ -461,6 +461,7 @@ dependencies = [
  "env_logger",
  "fake",
  "futures",
+ "futures-util",
  "hyper",
  "hyper-tls",
  "lazy_static",
@@ -479,6 +480,7 @@ dependencies = [
  "serde_urlencoded 0.7.1",
  "strfmt",
  "tokio",
+ "tokio-tungstenite",
  "uuid",
  "warp",
 ]
@@ -1764,9 +1766,12 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "corr-lib",
+ "futures",
+ "futures-util",
  "rdbc-async",
  "rdbc-async-postgres",
  "tokio",
+ "tokio-tungstenite",
 ]
 
 [[package]]

@@ -7,6 +7,10 @@ edition = "2018"
 [dependencies]
 tokio = { version = "1.4.0", features = ["full"] }
 async-trait = "0.1.36"
+futures = "0.3.17"
+futures-util = "*"
+tokio-tungstenite = "*"
+
 async-recursion = "0.3.1"
 rdbc-async = { git = "https://github.com/qalens/rdbc-async" }
 rdbc-async-postgres = { git = "https://github.com/qalens/rdbc-async" }
