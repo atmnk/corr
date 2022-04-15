@@ -4,7 +4,7 @@ use futures::lock::Mutex;
 use tokio::time::sleep;
 use crate::client;
 use crate::interfaces::standalone::StandAloneInterface;
-use corr_lib::core::runtime::Context as CorrContext;
+use corr_lib::core::runtime::{Context as CorrContext, Context};
 use corr_lib::core::Value;
 
 pub struct WorkLoadRunner;
@@ -56,7 +56,7 @@ impl WorkLoadRunner{
                         let new_jn = new_jn.clone();
                         new_ct.define("VU".to_string(),Value::PositiveInteger(concurrentUser as u128)).await;
                         new_ct.define("ITER".to_string(),Value::PositiveInteger(iter)).await;
-                        client::start(new_jn.unwrap(), new_ct).await;
+                        client::start(new_jn.unwrap(), Context::from_without_fallback(&new_ct).await).await;
                         let start = SystemTime::now();
                         let since_the_epoch = start
                             .duration_since(UNIX_EPOCH)
@@ -71,6 +71,8 @@ impl WorkLoadRunner{
                 handles.push(t);
             }
             futures::future::join_all(handles).await;
+            context.rest_stats_store.print_stats_summary().await;
+            context.tr_stats_store.print_stats_summary().await;
         }
     }
 }

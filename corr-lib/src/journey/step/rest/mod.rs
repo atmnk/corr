@@ -40,7 +40,7 @@ impl Executable for RestSetp{
         let req = self.request.fill(context).await;
         rest(req.clone(),self.response.clone(),context,self.is_async).await;
         let duration = start.elapsed();
-        context.define("RESP_TIME".to_string(),Value::PositiveInteger(duration.as_millis())).await;
+        context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
         return vec![]
     }
 }
