@@ -14,6 +14,7 @@ use rand::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
 use strfmt::{ Formatter, strfmt_map};
 use std::collections::HashMap;
+use std::mem::size_of_val;
 use captcha::Captcha;
 use num_traits::ToPrimitive;
 
@@ -473,15 +474,25 @@ pub struct Now;
 impl Function for Chunked{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
         if let Some(arg) = args.get(0){
-            if let Value::Array(items) = arg.evaluate(context).await {
-                let default = Expression::Constant(Value::PositiveInteger(10));
-                if let Value::PositiveInteger(size) = args.get(1).unwrap_or(&default).evaluate(context).await{
-                    Value::Array(items.chunks(size.to_usize().unwrap_or(10)).map(|c| Value::Array(c.iter().map(|i| i.clone()).collect())).collect())
-                } else {
-                    Value::Array(items.chunks(10).map(|c| Value::Array(c.iter().map(|i| i.clone()).collect())).collect())
-                }
-            } else {
-                Value::Array(vec![arg.evaluate(context).await])
+            let data = arg.evaluate(context).await;
+            match data {
+                Value::Array(items)=>{
+                    let default = Expression::Constant(Value::PositiveInteger(10));
+                    if let Value::PositiveInteger(size) = args.get(1).unwrap_or(&default).evaluate(context).await{
+                        Value::Array(items.chunks(size.to_usize().unwrap_or(10)).map(|c| Value::Array(c.iter().map(|i| i.clone()).collect())).collect())
+                    } else {
+                        Value::Array(items.chunks(10).map(|c| Value::Array(c.iter().map(|i| i.clone()).collect())).collect())
+                    }
+                },
+                Value::Buffer(items)=>{
+                    let default = Expression::Constant(Value::PositiveInteger(10));
+                    if let Value::PositiveInteger(size) = args.get(1).unwrap_or(&default).evaluate(context).await{
+                        Value::Array(items.chunks(size.to_usize().unwrap_or(10)).map(|c| Value::Buffer(c.iter().map(|i| i.clone()).collect())).collect())
+                    } else {
+                        Value::Array(items.chunks(10).map(|c| Value::Buffer(c.iter().map(|i| i.clone()).collect())).collect())
+                    }
+                },
+                _=>Value::Array(vec![arg.evaluate(context).await])
             }
         } else {
             Value::Null
@@ -953,7 +964,11 @@ impl Function for ReadWavSamples{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
         let path:String = args.get(0).unwrap().fill(context).await;
         if let Ok(mut reader) =  hound::WavReader::open(path){
-            Value::Array(reader.samples().map(|s: hound::Result<i16>| {s.unwrap().to_le_bytes()}).flat_map(|b| b).map(|b|Value::Byte(b)).collect())
+            let d={
+                let data:Vec<u8> = reader.samples().map(|s: hound::Result<i16>| {s.unwrap().to_le_bytes()}).flat_map(|b| b).collect();
+                Value::Buffer(data)
+            };
+            d
         } else {
             Value::Null
         }

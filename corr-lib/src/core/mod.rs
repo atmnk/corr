@@ -23,7 +23,7 @@ pub enum DataType {
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 pub enum Value{
     String(String),
-    Byte(u8),
+    Buffer(Vec<u8>),
     PositiveInteger(u128),
     Integer(i128),
     Boolean(bool),
@@ -514,7 +514,7 @@ impl Value {
             Value::Double(val)=>serde_json::Value::Number(serde_json::Number::from_f64(val.clone()).unwrap()),
             Value::Integer(val)=>serde_json::Value::from(val.clone() as i64),
             Value::PositiveInteger(val)=>serde_json::Value::from(val.clone() as u64),
-            Value::Byte(val)=>serde_json::Value::from(val.clone() as u64),
+            Value::Buffer(val)=>panic!("Can't converted to jason value"),
             Value::Null=>serde_json::Value::Null,
             Value::Map(hm)=>{
                 let mut new_hm = serde_json::Map::new();
@@ -592,7 +592,7 @@ impl Value {
             Value::String(str)=>str.clone(),
             Value::Null=>"null".to_string(),
             Value::PositiveInteger(lng)=>format!("{}",lng),
-            Value::Byte(b)=>format!("{}",b),
+            Value::Buffer(b)=>format!("{}",String::from_utf8(b.clone()).unwrap()),
             Value::Integer(lng)=>format!("{}",lng),
             Value::Double(dbl)=>format!("{}",dbl),
             Value::Boolean(bln)=>format!("{}",bln),
@@ -635,7 +635,7 @@ impl Value {
             Value::String(str)=>str.clone().into_bytes(),
             Value::Null=>"null".to_string().into_bytes(),
             Value::PositiveInteger(lng)=>lng.to_le_bytes().iter().map(|b|b.clone()).collect(),
-            Value::Byte(b)=>vec![b.clone()],
+            Value::Buffer(b)=>b.clone(),
             Value::Integer(lng)=>lng.to_le_bytes().iter().map(|b|b.clone()).collect(),
             Value::Double(dbl)=>dbl.to_le_bytes().iter().map(|b|b.clone()).collect(),
             Value::Boolean(_bln)=>panic!("Cant Convert bool"),

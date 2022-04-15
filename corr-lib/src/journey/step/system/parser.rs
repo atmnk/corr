@@ -101,6 +101,7 @@ impl Parsable for SystemStep{
             // map(preceded(tag("//"),is_not("\n\r")),|val:&str|SystemStep::Comment(val.to_string())),
             // map(delimited(tag("/*"), is_not("*/"), tag("*/")),|val:&str|SystemStep::Comment(val.to_string())),
             map(WaitStep::parser,|ws|{SystemStep::Wait(ws)}),
+            map(preceded(ws(tag("undef")),ws(VariableReferenceName::parser)),|vrn|{SystemStep::Undefine(vrn)}),
             map(TransactionStep::parser,|tr|{SystemStep::Transaction(tr)}),
             map(preceded(ws(tag("background")),Step::parser),|step|{SystemStep::Background(vec![step])}),
             map(preceded(ws(tag("background")),delimited(ws(tag("{")),many0(ws(Step::parser)),ws(tag("}")))),|steps|{SystemStep::Background(steps)}),

@@ -21,6 +21,7 @@ pub enum SystemStep{
     ForLoop(ForLoopStep),
     Condition(ConditionalStep),
     Assignment(AssignmentStep),
+    Undefine(VariableReferenceName),
     Push(PushStep),
     LoadAssign(LoadAssignStep),
     Sync(SyncStep),
@@ -203,6 +204,10 @@ impl Executable for ForLoopStep{
 impl Executable for SystemStep{
     async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
+            SystemStep::Undefine(vrn)=>{
+                context.delete(vrn.to_string()).await;
+                vec![]
+            }
             SystemStep::Wait(ws)=>{
                 ws.execute(context).await
             },
