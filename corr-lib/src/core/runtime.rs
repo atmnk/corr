@@ -6,6 +6,11 @@ use async_recursion::async_recursion;
 use async_trait::async_trait;
 use crate::core::proto::{Input, Output};
 use std::future::Future;
+use futures_util::stream::SplitSink;
+
+
+use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::WebSocketStream;
 use crate::journey::Journey;
 use crate::template::VariableReferenceName;
 
@@ -60,6 +65,11 @@ impl HeapObject{
             }
         }
     }
+}
+#[derive(Clone)]
+pub struct WebsocketConnectionStore{
+    parent:Option<Box<WebsocketConnectionStore>>,
+    references:Arc<Mutex<HashMap<String,Arc<Mutex<SplitSink<WebSocketStream<tokio_tungstenite::stream::Stream<tokio::net::TcpStream,hyper_tls::TlsStream<tokio::net::TcpStream>>>,Message>>>>>>
 }
 #[derive(Clone)]
 pub struct ConnectionStore{
@@ -145,6 +155,33 @@ impl ConnectionStore{
         tmp.get(&(path.to_string())).map(|arc|arc.clone())
     }
     pub async fn define(&self,path:String,connection:Box<dyn rdbc_async::sql::Connection>){
+        let mut refs = self.references.lock().await;
+        refs.insert(path,Arc::new(Mutex::new(connection)));
+    }
+    pub async fn undefine(&self,path:String){
+        let mut refs = self.references.lock().await;
+        refs.remove(&path);
+    }
+}
+impl WebsocketConnectionStore{
+    pub fn new()->Self{
+        Self{
+            parent:Option::None,
+            references:Arc::new(Mutex::new(HashMap::new()))
+        }
+    }
+    pub async fn from(rs:&WebsocketConnectionStore)->Self{
+        return Self{
+            parent:Option::Some(Box::new(rs.clone())),
+            references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
+        }
+    }
+
+    pub async fn get(&self,name:String)->Option<Arc<Mutex<SplitSink<WebSocketStream<tokio_tungstenite::stream::Stream<tokio::net::TcpStream,hyper_tls::TlsStream<tokio::net::TcpStream>>>,Message>>>>{
+        let tmp = self.references.lock().await;
+        tmp.get(&(name)).map(|arc|arc.clone())
+    }
+    pub async fn define(&self,path:String,connection:SplitSink<WebSocketStream<tokio_tungstenite::stream::Stream<tokio::net::TcpStream,hyper_tls::TlsStream<tokio::net::TcpStream>>>,Message>){
         let mut refs = self.references.lock().await;
         refs.insert(path,Arc::new(Mutex::new(connection)));
     }
@@ -306,6 +343,7 @@ pub struct Context{
     pub user:Arc<Mutex<dyn Client>>,
     pub store:ReferenceStore,
     pub connection_store:ConnectionStore,
+    pub websocket_connection_store:WebsocketConnectionStore,
     pub fallback:bool
 }
 impl Context {
@@ -321,6 +359,7 @@ impl Context {
             journeys,
             user:user,
             connection_store:ConnectionStore::new(),
+            websocket_connection_store:WebsocketConnectionStore::new(),
             store:ReferenceStore::new(),
             fallback:true
         }
@@ -339,6 +378,7 @@ impl Context {
             journeys:context.journeys.clone(),
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
+            websocket_connection_store:WebsocketConnectionStore::from(&context.websocket_connection_store).await,
             store:ReferenceStore::from(&context.store).await,
             fallback:context.fallback
         }
@@ -348,6 +388,7 @@ impl Context {
             journeys:context.journeys.clone(),
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
+            websocket_connection_store:WebsocketConnectionStore::from(&context.websocket_connection_store).await,
             store:ReferenceStore::from(&context.store).await,
             fallback:false
         }

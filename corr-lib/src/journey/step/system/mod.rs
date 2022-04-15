@@ -150,7 +150,7 @@ impl Executable for WaitStep {
         match &self {
             WaitStep::WithTime(time_exp)=>{
                 let wt = time_exp.evaluate(context).await.to_number().unwrap_or(Number::Integer(128)).as_usize().unwrap();
-                sleep(Duration::from_secs(wt.to_u64().unwrap())).await;
+                sleep(Duration::from_millis(wt.to_u64().unwrap())).await;
                 return vec![];
             }
         }
