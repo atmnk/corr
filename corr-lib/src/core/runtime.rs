@@ -161,11 +161,12 @@ impl RestStatsStore{
     }
     pub async fn print_stats_summary(&self){
         let samples = self.samples.lock().await;
-        let samples:Vec<f64> =(&(*samples)).iter().map(|(v,u,t)|t.to_f64().unwrap()).collect();
-        println!("MIN: {}",samples.min());
-        println!("MAX: {}",samples.max());
-        println!("Average: {}",samples.mean());
-
+        if (&*samples).len() > 0 {
+            let samples:Vec<f64> =(&(*samples)).iter().map(|(v,u,t)|t.to_f64().unwrap()).collect();
+            println!("MIN: {}",samples.min());
+            println!("MAX: {}",samples.max());
+            println!("Average: {}",samples.mean());
+        }
     }
     pub async fn get_stats(&self)->Vec<(RestVerb,String,u128)>{
         let samples = self.samples.lock().await;
@@ -217,14 +218,17 @@ impl TransactionsStatsStore{
     }
     pub async fn print_stats_summary(&self){
         let samples = self.samples.lock().await;
-        let samples:Vec<(String,f64)> =(&(*samples)).iter().map(|(u,t)|(u.clone(),t.to_f64().unwrap())).collect();
-        let groups = group_by(samples);
-        println!("Transaction\tMIN\tMAX\tAverage\t90%\t95%\tTotalSamples");
-        for (tr,sam) in groups{
-            let samp:Vec<f64> = sam.iter().map(|tm|tm.clone()).collect();
-            println!("{}\t\t{:.2}\t{:.2}\t{:.2}\t{:.2}\t{:.2}\t{}",tr,samp.min(),samp.max(),samp.mean(),samp.percentile(90.0),samp.percentile(95.0,),samp.len());
+        if (&*samples).len()>0 {
+            let samples:Vec<(String,f64)> =(&(*samples)).iter().map(|(u,t)|(u.clone(),t.to_f64().unwrap())).collect();
+            let groups = group_by(samples);
+            println!("{:30}{:>20}{:>20}{:>20}{:>20}{:>20}{:>20}","Transaction","Min","Max","Average","90%","95%","Total Samples");
+            for (tr,sam) in groups{
+                let samp:Vec<f64> = sam.iter().map(|tm|tm.clone()).collect();
+                println!("{:30}{:20.2}{:20.2}{:20.2}{:20.2}{:20.2}{:20}",tr,samp.min(),samp.max(),samp.mean(),samp.percentile(90.0),samp.percentile(95.0,),samp.len());
 
+            }
         }
+
 
     }
     pub async fn get_stats(&self)->Vec<(String,u128)>{
