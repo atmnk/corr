@@ -6,6 +6,7 @@ use crate::client;
 use crate::interfaces::standalone::StandAloneInterface;
 use corr_lib::core::runtime::{Context as CorrContext, Context};
 use corr_lib::core::Value;
+use corr_lib::journey::Executable;
 
 pub struct WorkLoadRunner;
 impl WorkLoadRunner{
@@ -31,6 +32,17 @@ impl WorkLoadRunner{
         if let Some(wl) = j {
             let context = CorrContext::new(Arc::new(Mutex::new(StandAloneInterface{})), jrns.clone());
             let mut jn = Option::None;
+            if let Some(startup_journey) = &wl.startup_journey{
+                for jrn in &jrns {
+                    if jrn.name.eq(startup_journey) {
+                        jn = Option::Some(jrn.clone());
+                        break;
+                    }
+                }
+            }
+            if let Some(jr)= &jn {
+                jr.execute(&context).await;
+            }
             for jrn in &jrns {
                 if jrn.name.eq(&wl.journey) {
                     jn = Option::Some(jrn.clone());
@@ -40,7 +52,7 @@ impl WorkLoadRunner{
             let mut handles = vec![];
             for concurrentUser in 0..wl.concurrentUsers {
                 let new_jn = jn.clone();
-                let new_ct = CorrContext::from(&context).await;
+                let new_ct_o = CorrContext::from(&context).await;
                 let d = wl.duration.clone();
                 let t=tokio::spawn(async move {
                     let start = SystemTime::now();
@@ -52,7 +64,7 @@ impl WorkLoadRunner{
                     let mut iter = 1;
 
                     while elapsed<(d * 1000) {
-                        let new_ct = CorrContext::from(&new_ct).await;
+                        let new_ct = CorrContext::from(&new_ct_o).await;
                         let new_jn = new_jn.clone();
                         new_ct.define("VU".to_string(),Value::PositiveInteger(concurrentUser as u128)).await;
                         new_ct.define("ITER".to_string(),Value::PositiveInteger(iter)).await;

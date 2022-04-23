@@ -73,6 +73,10 @@ pub struct Contains;
 #[derive(Debug,Clone,PartialEq)]
 pub struct CorrCaptcha;
 
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct At;
+
 #[async_trait]
 impl Function for CorrCaptcha{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
@@ -89,6 +93,31 @@ impl Function for CorrCaptcha{
         retval.insert("image".to_string(),Value::String(cb.as_base64().unwrap()));
         retval.insert("value".to_string(),Value::String(cb.chars_as_string()));
         Value::Map(retval)
+    }
+}
+#[async_trait]
+impl Function for At{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let val = if let  Some(exp)= args.get(0){
+            exp.evaluate(context).await
+        } else {
+            Value::Array(vec![])
+        };
+        let index = if let Some(exp)= args.get(1){
+            exp.evaluate(context).await.parse::<usize>().unwrap_or(0)
+        } else {
+            0 as usize
+        };
+        match val {
+            Value::Array(res)=>{
+                res.get(index).map(|val|val.clone()).unwrap_or(Value::Null)
+            },
+            Value::Buffer(res)=>{
+                res.get(index).map(|val|Value::PositiveInteger(val.to_u128().unwrap_or(0))).unwrap_or(Value::Null)
+            },
+            _=>Value::Null
+        }
+
     }
 }
 #[async_trait]
@@ -994,6 +1023,7 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("div",Arc::new(Divide{})),
         ("concat",Arc::new(Concat{})),
         ("lpad",Arc::new(LPad{})),
+        ("at",Arc::new(At{})),
         ("rpad",Arc::new(RPad{})),
         ("mid",Arc::new(Mid{})),
         ("left",Arc::new(Left{})),
