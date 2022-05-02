@@ -6,7 +6,7 @@ on:
       version:
         description: 'Version'     
         required: true
-        default: '0.0.22-al'
+        default: '0.0.22-u'
 
   
 jobs:
