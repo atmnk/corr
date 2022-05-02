@@ -21,8 +21,6 @@ impl Parsable for Step{
             map(ws(DefineConnectionStep::parser),Step::DefineConnection),
             map(ws(ExecuteStep::parser), Step::InsertStep),
             map(ws(RestSetp::parser),Step::Rest),
-
-
             ))(input)
     }
 }

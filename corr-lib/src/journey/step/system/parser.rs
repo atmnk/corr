@@ -19,7 +19,7 @@ impl Parsable for PrintStep{
 }
 impl Parsable for TransactionStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map(tuple((ws(tag("transaction")),ws(Expression::parser),delimited(ws(tag("{")),many0(ws(Step::parser)),ws(tag("}"))))),
+        map(tuple((ws(tag("measure")),ws(Expression::parser),delimited(ws(tag("{")),many0(ws(Step::parser)),ws(tag("}"))))),
             |(_,name,block)|TransactionStep{
             block,
             name
