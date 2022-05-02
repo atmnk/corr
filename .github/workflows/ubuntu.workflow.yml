@@ -7,11 +7,15 @@ on:
         description: 'Version'     
         required: true
         default: '0.0.22-u'
+      baseos:
+        description: 'BaseOS'
+        required: true
+        default: 'ubuntu-20.04'
 
   
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ${{github.event.inputs.baseos}}
     name: Build Ubuntu
     steps:
       - uses: actions/checkout@v2
