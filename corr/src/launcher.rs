@@ -5,6 +5,7 @@ use flate2::write::GzEncoder;
 use serde::{Deserialize};
 use crate::runners::journey::JourneyRunner;
 use std::path::Path;
+use crate::Out;
 use crate::runners::workload::WorkLoadRunner;
 
 pub fn build(target:String)-> Result<String, std::io::Error>{
@@ -37,11 +38,11 @@ fn pack(target:String) -> Result<String, std::io::Error> {
     tar.append_dir_all("./src", "./src")?;
     Ok(result)
 }
-pub async fn run(target:String,item:String,isJourney:bool){
+pub async fn run(target:String,item:String,isJourney:bool,out:Out){
     if isJourney
     {
-        JourneyRunner::run(target, item).await;
+        JourneyRunner::run(target, item,out).await;
     } else {
-        WorkLoadRunner::run(target,item).await;
+        WorkLoadRunner::run(target,item,out).await;
     }
 }

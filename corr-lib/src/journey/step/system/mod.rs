@@ -93,6 +93,7 @@ impl Executable for TransactionStep{
             handles.append(&mut step.execute(&context).await);
         }
         let duration = start.elapsed();
+        context.scrapper.ingest("transaction",duration.as_millis() as f64,vec![("name".to_string(),name.clone().to_string())]).await;
         context.tr_stats_store.push_stat((name,duration.as_millis())).await;
         // context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
         handles

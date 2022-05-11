@@ -8,6 +8,7 @@ use core::str::FromStr;
 pub mod proto;
 pub mod runtime;
 pub mod parser;
+pub mod scrapper;
 #[derive(Debug, Clone,Copy, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 pub enum DataType {

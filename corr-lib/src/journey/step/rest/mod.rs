@@ -40,6 +40,7 @@ impl Executable for RestSetp{
         let req = self.request.fill(context).await;
         rest(req.clone(),self.response.clone(),context,self.is_async).await;
         let duration = start.elapsed();
+        context.scrapper.ingest("response_time",duration.as_millis() as f64,vec![("method".to_string(),req.method.clone().as_str().to_string()),("url".to_string(),req.url.clone())]).await;
         context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
         return vec![]
     }

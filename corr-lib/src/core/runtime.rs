@@ -11,6 +11,8 @@ use num_traits::ToPrimitive;
 use test::stats::Stats;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
+use crate::core::scrapper::none::NoneScraper;
+use crate::core::scrapper::Scrapper;
 use crate::journey::Journey;
 use crate::template::rest::RestVerb;
 use crate::template::VariableReferenceName;
@@ -456,6 +458,7 @@ impl IO for Context {
 
 #[derive(Clone)]
 pub struct Context{
+    pub scrapper:Arc<Box<dyn Scrapper>>,
     pub journeys:Vec<Journey>,
     pub user:Arc<Mutex<dyn Client>>,
     pub store:ReferenceStore,
@@ -473,8 +476,9 @@ impl Context {
             Option::None
         }
     }
-    pub fn new(user:Arc<Mutex<dyn Client>>,journeys:Vec<Journey>)->Self{
+    pub fn new(user:Arc<Mutex<dyn Client>>,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>)->Self{
         Context{
+            scrapper,
             journeys,
             user:user,
             connection_store:ConnectionStore::new(),
@@ -496,6 +500,7 @@ impl Context {
     }
     pub async fn from(context:&Context)->Self{
         Context{
+            scrapper:context.scrapper.clone(),
             journeys:context.journeys.clone(),
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
@@ -508,6 +513,7 @@ impl Context {
     }
     pub async fn from_without_fallback(context:&Context)->Self{
         Context{
+            scrapper: context.scrapper.clone(),
             journeys:context.journeys.clone(),
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
@@ -611,7 +617,7 @@ pub struct MockClient {
 impl Context{
     pub fn mock(inputs:Vec<Input>,buffer:Arc<std::sync::Mutex<Vec<Output>>>)->Self{
         let user=Arc::new(futures::lock::Mutex::new(MockClient::new(inputs,buffer)));
-        Context::new(user,vec![])
+        Context::new(user,vec![],Arc::new(Box::new(NoneScraper{})))
     }
 }
 

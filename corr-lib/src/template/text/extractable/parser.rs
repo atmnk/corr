@@ -58,10 +58,10 @@ mod tests{
         let a=ExtractableText::parser(text);
         assert_if(text,a,ExtractableText::Single(Variable::new("name")))
     }
-    // #[test]
-    // fn should_parse_extractable_text_with_multiple_variable(){
-    //     let text=r#"text `Hello<%name%>World`"#;
-    //     let a=ExtractableText::parser(text);
-    //     assert_if(text,a,ExtractableText::Single(Variable::new("name")))
-    // }
+    #[test]
+    fn should_parse_extractable_text_with_multiple_variable(){
+        let text=r#"text `Hello<%name%>World`"#;
+        let a=ExtractableText::parser(text);
+        assert_if(text,a,ExtractableText::Multi(Option::Some("Hello".to_string()),vec![(Variable::new("name"),"World".to_string())],Option::None))
+    }
 }

@@ -40,3 +40,4 @@ rdbc-async-postgres = { git = "https://github.com/qalens/rdbc-async" }
 url = "2.2.2"
 hound = "3.4.0"
 serde_urlencoded = "0.7.1"
+influxdb2 ="0.1.0"

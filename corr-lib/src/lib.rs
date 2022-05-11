@@ -3,6 +3,8 @@
 #![feature(test)]
 extern crate lazy_static;
 extern crate test;
+extern crate influxdb2;
+extern crate rand;
 pub mod journey;
 pub mod core;
 pub mod template;

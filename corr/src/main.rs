@@ -1,9 +1,14 @@
 #![feature(generators, generator_trait)]
+#![feature(async_closure)]
+use std::error::Error;
+use std::str::FromStr;
 use clap::Clap;
 use clap::AppSettings;
 use crate::launcher::{build, run};
 use clap::{crate_version};
 use async_trait::async_trait;
+use simple_error::SimpleError;
+
 pub mod client;
 pub mod launcher;
 pub mod interfaces;
@@ -35,6 +40,9 @@ pub struct RunCommand{
     #[clap(short, long)]
     package:bool,
 
+    #[clap(long,short, default_value = "console")]
+    out:Out,
+
     #[clap(long,short, default_value = ".")]
     target:String,
 
@@ -45,7 +53,22 @@ pub struct RunCommand{
     item:String,
 
 }
+#[derive(Debug,Clone)]
+pub enum Out{
+    InfluxDB2,
+    Console
+}
+impl FromStr for Out {
+    type Err = SimpleError;
 
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "influxdb2" => Ok(Out::InfluxDB2),
+            "console" => Ok(Out::Console),
+            _ => Err(SimpleError::new("Invalid argument")),
+        }
+    }
+}
 #[derive(Clap,Debug)]
 #[clap(version = crate_version!(), author = "Atmaram Naik <atmnk@yahoo.com>")]
 pub struct BuildCommand{
@@ -66,10 +89,10 @@ impl Executable for BuildCommand{
 impl Executable for RunCommand{
     async fn execute(&self) {
         if self.package {
-            run(self.target.clone(), self.item.clone(), !self.isWorkload).await
+            run(self.target.clone(), self.item.clone(), !self.isWorkload,self.out.clone()).await
         } else {
             let target = build((&self.target).clone()).unwrap();
-            run(target, self.item.clone(), !self.isWorkload).await
+            run(target, self.item.clone(), !self.isWorkload,self.out.clone()).await
         }
     }
 }
