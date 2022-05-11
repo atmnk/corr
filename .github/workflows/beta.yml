@@ -43,7 +43,7 @@ jobs:
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
 
       - name: Update corr formula
-        uses: mislav/bump-homebrew-formula-action@v1.6
+        uses: mislav/bump-homebrew-formula-action@v2
         env:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
         if: "!contains(github.ref, '-')" # skip prereleases
