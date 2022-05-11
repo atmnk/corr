@@ -49,7 +49,7 @@ jobs:
         if: "!contains(github.ref, '-')" # skip prereleases
         with:
           homebrew-tap: atmnk/homebrew-corr
-          formula-name: corr-beta
+          formula-name: corrbeta
           download-url: ${{format('{0}{1}{2}', 'https://github.com/atmnk/corr/releases/download/', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
           commit-message: 'Bump up {{formulaName}} formula to v{{version}} version'
       - name: Delete old releases
