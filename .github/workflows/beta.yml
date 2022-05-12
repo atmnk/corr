@@ -6,7 +6,7 @@ on:
       - 'b*'
 jobs:
   build:
-    name: Publish Binaries
+    name: Publish Binaries For Beta
     runs-on: macos-latest
 
     steps:
@@ -40,7 +40,7 @@ jobs:
           overwrite: true
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -c2-)
 
       - name: Update corr formula
         uses: mislav/bump-homebrew-formula-action@v2
@@ -50,9 +50,10 @@ jobs:
         with:
           homebrew-tap: atmnk/homebrew-corr
           formula-name: corrbeta
-          download-url: ${{format('{0}{1}{2}', 'https://github.com/atmnk/corr/releases/download/', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
+          tag-name: ${{format('{0}{1}','v',steps.get_version.outputs.VERSION)}}
+          download-url: ${{format('{0}{1}{2}', 'https://github.com/atmnk/corr/releases/download/b', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
           commit-message: 'Bump up {{formulaName}} formula to v{{version}} version'
-      - name: Delete old releases
+      - name: Delete old releasesZA
         uses: dev-drprasad/delete-older-releases@v0.2.0
         with:
           keep_latest: 30
