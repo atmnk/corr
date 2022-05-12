@@ -41,21 +41,3 @@ jobs:
       - name: Get the version
         id: get_version
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -c2-)
-
-      - name: Update corr formula
-        uses: mislav/bump-homebrew-formula-action@v2
-        env:
-          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
-        if: "!contains(github.ref, '-')" # skip prereleases
-        with:
-          homebrew-tap: atmnk/homebrew-corr
-          formula-name: corrbeta
-          tag-name: ${{format('{0}{1}','v',steps.get_version.outputs.VERSION)}}
-          download-url: ${{format('{0}{1}{2}', 'https://github.com/atmnk/corr/releases/download/b', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
-          commit-message: 'Bump up {{formulaName}} formula to v{{version}} version'
-      - name: Delete old releasesZA
-        uses: dev-drprasad/delete-older-releases@v0.2.0
-        with:
-          keep_latest: 30
-        env:
-          GITHUB_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
