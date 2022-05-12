@@ -40,7 +40,7 @@ jobs:
           overwrite: true
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -c2-)
+        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -c2-)
 
       - name: Update corr formula
         uses: mislav/bump-homebrew-formula-action@v2
