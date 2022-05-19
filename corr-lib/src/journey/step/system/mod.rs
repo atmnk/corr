@@ -28,7 +28,8 @@ pub enum SystemStep{
     Background(Vec<Step>),
     JourneyStep(JourneyStep),
     Transaction(TransactionStep),
-    Metric(MetricStep)
+    Metric(MetricStep),
+    While(WhileStep)
     // Comment(String)
 
 }
@@ -41,6 +42,11 @@ pub struct TransactionStep {
 pub struct MetricStep {
     tags:Vec<Expression>,
     value: Expression
+}
+#[derive(Debug, Clone,PartialEq)]
+pub struct WhileStep {
+    condition:Expression,
+    steps:Vec<Step>,
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum AssignmentStep {
@@ -102,6 +108,21 @@ impl Executable for TransactionStep{
         context.scrapper.ingest("transaction",duration.as_millis() as f64,vec![("name".to_string(),name.clone().to_string())]).await;
         context.tr_stats_store.push_stat((name,duration.as_millis())).await;
         // context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
+        handles
+    }
+}
+#[async_trait]
+impl Executable for WhileStep{
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        let exp = self.condition.clone();
+        let mut handles = vec![];
+        let mut continue_loop = exp.evaluate(context).await.to_bool();
+        while continue_loop {
+            for step in &self.steps {
+                handles.append(&mut step.execute(&context).await);
+            }
+            continue_loop = exp.evaluate(context).await.to_bool();
+        }
         handles
     }
 }
