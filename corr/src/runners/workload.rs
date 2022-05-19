@@ -275,6 +275,7 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
     let ping_vu = async move || {
         while true {
             scrapper1.ingest("vus",1.0,vec![("journey".to_string(),name1.clone())]).await;
+            sleep(Duration::from_millis(1000)).await;
         }
     };
     let vu_loop = async move |checker:Arc<RwLock<bool>>|{
