@@ -17,6 +17,7 @@ pub fn get_keywords<'a>()->Vec<&'a str>{
 }
 pub fn get_journey_keywords<'a>()->Vec<&'a str>{
     return vec![
+        "while",
         "undef",
         "measure",
         "ingest",
