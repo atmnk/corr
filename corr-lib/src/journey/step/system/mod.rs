@@ -266,6 +266,9 @@ impl Executable for SystemStep{
             SystemStep::ForLoop(fls)=>{
                 fls.execute(context).await
             },
+            SystemStep::While(wl)=>{
+                wl.execute(context).await
+            },
             SystemStep::Push(pt)=>{
                 pt.execute(context).await
             },
