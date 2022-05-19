@@ -1,5 +1,5 @@
 use crate::parser::{Parsable, ws};
-use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep, JourneyStep, WaitStep, TransactionStep};
+use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep, JourneyStep, WaitStep, TransactionStep, MetricStep};
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
 use nom::sequence::{delimited, preceded, terminated, tuple};
@@ -9,12 +9,19 @@ use nom::character::complete::char;
 use nom::branch::alt;
 use crate::template::{VariableReferenceName, Assignable, Expression};
 use crate::journey::step::Step;
-use nom::multi::{many0, separated_list0};
+use nom::multi::{many0, separated_list0, separated_list1};
 
 use crate::journey::parser::parse_name;
 impl Parsable for PrintStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         preceded(ws(tag("print")),map(Text::parser,|txt|{PrintStep::WithText(txt)}))(input)
+    }
+}
+impl Parsable for MetricStep{
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map(tuple((ws(tag("ingest")),ws(Expression::parser),ws(tag("as")),separated_list1(ws(tag(",")),ws(Expression::parser))))
+            , |(_,value,_,tags)|MetricStep{value,tags}
+        )(input)
     }
 }
 impl Parsable for TransactionStep{
@@ -103,6 +110,7 @@ impl Parsable for SystemStep{
             map(WaitStep::parser,|ws|{SystemStep::Wait(ws)}),
             map(preceded(ws(tag("undef")),ws(VariableReferenceName::parser)),|vrn|{SystemStep::Undefine(vrn)}),
             map(TransactionStep::parser,|tr|{SystemStep::Transaction(tr)}),
+            map(MetricStep::parser,|ms|{SystemStep::Metric(ms)}),
             map(preceded(ws(tag("background")),Step::parser),|step|{SystemStep::Background(vec![step])}),
             map(preceded(ws(tag("background")),delimited(ws(tag("{")),many0(ws(Step::parser)),ws(tag("}")))),|steps|{SystemStep::Background(steps)}),
             map(ConditionalStep::parser,|ps|{SystemStep::Condition(ps)}),

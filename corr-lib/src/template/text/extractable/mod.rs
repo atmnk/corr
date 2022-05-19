@@ -2,7 +2,7 @@
 
 
 use crate::core::runtime::Context;
-use crate::core::{Variable, convert, DataType};
+use crate::core::{Variable, convert, DataType, Value};
 
 use crate::template::text::extractable::parser::dynamic_tag;
 
@@ -45,15 +45,21 @@ impl ExtractableText{
                             return false;
                         }
 
+                    } else {
+                        return false;
                     }
                 }
                 if let Some(v) = last {
                     if let Some(val) = convert(v.name.clone(),remaining.to_string(),v.data_type.unwrap_or(DataType::String)) {
-                        vars_to_define.push(val);
+                        if val.value.eq(&Value::Null) || val.value.eq(&Value::String("".to_string())){
+                            return false
+                        } else {
+                            vars_to_define.push(val);
+                        }
                     } else {
                         return false;
                     }
-                } else if(remaining.len() > 0){
+                } else if remaining.len() > 0 {
                     return false;
                 }
                 for val in vars_to_define{
@@ -126,13 +132,22 @@ mod tests{
         assert_eq!(a.capture("http://localhost:8090/employee/E001/salary",&context).await,false);
     }
     #[tokio::test]
-    async fn should_not_match_part_of_text_with_variable_trailing_with_nothing(){
+    async fn should_match_part_of_text_with_variable_trailing_with_nothing(){
         let input=vec![];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `http://localhost:8090/employee/<%code%>`"#;
         let (i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("http://localhost:8090/employee/E001/salary",&context).await,true);
+    }
+    #[tokio::test]
+    async fn should_not_match_part_of_text_if_trailing_text_not_present(){
+        let input=vec![];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let text=r#"text `http://localhost:8090/employee/<%code%>/salary`"#;
+        let (i,a)=ExtractableText::parser(text).unwrap();
+        assert_eq!(a.capture("http://localhost:8090/employee/",&context).await,false);
     }
     #[tokio::test]
     async fn should_not_match_part_of_text_with_variable_trailing_with_string(){
@@ -142,6 +157,24 @@ mod tests{
         let text=r#"text `http://localhost:8090/employee/<%code%>/sal`"#;
         let (i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("http://localhost:8090/employee/E001/salary",&context).await,false);
+    }
+    #[tokio::test]
+    async fn should_not_match_if_trailing_variable_not_present(){
+        let input=vec![];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let text=r#"text `http://localhost:8090/employee/<%code%>`"#;
+        let (i,a)=ExtractableText::parser(text).unwrap();
+        assert_eq!(a.capture("http://localhost:8090/employee/",&context).await,false);
+    }
+    #[tokio::test]
+    async fn should_match_if_middle_variable_not_present(){
+        let input=vec![];
+        let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
+        let context=Context::mock(input,buffer.clone());
+        let text=r#"text `http://localhost:8090/employee/<%code%>/`"#;
+        let (i,a)=ExtractableText::parser(text).unwrap();
+        assert_eq!(a.capture("http://localhost:8090/employee//",&context).await,true);
     }
     // #[test]
     // fn should_parse_extractable_text_with_multiple_variable(){

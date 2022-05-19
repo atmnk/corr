@@ -28,6 +28,7 @@ pub enum SystemStep{
     Background(Vec<Step>),
     JourneyStep(JourneyStep),
     Transaction(TransactionStep),
+    Metric(MetricStep)
     // Comment(String)
 
 }
@@ -35,6 +36,11 @@ pub enum SystemStep{
 pub struct TransactionStep {
     name:Expression,
     block:Vec<Step>,
+}
+#[derive(Debug, Clone,PartialEq)]
+pub struct MetricStep {
+    tags:Vec<Expression>,
+    value: Expression
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum AssignmentStep {
@@ -97,6 +103,27 @@ impl Executable for TransactionStep{
         context.tr_stats_store.push_stat((name,duration.as_millis())).await;
         // context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
         handles
+    }
+}
+#[async_trait]
+impl Executable for MetricStep{
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        let mut tags = vec![];
+        for tag in &self.tags{
+            tags.push(("tag".to_string(),tag.evaluate(context).await.to_string()))
+        }
+        let val = self.value.evaluate(context).await;
+        let metric = match val {
+            Value::Double(m)=>{
+                m
+            },
+            Value::PositiveInteger(i)=>i as f64,
+            Value::Integer(i)=>i as f64,
+            Value::String(s)=>s.parse().unwrap(),
+            _=>0.0
+        };
+        context.scrapper.ingest("metric",metric,tags).await;
+        vec![]
     }
 }
 #[async_trait]
@@ -232,6 +259,7 @@ impl Executable for SystemStep{
             }
             SystemStep::Assignment(asst)=>asst.execute(context).await,
             SystemStep::Transaction(tr)=>tr.execute(context).await,
+            SystemStep::Metric(ms)=>ms.execute(context).await,
             SystemStep::Background(steps)=>{
                 let context = context.clone();
                 let steps_to_pass = steps.clone();
