@@ -205,14 +205,14 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
                     threads.push(th);
                     sleep(Duration::from_millis(delay)).await;
                     vu = vu + 1;
-                    scrapper.ingest("vus",vu.clone() as f64,vec![("journey".to_string(),scenario.journey.clone())]).await;
+                    // scrapper.ingest("vus",vu.clone() as f64,vec![("journey".to_string(),scenario.journey.clone())]).await;
                     // let result = client.insert_points(&points, TimestampOptions::None).await;
                 }
             }
             else {
                 let mut st=0;
                 while st<stage.duration {
-                    scrapper.ingest("vus",vu.clone() as f64,vec![("journey".to_string(),scenario.journey.clone())]).await;
+                    // scrapper.ingest("vus",vu.clone() as f64,vec![("journey".to_string(),scenario.journey.clone())]).await;
                     sleep(Duration::from_secs(1)).await;
                     st =st +1;
                 }
@@ -237,7 +237,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
                 // };
                 // let points = vec![point];
                 // let result = client.insert_points(&points, TimestampOptions::None).await;
-                scrapper.ingest("vus",vu.clone() as f64,vec![("journey".to_string(),scenario.journey.clone())]).await;
+                // scrapper.ingest("vus",vu.clone() as f64,vec![("journey".to_string(),scenario.journey.clone())]).await;
             }
 
         }
@@ -270,6 +270,13 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
             *flg = false;
         }
     };
+    let scrapper1 = scrapper.clone();
+    let name1 = name.clone();
+    let ping_vu = async move || {
+        while true {
+            scrapper1.ingest("vus",1.0,vec![("journey".to_string(),name1.clone())]).await;
+        }
+    };
     let vu_loop = async move |checker:Arc<RwLock<bool>>|{
         let mut iteration = 0;
         loop {
@@ -284,9 +291,16 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
             }
         }
     };
+    let flag1 = flag.clone();
+    let vu = async move ||{
+        tokio::select! {
+            _= vu_loop(flag1)=>{},
+            _= ping_vu()=>{}
+        }
+    };
 
     let h=tokio::spawn(async move {
-        tokio::join!(setter(flag.clone()),vu_loop(flag.clone()));
+        tokio::join!(setter(flag.clone()),vu());
     });
     (tx,h)
 }
