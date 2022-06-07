@@ -22,12 +22,16 @@ use corr_lib::parser::Parsable;
 
 use tokio::io::{AsyncBufReadExt, BufReader, Lines, Stdin};
 use corr_lib::workload::WorkLoad;
-pub async fn start(journey:Journey,context:CorrContext) {
+pub async fn start(journey:Journey,mut context:CorrContext) {
+    let mut rx = context.exiter();
     for param in journey.params.clone(){
         context.read(param).await;
     }
     let handles = journey.execute(&context).await;
-    futures::future::join_all(handles).await;
+    tokio::select! {
+        _ = futures::future::join_all(handles) => {},
+        _ = rx.recv() => {},
+    }
     context.user.lock().await.send(Output::new_done("Done Executing Journey".to_string())).await;
 }
 pub fn unpack(target:String) -> Result<String, std::io::Error> {

@@ -48,6 +48,13 @@ impl Number{
             Number::Double(dbl)=>dbl.clone().to_usize(),
         }
     }
+    pub fn as_i32(&self)->Option<i32>{
+        match self {
+            Number::PositiveInteger(lng)=>lng.clone().to_i32(),
+            Number::Integer(lng)=>lng.clone().to_i32(),
+            Number::Double(dbl)=>dbl.clone().to_i32(),
+        }
+    }
     pub fn to_value(&self)->Value{
         match self {
             Number::PositiveInteger(lng)=>Value::PositiveInteger(lng.clone() as u128),

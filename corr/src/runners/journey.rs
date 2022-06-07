@@ -35,7 +35,7 @@ impl JourneyRunner {
                 },
                 _=> Box::new(NoneScraper{})
             };
-            let context = CorrContext::new(Arc::new(Mutex::new(terminal.get_if())),jrns,Arc::new(scrapper));
+            let mut context = CorrContext::new(Arc::new(Mutex::new(terminal.get_if())),jrns,Arc::new(scrapper));
             tokio::spawn(async move {
                 client::start(jn, context).await;
             });

@@ -1,5 +1,5 @@
 use crate::parser::{Parsable, ws};
-use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep, JourneyStep, WaitStep, TransactionStep, MetricStep, WhileStep};
+use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep, JourneyStep, WaitStep, TransactionStep, MetricStep, WhileStep, ExitStep};
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
 use nom::sequence::{delimited, preceded, terminated, tuple};
@@ -115,6 +115,7 @@ impl Parsable for SystemStep{
             // map(preceded(tag("//"),is_not("\n\r")),|val:&str|SystemStep::Comment(val.to_string())),
             // map(delimited(tag("/*"), is_not("*/"), tag("*/")),|val:&str|SystemStep::Comment(val.to_string())),
             map(WaitStep::parser,|ws|{SystemStep::Wait(ws)}),
+            map(ExitStep::parser,|ws|{SystemStep::Exit(ws)}),
             map(preceded(ws(tag("undef")),ws(VariableReferenceName::parser)),|vrn|{SystemStep::Undefine(vrn)}),
             map(TransactionStep::parser,|tr|{SystemStep::Transaction(tr)}),
             map(MetricStep::parser,|ms|{SystemStep::Metric(ms)}),
@@ -139,6 +140,11 @@ impl Parsable for SystemStep{
 impl Parsable for WaitStep {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(tuple((ws(tag("wait")),ws(Expression::parser))),|(_,wt)|{WaitStep::WithTime(wt)})(input)
+    }
+}
+impl Parsable for ExitStep {
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map(tuple((ws(tag("exit")),ws(Expression::parser))),|(_,wt)|{ExitStep::WithCode(wt)})(input)
     }
 }
 impl Parsable for SyncStep {

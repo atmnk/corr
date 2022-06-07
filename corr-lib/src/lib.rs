@@ -23,6 +23,7 @@ pub fn get_journey_keywords<'a>()->Vec<&'a str>{
         "ingest",
         "as",
         "wait",
+        "exit",
         "print",
                 "respond",
                 "connect",

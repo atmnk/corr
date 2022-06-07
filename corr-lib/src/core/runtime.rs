@@ -9,6 +9,7 @@ use std::future::Future;
 use futures_util::stream::SplitSink;
 use num_traits::ToPrimitive;
 use test::stats::Stats;
+use tokio::sync::oneshot::{Receiver, Sender};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 use crate::core::scrapper::none::NoneScraper;
@@ -466,9 +467,21 @@ pub struct Context{
     pub websocket_connection_store:WebsocketConnectionStore,
     pub rest_stats_store:RestStatsStore,
     pub tr_stats_store:TransactionsStatsStore,
-    pub fallback:bool
+    pub fallback:bool,
+    pub sender:Option<Arc<Mutex<tokio::sync::mpsc::Sender<i32>>>>
 }
 impl Context {
+    pub fn exiter(&mut self)->tokio::sync::mpsc::Receiver<i32>{
+        let (tx,rx) = tokio::sync::mpsc::channel::<i32>(10);
+        self.sender = Option::Some(Arc::new(Mutex::new(tx)));
+        rx
+    }
+    pub async fn exit(&self,message:i32){
+        if let Some(tx) = self.sender.clone() {
+            let mut vl = tx.lock().await;
+            (*vl).send(message);
+        }
+    }
     pub async fn get_var_from_store(&self,name:String)->Option<Value>{
         if let Some(var)=self.store.get(name).await{
             Option::Some(var.lock().await.to_value().await)
@@ -478,6 +491,7 @@ impl Context {
     }
     pub fn new(user:Arc<Mutex<dyn Client>>,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>)->Self{
         Context{
+            sender:Option::None,
             scrapper,
             journeys,
             user:user,
@@ -500,6 +514,7 @@ impl Context {
     }
     pub async fn from(context:&Context)->Self{
         Context{
+            sender:context.sender.clone(),
             scrapper:context.scrapper.clone(),
             journeys:context.journeys.clone(),
             user:context.user.clone(),
@@ -513,6 +528,7 @@ impl Context {
     }
     pub async fn from_without_fallback(context:&Context)->Self{
         Context{
+            sender:context.sender.clone(),
             scrapper: context.scrapper.clone(),
             journeys:context.journeys.clone(),
             user:context.user.clone(),

@@ -17,6 +17,7 @@ use tokio::time::sleep;
 #[derive(Debug, Clone,PartialEq)]
 pub enum SystemStep{
     Wait(WaitStep),
+    Exit(ExitStep),
     Print(PrintStep),
     ForLoop(ForLoopStep),
     Condition(ConditionalStep),
@@ -64,6 +65,10 @@ pub enum PrintStep{
 #[derive(Debug, Clone,PartialEq)]
 pub enum WaitStep{
     WithTime(Expression)
+}
+#[derive(Debug, Clone,PartialEq)]
+pub enum ExitStep{
+    WithCode(Expression)
 }
 #[derive(Debug, Clone,PartialEq)]
 pub struct JourneyStep{
@@ -228,6 +233,18 @@ impl Executable for WaitStep {
     }
 }
 #[async_trait]
+impl Executable for ExitStep {
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        match &self {
+            ExitStep::WithCode(code)=>{
+                let code = code.evaluate(context).await.to_number().unwrap_or(Number::Integer(0)).as_i32().unwrap();
+                context.exit(code).await;
+                return vec![];
+            }
+        }
+    }
+}
+#[async_trait]
 impl Executable for ForLoopStep{
     async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
@@ -259,6 +276,9 @@ impl Executable for SystemStep{
             }
             SystemStep::Wait(ws)=>{
                 ws.execute(context).await
+            },
+            SystemStep::Exit(es)=>{
+                es.execute(context).await
             },
             SystemStep::Print(ps)=>{
                 ps.execute(context).await
