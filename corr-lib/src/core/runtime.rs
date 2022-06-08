@@ -468,12 +468,12 @@ pub struct Context{
     pub rest_stats_store:RestStatsStore,
     pub tr_stats_store:TransactionsStatsStore,
     pub fallback:bool,
-    pub sender:Option<Arc<Mutex<tokio::sync::mpsc::Sender<i32>>>>
+    pub sender:Option<Arc<Mutex<tokio::sync::mpsc::UnboundedSender<i32>>>>
 }
 impl Context {
-    pub fn exiter(&mut self)->tokio::sync::mpsc::Receiver<i32>{
-        let (tx,rx) = tokio::sync::mpsc::channel::<i32>(10);
-        self.sender = Option::Some(Arc::new(Mutex::new(tx)));
+    pub fn exiter(&mut self)->tokio::sync::mpsc::UnboundedReceiver<i32>{
+        let (tx,rx) = tokio::sync::mpsc::unbounded_channel::<i32>();
+        self.sender = Some(Arc::new(Mutex::new(tx)));
         rx
     }
     pub async fn exit(&self,message:i32){
