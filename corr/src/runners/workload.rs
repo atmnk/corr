@@ -280,6 +280,7 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
     let (tx,mut rx) = tokio::sync::mpsc::unbounded_channel();
     let flag = Arc::new(RwLock::new(true));
     let name_clone=name.clone();
+    let name_clone1 = name.clone();
     let setter = async move |checker:Arc<RwLock<bool>>|{
         if let Some(val)=rx.recv().await{
             println!("Got Signal to Stop VU {} for test {}",number, name_clone);
@@ -295,6 +296,19 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
     //         sleep(Duration::from_millis(1000)).await;
     //     }
     // };
+    let im = Arc::new(RwLock::new((0,0.0)));
+    let imc = im.clone();
+    let iteration_loop = async move ||{
+        let lic = Arc::new(RwLock::new(0));
+        loop {
+            let mut lastTime = lic.write().await;
+            let now = imc.read().await;
+            scrapper1.ingest("iteration_count",(now.0 - *lastTime) as f64,vec![("journey".to_string(),name_clone1.clone())]).await;
+            scrapper1.ingest("iteration_duration",now.1,vec![("journey".to_string(),name_clone1.clone())]).await;
+            *lastTime = now.0;
+            sleep(Duration::from_millis(1000)).await;
+        }
+    };
     let vu_loop = async move |checker:Arc<RwLock<bool>>|{
         let mut iteration = 0;
         let vu_count = vu_count.clone();
@@ -303,10 +317,13 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
             *vc = *vc + 1.0;
         }
         loop {
-            let tn = format!("{} - VU - {}, Iteration - {}",name.clone(),number,iteration);
             let flg = checker.read().await;
             if *flg {
-                test(name.clone(),journeys.clone(),scrapper.clone()).await;
+                let resp = test(name.clone(),journeys.clone(),scrapper.clone()).await;
+                {
+                    let  mut ic = im.write().await;
+                    *(ic) = (ic.0+1,((ic.0 as f64 * ic.1) +(resp as f64))/ (ic.0 as f64 + 1.0)) ;
+                }
                 iteration = iteration+1;
             } else {
                 println!("Stopping VU {} for test {}",number, name.clone());
@@ -325,16 +342,24 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
     //         _= ping_vu()=>{}
     //     }
     // };
-
+    let vu_with_it = async move ||{
+        tokio::select! {
+            _=vu_loop(flag1)=>{},
+            _=iteration_loop()=>{},
+        }
+    };
     let h=tokio::spawn(async move {
-        tokio::join!(setter(flag.clone()),vu_loop(flag1));
+        tokio::join!(setter(flag.clone()),vu_with_it());
     });
     (tx,h)
 }
 async fn start_iteration(name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>)->JoinHandle<()>{
-    tokio::spawn(test(name,journeys,scrapper))
+    let cc = async move ||{
+        test(name,journeys,scrapper).await;
+    };
+    tokio::spawn(cc())
 }
-async fn test(name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>){
+async fn test(name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>)->u128{
     let context = CorrContext::new(Arc::new(Mutex::new(StandAloneInterface{})),journeys.clone(),scrapper.clone());
     let now = Instant::now();
     let mut jn = Option::None;
@@ -345,5 +370,5 @@ async fn test(name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>)
         }
     }
     client::start(jn.unwrap(), Context::from_without_fallback(&context).await).await;
-    scrapper.ingest("iterations",now.elapsed().as_millis() as f64,vec![("journey".to_string(),name)]).await;
+    now.elapsed().as_millis()
 }
