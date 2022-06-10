@@ -12,7 +12,7 @@ use crate::interfaces::standalone::StandAloneInterface;
 use corr_lib::core::runtime::{Context as CorrContext, Context};
 use corr_lib::core::scrapper::influxdb2::InfluxDB2Scrapper;
 use corr_lib::core::scrapper::none::NoneScraper;
-use corr_lib::core::scrapper::Scrapper;
+use corr_lib::core::scrapper::{Metrics, Scrapper};
 use corr_lib::core::Value;
 use corr_lib::journey::{Executable, Journey};
 use corr_lib::workload::{ModelScenario, Scenario, WorkLoad};
@@ -47,100 +47,6 @@ impl WorkLoadRunner{
             schedule_workload(wl,jrns,Arc::new(scrp)).await
         }
     }
-    // pub async fn run_workload_in(jp:String, workload:String,out:Out){
-    //     let wrklds = client::get_workloads_in(format!("{}/src", jp)).await.unwrap();
-    //     let jrns = client::get_journeis_in(format!("{}/src", jp)).await.unwrap();
-    //     let j = if workload.clone().eq("<default>"){
-    //         wrklds.get(0).map(|j|j.clone())
-    //     } else {
-    //         let mut jn = Option::None;
-    //         for jrn in &wrklds {
-    //             if jrn.name.eq(&workload.clone()) {
-    //                 jn = Option::Some(jrn.clone());
-    //                 break;
-    //             }
-    //         }
-    //         jn
-    //     };
-    //     if let Some(wl) = j {
-    //         let scrapper:Box<dyn Scrapper> = match out {
-    //             Out::InfluxDB2=>{
-    //                 Box::new(InfluxDB2Scrapper::new(env::var("J_INFLUX_URL").unwrap().as_str(),env::var("J_INFLUX_TOKEN").unwrap().as_str(),env::var("J_INFLUX_ORG").unwrap().as_str(),env::var("J_INFLUX_BUCKET").unwrap().as_str()))
-    //             },
-    //             _=> Box::new(NoneScraper{})
-    //         };
-    //         let context = CorrContext::new(Arc::new(Mutex::new(StandAloneInterface{})), jrns.clone(),Arc::new(scrapper));
-    //         let mut jn = Option::None;
-    //         if let Some(startup_journey) = &wl.startup_journey{
-    //             for jrn in &jrns {
-    //                 if jrn.name.eq(startup_journey) {
-    //                     jn = Option::Some(jrn.clone());
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //         if let Some(jr)= &jn {
-    //             jr.execute(&context).await;
-    //         }
-    //         for jrn in &jrns {
-    //             if jrn.name.eq(&wl.journey) {
-    //                 jn = Option::Some(jrn.clone());
-    //                 break;
-    //             }
-    //         }
-    //         let mut handles = vec![];
-    //         let mut vus:f64 = 1.0;
-    //         for concurrentUser in 0..wl.concurrentUsers {
-    //             let new_jn = jn.clone();
-    //             let new_ct_o = CorrContext::from(&context).await;
-    //             let scrapper = new_ct_o.scrapper.clone();
-    //             let d = wl.duration.clone();
-    //             let t=tokio::spawn(async move {
-    //                 let start = SystemTime::now();
-    //                 let since_the_epoch = start
-    //                     .duration_since(UNIX_EPOCH)
-    //                     .expect("Time went backwards");
-    //                 let in_ms = since_the_epoch.as_millis();
-    //                 let mut elapsed:u128 = 0;
-    //                 let mut iter = 1;
-    //
-    //                 while elapsed<(d * 1000) {
-    //                     let new_ct = CorrContext::from(&new_ct_o).await;
-    //                     let new_jn = new_jn.clone();
-    //                     let name = new_jn.clone().unwrap().name;
-    //                     new_ct.define("VU".to_string(),Value::PositiveInteger(concurrentUser as u128)).await;
-    //                     new_ct.define("ITER".to_string(),Value::PositiveInteger(iter)).await;
-    //                     client::start(new_jn.unwrap(), Context::from_without_fallback(&new_ct).await).await;
-    //                     let start = SystemTime::now();
-    //                     let since_the_epoch = start
-    //                         .duration_since(UNIX_EPOCH)
-    //                         .expect("Time went backwards");
-    //                     let in_ms_now = since_the_epoch.as_millis();
-    //                     elapsed = in_ms_now - in_ms;
-    //                     iter = iter + 1;
-    //                     new_ct.scrapper.ingest("iterations",1.0,vec![("journey".to_string(),name)]).await;
-    //                 }
-    //
-    //             });
-    //             scrapper.ingest("vus",vus,vec![("journey".to_string(),wl.journey.clone())]).await;
-    //             vus=vus+1.0;
-    //             sleep(Duration::from_millis(wl.perUserRampUp)).await;
-    //             handles.push(t);
-    //         }
-    //         let el = async {
-    //             loop {
-    //                 context.scrapper.ingest("vus",vus,vec![("journey".to_string(),wl.journey.clone())]).await;
-    //                 sleep(Duration::from_millis(500)).await;
-    //             }
-    //         };
-    //         tokio::select! {
-    //             _= el=>{},
-    //             _=futures::future::join_all(handles)=>{}
-    //         }
-    //         context.rest_stats_store.print_stats_summary().await;
-    //         context.tr_stats_store.print_stats_summary().await;
-    //     }
-    // }
 }
 pub async fn schedule_workload(workload:WorkLoad,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>){
     let joins:Vec<_> = workload.scenarios.iter().map(|sc|sc.clone()).map(|sc|schedule_scenario(sc,journeys.clone(),scrapper.clone())).collect();
@@ -149,7 +55,13 @@ pub async fn schedule_workload(workload:WorkLoad,journeys:Vec<Journey>,scrapper:
 async fn schedule_scenario(scenario:Scenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>){
     match scenario {
         Scenario::Closed(cms)=>{
-            closed_model_scenario_scheduler(cms,journeys,scrapper).await
+            let metrics = Arc::new(Metrics::new());
+            let jn = cms.journey.clone();
+            tokio::select! {
+                _=metrics_reporter(metrics.clone(),jn,scrapper.clone())=>{},
+                _=closed_model_scenario_scheduler(cms,journeys,scrapper,metrics)=>{},
+            }
+
         },
         Scenario::Open(oms)=>{
             open_model_scenario_scheduler(oms,journeys,scrapper).await
@@ -187,7 +99,14 @@ async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journ
     }
 
 }
-async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>) {
+async fn metrics_reporter(metrics:Arc<Metrics>,journey:String,scc:Arc<Box<dyn Scrapper>>){
+    loop {
+        scc.ingest_metric(metrics.clone(),("journey".to_string(),journey.clone())).await;
+        sleep(Duration::from_millis(500)).await
+    }
+}
+async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,metrics:Arc<Metrics>) {
+
     let stages= scenario.stages.clone();
     let mut vus = vec![];
     let mut threads = vec![];
@@ -197,12 +116,8 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
     let vcc = vu_count.clone();
     let scc = scrapper.clone();
     let jnn = scenario.journey.clone();
-    let vu_reporter = async move ||{
-        loop {
-            let count = vcc.read().await;
-            scc.ingest("vus",*count,vec![("journey".to_string(),jnn.clone())]).await;
-            sleep(Duration::from_millis(500)).await
-        }
+    let jnnc = scenario.journey.clone();
+    let metrics_reporter = async move ||{
 
     };
     for stage in stages{
@@ -212,22 +127,26 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
             if delta!=0{
                 let delay = stage.duration * 1000 / (delta  as u64);
                 for i in 0..delta{
-                    let (vuh,th)=start_vu(vu,scenario.journey.clone(),journeys.clone(),scrapper.clone(),vu_count.clone()).await;
+                    let (vuh,th)=start_vu(vu,scenario.journey.clone(),journeys.clone(),scrapper.clone(),vu_count.clone(),metrics.clone()).await;
                     vus.push(vuh);
                     threads.push(th);
                     sleep(Duration::from_millis(delay)).await;
                     vu = vu + 1;
                     let count = vu_count.read().await;
-                    scrapper.ingest("vus",*count,vec![("journey".to_string(),scenario.journey.clone())]).await;
-                    // let result = client.insert_points(&points, TimestampOptions::None).await;
+                    {
+                        let mut vuc = metrics.vus.write().await;
+                        *vuc = *count;
+                    }
                 }
             }
             else {
                 let mut st=0;
                 while st<stage.duration {
-                    // scrapper.ingest("vus",vu.clone() as f64,vec![("journey".to_string(),scenario.journey.clone())]).await;
                     let count = vu_count.read().await;
-                    scrapper.ingest("vus",*count,vec![("journey".to_string(),scenario.journey.clone())]).await;
+                    {
+                        let mut vuc = metrics.vus.write().await;
+                        *vuc = *count;
+                    }
                     sleep(Duration::from_secs(1)).await;
                     st =st +1;
                 }
@@ -241,19 +160,10 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
                 }
                 sleep(Duration::from_millis(delay)).await;
                 let count = vu_count.read().await;
-                scrapper.ingest("vus",*count,vec![("journey".to_string(),scenario.journey.clone())]).await;
-                // let start = SystemTime::now();
-                // let since_the_epoch = start
-                //     .duration_since(UNIX_EPOCH)
-                //     .expect("Time went backwards");
-                // let point = VUS{
-                //     name:scenario.journey.clone(),
-                //     value: vu.clone(),
-                //     timestamp:Timestamp::from(since_the_epoch.as_millis() as i64)
-                // };
-                // let points = vec![point];
-                // let result = client.insert_points(&points, TimestampOptions::None).await;
-                // scrapper.ingest("vus",vu.clone() as f64,vec![("journey".to_string(),scenario.journey.clone())]).await;
+                {
+                    let mut vuc = metrics.vus.write().await;
+                    *vuc = *count;
+                }
             }
 
         }
@@ -267,7 +177,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
     }
     if let Some(ft) = &scenario.forceStop {
         tokio::select! {
-            _=vu_reporter()=>{println!("VU Reporting stopped")},
+            _=metrics_reporter()=>{println!("VU Reporting stopped")},
             _=sleep(Duration::from_secs(ft.clone()))=>{println!("Forcefully stopped {}",scenario.journey)},
             _=futures::future::join_all(threads)=>{println!("Normally stopped {}",scenario.journey)}
         }
@@ -276,7 +186,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
         println!("Normally stopped {}",scenario.journey)
     }
 }
-async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,vu_count:Arc<RwLock<f64>>)->(tokio::sync::mpsc::UnboundedSender<u64>,JoinHandle<()>){
+async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,vu_count:Arc<RwLock<f64>>,metrics:Arc<Metrics>)->(tokio::sync::mpsc::UnboundedSender<u64>,JoinHandle<()>){
     let (tx,mut rx) = tokio::sync::mpsc::unbounded_channel();
     let flag = Arc::new(RwLock::new(true));
     let name_clone=name.clone();
@@ -298,16 +208,6 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
     // };
     let im = Arc::new(RwLock::new((0,0.0)));
     let imc = im.clone();
-    let iteration_loop = async move ||{
-        let mut lastTime = 0;
-        loop {
-            let now = imc.read().await;
-            scrapper1.ingest("iteration_count",(now.0 - lastTime) as f64,vec![("journey".to_string(),name_clone1.clone())]).await;
-            scrapper1.ingest("iteration_duration",now.1,vec![("journey".to_string(),name_clone1.clone())]).await;
-            lastTime = now.0;
-            sleep(Duration::from_millis(200)).await;
-        }
-    };
     let vu_loop = async move |checker:Arc<RwLock<bool>>|{
         let mut iteration = 0;
         let vu_count = vu_count.clone();
@@ -319,11 +219,17 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
             let flg = checker.read().await;
             if *flg {
                 let resp = test(name.clone(),journeys.clone(),scrapper.clone()).await;
-                {
-                    let  mut ic = im.write().await;
-                    *(ic) = (ic.0+1,((ic.0 as f64 * ic.1) +(resp as f64))/ (ic.0 as f64 + 1.0)) ;
-                }
+                // {
+                //     let  mut ic = im.write().await;
+                //     *(ic) = (ic.0+1,((ic.0 as f64 * ic.1) +(resp as f64))/ (ic.0 as f64 + 1.0)) ;
+                // }
                 iteration = iteration+1;
+                {
+                    let mut itm = metrics.iterations.write().await;
+                    let mut itmd = metrics.iteration_duration.write().await;
+                    *itm = *itm + 1.0;
+                    *itmd = *itmd + resp as f64;
+                }
             } else {
                 println!("Stopping VU {} for test {}",number, name.clone());
                 break;
@@ -335,14 +241,8 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
         }
     };
     let flag1 = flag.clone();
-    let vu_with_it = async move ||{
-        tokio::select! {
-            _=vu_loop(flag1)=>{},
-            _=iteration_loop()=>{},
-        }
-    };
     let h=tokio::spawn(async move {
-        tokio::join!(setter(flag.clone()),vu_with_it());
+        tokio::join!(setter(flag.clone()),vu_loop(flag1));
     });
     (tx,h)
 }
