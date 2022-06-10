@@ -299,14 +299,13 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
     let im = Arc::new(RwLock::new((0,0.0)));
     let imc = im.clone();
     let iteration_loop = async move ||{
-        let lic = Arc::new(RwLock::new(0));
+        let mut lastTime = 0;
         loop {
-            let mut lastTime = lic.write().await;
             let now = imc.read().await;
-            scrapper1.ingest("iteration_count",(now.0 - *lastTime) as f64,vec![("journey".to_string(),name_clone1.clone())]).await;
+            scrapper1.ingest("iteration_count",(now.0 - lastTime) as f64,vec![("journey".to_string(),name_clone1.clone())]).await;
             scrapper1.ingest("iteration_duration",now.1,vec![("journey".to_string(),name_clone1.clone())]).await;
-            *lastTime = now.0;
-            sleep(Duration::from_millis(1000)).await;
+            lastTime = now.0;
+            sleep(Duration::from_millis(200)).await;
         }
     };
     let vu_loop = async move |checker:Arc<RwLock<bool>>|{
@@ -336,12 +335,6 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
         }
     };
     let flag1 = flag.clone();
-    // let vu = async move ||{
-    //     tokio::select! {
-    //         _= vu_loop(flag1)=>{},
-    //         _= ping_vu()=>{}
-    //     }
-    // };
     let vu_with_it = async move ||{
         tokio::select! {
             _=vu_loop(flag1)=>{},
