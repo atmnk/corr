@@ -50,7 +50,12 @@ impl WorkLoadRunner{
 }
 pub async fn schedule_workload(workload:WorkLoad,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>){
     let joins:Vec<_> = workload.scenarios.iter().map(|sc|sc.clone()).map(|sc|schedule_scenario(sc,journeys.clone(),scrapper.clone())).collect();
-    futures::future::join_all(joins).await;
+
+    tokio::select! {
+        _= scrapper.start_metrics_loop()=>{},
+        _= futures::future::join_all(joins)=>{}
+    }
+
 }
 async fn schedule_scenario(scenario:Scenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>){
     match scenario {
@@ -97,7 +102,6 @@ async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journ
         futures::future::join_all(threads).await;
         println!("Normally stopped {}",scenario.journey)
     }
-
 }
 async fn metrics_reporter(metrics:Arc<Metrics>,journey:String,scc:Arc<Box<dyn Scrapper>>){
     loop {
