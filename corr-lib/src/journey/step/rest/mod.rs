@@ -1,4 +1,6 @@
 pub mod parser;
+
+use std::fmt::format;
 use crate::template::object::extractable::{Extractable};
 use crate::template::rest::{ RequestBody, RequestHeaders, RestVerb, FillableRequest};
 use crate::template::rest::extractable::{ExtractableRestData, CorrResponse};
@@ -105,12 +107,14 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, co
                 match i_response {
                     Ok(rb)=>{
                         if rb.status().as_u16() > 399 {
+                            context.scrapper.ingest("errors",1.0,vec![(format!("status"),format!("{}",rb.status())),(format!("api"),format!("{}",request.url))]).await;
                             {
-                                eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.unwrap().to_string_body(), rb.status())
+                                eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.map(|b|b.to_string_body()).unwrap_or(format!("")), rb.status())
                             }
                         }
                     },
                     Err(e)=>{
+                        context.scrapper.ingest("errors",1.0,vec![(format!("api"),format!("{}",request.url))]).await;
                         eprintln!("Error Response for api {} {:?}", request.url,e)
                     }
                 }

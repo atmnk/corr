@@ -4,7 +4,6 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use crate::core::runtime::Context;
 use crate::journey::Executable;
-// use crate::journey::step::websocket::server::OnMessage;
 use crate::template::{Expression, VariableReferenceName};
 use async_trait::async_trait;
 use url::Url;
@@ -35,31 +34,41 @@ pub struct WebSocketSendBinaryStep{
 #[async_trait]
 impl Executable for WebSocketClientConnectStep {
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
-        let (socket, _)=connect_async(Url::parse(self.url.evaluate(context).await.to_string().as_str()).unwrap()).await.unwrap();
-        let (ssk,mut ssm) = socket.split();
-        context.websocket_connection_store.define(self.connection_name.evaluate(context).await.to_string(),ssk).await;
-        let hook = self.hook.clone();
-        let new_ct = context.clone();
-        let handle:JoinHandle<bool> = tokio::spawn(async move {
-            loop {
-                if let Some(Ok(m)) = ssm.next().await{
-                    if m.is_text(){
-                        let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
-                        new_ct.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
-                        let mut handles = vec![];
-                        for step in &hook.block {
-                            let mut inner_handles = step.execute(&new_ct).await;
-                            handles.append(&mut inner_handles);
+        let url = self.url.evaluate(context).await.to_string();
+        let mut conn=connect_async(Url::parse(url.as_str()).unwrap()).await;
+        match conn {
+            Ok((socket, _))=> {
+                let (ssk,mut ssm) = socket.split();
+                context.websocket_connection_store.define(self.connection_name.evaluate(context).await.to_string(),ssk).await;
+                let hook = self.hook.clone();
+                let new_ct = context.clone();
+                let handle:JoinHandle<bool> = tokio::spawn(async move {
+                    loop {
+                        if let Some(Ok(m)) = ssm.next().await{
+                            if m.is_text(){
+                                let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
+                                new_ct.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
+                                let mut handles = vec![];
+                                for step in &hook.block {
+                                    let mut inner_handles = step.execute(&new_ct).await;
+                                    handles.append(&mut inner_handles);
+                                }
+                                futures::future::join_all(handles).await;
+                            }
+                        } else {
+                            return true;
                         }
-                        futures::future::join_all(handles).await;
                     }
-                } else {
-                    return true;
-                }
+                });
+                return vec![handle]
+            },
+            Err(e)=> {
+                context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",e.to_string())),(format!("api"),format!("{}",url))]).await;
+                return vec![]
             }
-            return true;
-        });
-        return vec![handle]
+        }
+
+
     }
 }
 #[async_trait]
