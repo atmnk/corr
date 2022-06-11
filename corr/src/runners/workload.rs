@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use futures::lock::Mutex;
 use core::option::Option;
+use futures::channel::mpsc::UnboundedSender;
 use futures::stream;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -57,16 +58,35 @@ pub async fn schedule_workload(workload:WorkLoad,journeys:Vec<Journey>,scrapper:
 
 }
 async fn schedule_scenario(scenario:Scenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>){
+    let mut count = Arc::new(RwLock::new(0.0));
+    let cc = count.clone();
+    let scpr = scrapper.clone();
+    let iteration_scrapper = async move |jn:String|{
+        loop {
+            let mut ct = count.write().await;
+            scpr.ingest("iteration_count",*ct,vec![("journey".to_string(),jn.clone())]).await;
+            *ct = 0.0;
+            sleep(Duration::from_millis(50)).await
+        }
+    };
     match scenario {
         Scenario::Closed(cms)=>{
-            closed_model_scenario_scheduler(cms,journeys,scrapper).await;
+            let jn = cms.journey.clone();
+            tokio::select! {
+                _=closed_model_scenario_scheduler(cms,journeys,scrapper,cc)=>{},
+                _=iteration_scrapper(jn)=>{},
+            };
         },
         Scenario::Open(oms)=>{
-            open_model_scenario_scheduler(oms,journeys,scrapper).await;
+            let jn = oms.journey.clone();
+            tokio::select! {
+                _=open_model_scenario_scheduler(oms,journeys,scrapper,cc)=>{},
+                _=iteration_scrapper(jn)=>{},
+            };
         }
     }
 }
-async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>) {
+async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,ic:Arc<RwLock<f64>>) {
     let stages= scenario.stages.clone();
     let mut threads = vec![];
     let mut vu =0;
@@ -76,7 +96,7 @@ async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journ
         if delta!=0{
             let delay = stage.duration * 1000000 / (delta  as u64);
             for i in 0..delta{
-                let th=start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone()).await;
+                let th=start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone()).await;
                 threads.push(th);
                 sleep(Duration::from_micros(delay)).await;
                 vu = vu + 1;
@@ -96,7 +116,7 @@ async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journ
         println!("Normally stopped {}",scenario.journey)
     }
 }
-async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>) {
+async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,ic:Arc<RwLock<f64>>) {
 
     let stages= scenario.stages.clone();
     let mut vus = vec![];
@@ -115,7 +135,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
             if delta!=0{
                 let delay = stage.duration * 1000 / (delta  as u64);
                 for i in 0..delta{
-                    let (vuh,th)=start_vu(vu,scenario.journey.clone(),journeys.clone(),scrapper.clone(),vu_count.clone()).await;
+                    let (vuh,th)=start_vu(vu,scenario.journey.clone(),journeys.clone(),scrapper.clone(),vu_count.clone(),ic.clone()).await;
                     vus.push(vuh);
                     threads.push(th);
                     sleep(Duration::from_millis(delay)).await;
@@ -163,7 +183,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
         println!("Normally stopped {}",scenario.journey)
     }
 }
-async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,vu_count:Arc<RwLock<f64>>)->(tokio::sync::mpsc::UnboundedSender<u64>,JoinHandle<()>){
+async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,vu_count:Arc<RwLock<f64>>,ic:Arc<RwLock<f64>>)->(tokio::sync::mpsc::UnboundedSender<u64>,JoinHandle<()>){
     let (tx,mut rx) = tokio::sync::mpsc::unbounded_channel();
     let flag = Arc::new(RwLock::new(true));
     let name_clone=name.clone();
@@ -175,7 +195,6 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
         }
     };
     let im = Arc::new(RwLock::new((0,0.0)));
-    let imc = im.clone();
     let vu_loop = async move |checker:Arc<RwLock<bool>>|{
         let mut iteration = 0;
         let vu_count = vu_count.clone();
@@ -183,11 +202,21 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
             let mut vc = vu_count.write().await;
             *vc = *vc + 1.0;
         }
+        let mut total_resp = 0;
+        let mut intc:f64 = 0.0;
         loop {
             let flg = checker.read().await;
             if *flg {
                 let resp = test(name.clone(),journeys.clone(),scrapper.clone()).await;
+                total_resp = total_resp + resp;
+                intc = intc+1.0;
                 scrapper.ingest("iteration_duration",resp as f64,vec![("journey".to_string(),name.clone())]).await;
+                if total_resp >= 500 {
+                    let mut ic_ref = ic.write().await;
+                    *ic_ref = *ic_ref + intc;
+                    intc = 0.0;
+                    total_resp = 0;
+                }
                 iteration = iteration+1;
             } else {
                 println!("Stopping VU {} for test {}",number, name.clone());
@@ -205,10 +234,14 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
     });
     (tx,h)
 }
-async fn start_iteration(name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>)->JoinHandle<()>{
+async fn start_iteration(name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,ic:Arc<RwLock<f64>>)->JoinHandle<()>{
     let cc = async move ||{
         let resp = test(name.clone(),journeys,scrapper.clone()).await;
-        scrapper.ingest("iteration_duration",resp as f64,vec![("journey".to_string(),name)]).await;
+        scrapper.ingest("iteration_duration",resp as f64,vec![("journey".to_string(),name.clone())]).await;
+        {
+            let mut ic_ref = ic.write().await;
+            *ic_ref = *ic_ref + 1.0;
+        }
     };
     tokio::spawn(cc())
 }
