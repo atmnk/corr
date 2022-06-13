@@ -75,14 +75,23 @@ impl Executable for WebSocketClientConnectStep {
 #[async_trait]
 impl Executable for WebSocketSendStep{
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
-        let conn = context.websocket_connection_store.get(self.name.evaluate(context).await.to_string()).await.unwrap();
-        let mut connection = conn.lock().await;
-        let msg = if self.is_binary {
-            Message::Binary(self.message.evaluate(context).await.to_binary())
+        let conn_name = self.name.evaluate(context).await.to_string();
+        if let Some(conn) = context.websocket_connection_store.get(conn_name.clone()).await{
+            let mut connection = conn.lock().await;
+            let msg = if self.is_binary {
+                Message::Binary(self.message.evaluate(context).await.to_binary())
+            } else {
+                Message::Text(self.message.evaluate(context).await.to_string())
+            };
+            if let Err(e)=(*connection).send(msg).await{
+                context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",e.to_string())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
+                eprintln!("Error while sending data over websocket {} - {}",conn_name.clone(),e.to_string());
+            }
         } else {
-            Message::Text(self.message.evaluate(context).await.to_string())
-        };
-        (*connection).send(msg).await;
+            let msg = format!("Websocket with name {} not found",conn_name.clone());
+            context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",msg.clone())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
+            eprintln!("{}",msg);
+        }
         return vec![];
     }
 }
