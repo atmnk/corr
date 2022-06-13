@@ -64,6 +64,7 @@ impl Executable for WebSocketClientConnectStep {
             },
             Err(e)=> {
                 context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",e.to_string())),(format!("api"),format!("{}",url))]).await;
+                eprintln!("Error while connecting websocket {} - {}",url,e.to_string());
                 return vec![]
             }
         }
