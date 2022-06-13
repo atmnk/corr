@@ -95,10 +95,12 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, co
                                 status:parts.status.as_u16()
                             }).await
                         } else {
+                            context.scrapper.ingest("errors",1.0,vec![("api".to_string(),request.url.clone()),("message".to_string(),format!("{}",rb.status().as_str()))]).await;
                             eprintln!("Rest api {} Failed with code {}", request.url, rb.status())
                         }
                     },
                     Err(e)=>{
+                        context.scrapper.ingest("errors",1.0,vec![("api".to_string(),request.url.clone()),("message".to_string(),format!("{}",e.to_string()))]).await;
                         eprintln!("Error Response for api {} {:?}", request.url,e)
                     }
                 }
@@ -108,9 +110,7 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, co
                     Ok(rb)=>{
                         if rb.status().as_u16() > 399 {
                             context.scrapper.ingest("errors",1.0,vec![(format!("status"),format!("{}",rb.status())),(format!("api"),format!("{}",request.url))]).await;
-                            {
-                                eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.map(|b|b.to_string_body()).unwrap_or(format!("")), rb.status())
-                            }
+                            eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.map(|b|b.to_string_body()).unwrap_or(format!("")), rb.status())
                         }
                     },
                     Err(e)=>{
