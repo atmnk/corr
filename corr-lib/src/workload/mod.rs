@@ -11,7 +11,8 @@ pub struct WorkLoad1{
 #[derive( Clone,PartialEq,Debug)]
 pub struct WorkLoad {
     pub name:String,
-    pub scenarios: Vec<Scenario>
+    pub scenarios: Vec<Scenario>,
+    pub setup:Option<String>,
 }
 #[derive( Clone,PartialEq,Debug)]
 pub enum Scenario{

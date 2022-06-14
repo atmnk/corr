@@ -17,7 +17,8 @@ impl Parsable for WorkLoad {
                       ws(tag("(")),separated_list0(ws(tag(",")),Variable::parser),ws(tag(")")),ws(char('{')),
                       opt(delimited(tuple((ws(tag("startup")),ws(tag(":")))),ws(string), ws(tag(",")))),
                       ws(tag("scenarios")),ws(tag(":")),delimited(ws(tag("[")),separated_list1(ws(tag(",")),ws(Scenario::parser)),ws(tag("]"))))),
-            |(name,_,_,_,_,_,_,_,scenarios)| WorkLoad {
+            |(name,_,_,_,_,setup,_,_,scenarios)| WorkLoad {
+                setup,
                 name,
             scenarios
         })(input)

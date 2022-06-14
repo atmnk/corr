@@ -5,6 +5,8 @@ use num_traits::cast::ToPrimitive;
 use std::sync::Arc;
 use futures::lock::Mutex;
 use core::str::FromStr;
+use tokio::sync::RwLock;
+
 pub mod proto;
 pub mod runtime;
 pub mod parser;
@@ -501,14 +503,14 @@ impl Value {
             Value::Map(map)=>{
                 let mut hm=HashMap::new();
                 for (key,value) in map {
-                    hm.insert(key.clone(),Arc::new(Mutex::new(value.to_heap_object())));
+                    hm.insert(key.clone(),Arc::new(RwLock::new(value.to_heap_object())));
                 }
                 HeapObject::Object(hm)
             },
             Value::Array(vec)=>{
                 let mut vec_val=Vec::new();
                 for value in vec {
-                    vec_val.push(Arc::new(Mutex::new(value.to_heap_object())));
+                    vec_val.push(Arc::new(RwLock::new(value.to_heap_object())));
                 }
                 HeapObject::List(vec_val)
             },
