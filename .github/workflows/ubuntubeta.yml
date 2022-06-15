@@ -11,23 +11,23 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        override: true
-        - name: Build corr Package
-          uses: actions-rs/cargo@v1
-          with:
-            command: build
-            args: --release --all-features --package corr
-        - name: Compress corr package
-          uses: master-atul/tar-action@v1.0.2
-          id: compress-corr
-          with:
-            command: c
-            cwd: target/release
-            files: |
-              corr
-            outPath: corr.tar.gz
+        with:
+          toolchain: nightly
+          override: true
+      - name: Build corr Package
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features --package corr
+      - name: Compress corr package
+        uses: master-atul/tar-action@v1.0.2
+        id: compress-corr
+        with:
+          command: c
+          cwd: target/release
+          files: |
+            corr
+          outPath: corr.tar.gz
 
       - name: Upload corr binaries to release
         uses: svenstaro/upload-release-action@v1-release
