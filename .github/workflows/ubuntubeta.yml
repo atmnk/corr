@@ -1,0 +1,43 @@
+name: Publish Beta
+
+on:
+  push:
+    tags:
+      - 'ub*'
+jobs:
+  build:
+    name: Publish Binaries For Beta
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+        - name: Build corr Package
+          uses: actions-rs/cargo@v1
+          with:
+            command: build
+            args: --release --all-features --package corr
+        - name: Compress corr package
+          uses: master-atul/tar-action@v1.0.2
+          id: compress-corr
+          with:
+            command: c
+            cwd: target/release
+            files: |
+              corr
+            outPath: corr.tar.gz
+
+      - name: Upload corr binaries to release
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: corr.tar.gz
+          asset_name: corr.tar.gz
+          tag: ${{ github.ref }}
+          overwrite: true
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -c2-)
