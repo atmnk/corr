@@ -86,6 +86,7 @@ impl Executable for WebSocketSendStep{
             if let Err(e)=(*connection).send(msg).await{
                 context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",e.to_string())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
                 eprintln!("Error while sending data over websocket {} - {}",conn_name.clone(),e.to_string());
+                context.exit(1);
             }
         } else {
             // let msg = format!("Websocket with name {} not found",conn_name.clone());
