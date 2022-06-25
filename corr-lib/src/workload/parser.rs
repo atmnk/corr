@@ -55,7 +55,7 @@ impl Parsable for ModelScenario{
         ModelScenario{
             journey,
             stages,
-            forceStop:fs.map(|(_,_,_,stop)|stop.clone())
+            force_stop:fs.map(|(_,_,_,stop)|stop.clone())
         })(input)
     }
 }

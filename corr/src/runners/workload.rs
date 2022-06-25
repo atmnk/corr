@@ -117,7 +117,7 @@ async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journ
             sleep(Duration::from_secs(stage.duration)).await;
         }
     }
-    if let Some(ft) = &scenario.forceStop {
+    if let Some(ft) = &scenario.force_stop {
         tokio::select! {
             _=sleep(Duration::from_secs(ft.clone()))=>{println!("Forcefully stopped {}",scenario.journey)},
             _=futures::future::join_all(threads)=>{println!("Normally stopped {}",scenario.journey)}
@@ -169,7 +169,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
             let delay = stage.duration * 1000 / ((delta * -1) as u64);
             for _i in 0..(delta*-1){
                 if let Some(vu) = vus.pop(){
-                    vu.send(1);
+                    let _ = vu.send(1);
                 }
                 sleep(Duration::from_millis(delay)).await;
                 let count = vu_count.read().await;
@@ -181,10 +181,10 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
     }
     for _i  in 0..vus.len(){
         if let Some(vu) = vus.pop(){
-            vu.send(1);
+            let _ = vu.send(1);
         }
     }
-    if let Some(ft) = &scenario.forceStop {
+    if let Some(ft) = &scenario.force_stop {
         tokio::select! {
             _=sleep(Duration::from_secs(ft.clone()))=>{println!("Forcefully stopped {}",scenario.journey)},
             _=futures::future::join_all(threads)=>{println!("Normally stopped {}",scenario.journey)}

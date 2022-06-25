@@ -111,7 +111,6 @@ pub struct WebsocketConnectionStore{
 }
 #[derive(Clone)]
 pub struct ConnectionStore{
-    parent:Option<Box<ConnectionStore>>,
     references:Arc<Mutex<HashMap<String,Arc<Mutex<Box<dyn rdbc_async::sql::Connection>>>>>>
 }
 #[derive(Clone)]
@@ -283,13 +282,11 @@ impl TransactionsStatsStore{
 impl ConnectionStore{
     pub fn new()->Self{
         Self{
-            parent:Option::None,
             references:Arc::new(Mutex::new(HashMap::new()))
         }
     }
     pub async fn from(rs:&ConnectionStore)->Self{
         return Self{
-            parent:Option::Some(Box::new(rs.clone())),
             references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
         }
     }
@@ -514,7 +511,7 @@ impl Context {
     pub async fn exit(&self,message:i32){
         if let Some(tx) = self.sender.clone() {
             let vl = tx.lock().await;
-            (*vl).send(message);
+            let _ = (*vl).send(message);
         }
     }
     pub async fn get_var_from_store(&self,name:String)->Option<Value>{

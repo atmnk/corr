@@ -1,4 +1,4 @@
-use corr_lib::core::runtime::{Client, IO};
+use corr_lib::core::runtime::IO;
 use corr_lib::core::runtime::Context as CorrContext;
 
 use corr_lib::core::proto::{Input, Output};
@@ -45,7 +45,7 @@ pub fn unpack(target:String) -> Result<String, std::io::Error> {
     let tar_gz = File::open(target)?;
     let tar = GzDecoder::new(tar_gz);
     let mut archive = Archive::new(tar);
-    remove_dir_all("./target");
+    let _ = remove_dir_all("./target");
     create_dir_all("./target")?;
     let jp = format!("./target/{}",name.unwrap().to_str().unwrap());
     archive.unpack(jp.clone())?;

@@ -29,7 +29,7 @@ fn pack(target:String) -> Result<String, std::io::Error> {
     if Path::new(toml.as_str()).exists() {
         config = toml::from_str(read_to_string(toml).unwrap().as_str()).unwrap();
     }
-    remove_dir_all(format!("{}/build",target));
+    let _ = remove_dir_all(format!("{}/build",target));
     create_dir_all(format!("{}/build",target))?;
     let result = format!("{}/build/{}.jpack",target,config.package.name.clone());
     let tar_gz = File::create(result.clone())?;
@@ -38,8 +38,8 @@ fn pack(target:String) -> Result<String, std::io::Error> {
     tar.append_dir_all("./src", "./src")?;
     Ok(result)
 }
-pub async fn run(target:String,item:String,isJourney:bool,out:Out){
-    if isJourney
+pub async fn run(target:String, item:String, is_journey:bool, out:Out){
+    if is_journey
     {
         JourneyRunner::run(target, item,out).await;
     } else {

@@ -26,7 +26,7 @@ pub struct InfluxDB2Scrapper{
 impl Scrapper for InfluxDB2Scrapper{
     async fn start_metrics_loop(&self) {
         loop {
-            let mut points_copy;
+            let points_copy;
             {
                 let mut points = self.data_points.write().await;
                 points_copy = (*points).clone();
@@ -41,7 +41,8 @@ impl Scrapper for InfluxDB2Scrapper{
                 builder = builder.timestamp(p.tt);
                 builder.build().unwrap()
             }).collect();
-            self.client.write(self.bucket.as_str(),stream::iter(pts)).await;
+            let _ = self.client.write(self.bucket.as_str(),stream::iter(pts)).await;
+
             sleep(Duration::from_millis(500)).await;
         }
     }
@@ -71,7 +72,7 @@ impl Scrapper for InfluxDB2Scrapper{
         let mut builder_errors = DataPoint::builder("errors");
         builder_errors = builder_errors.tag(tag.0.clone(),tag.1.clone());
         builder_errors = builder_errors.field("value",e );
-        self.client.write(self.bucket.as_str(),stream::iter(vec![builder_iterations.build().unwrap(),builder_errors.build().unwrap()])).await;
+        let _ = self.client.write(self.bucket.as_str(),stream::iter(vec![builder_iterations.build().unwrap(),builder_errors.build().unwrap()])).await;
     }
 }
 impl InfluxDB2Scrapper{
