@@ -47,7 +47,7 @@ pub struct RunCommand{
     target:String,
 
     #[clap(short, long)]
-    isWorkload:bool,
+    workload:bool,
 
     #[clap(default_value = "<default>")]
     item:String,
@@ -89,10 +89,10 @@ impl Executable for BuildCommand{
 impl Executable for RunCommand{
     async fn execute(&self) {
         if self.package {
-            run(self.target.clone(), self.item.clone(), !self.isWorkload,self.out.clone()).await
+            run(self.target.clone(), self.item.clone(), !self.workload, self.out.clone()).await
         } else {
             let target = build((&self.target).clone()).unwrap();
-            run(target, self.item.clone(), !self.isWorkload,self.out.clone()).await
+            run(target, self.item.clone(), !self.workload, self.out.clone()).await
         }
     }
 }
