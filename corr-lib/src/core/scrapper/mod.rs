@@ -4,7 +4,7 @@ pub mod none;
 use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
-use tokio::task::JoinHandle;
+
 
 pub struct Metrics {
     pub vus: RwLock<f64>,

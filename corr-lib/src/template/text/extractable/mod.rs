@@ -74,10 +74,10 @@ impl ExtractableText{
 #[cfg(test)]
 mod tests{
     use std::sync::{Arc, Mutex};
-    use crate::parser::util::assert_if;
+    
     use crate::parser::Parsable;
 
-    use crate::core::{Value, Variable};
+    use crate::core::{Value};
     use crate::core::proto::Output;
     use crate::core::runtime::Context;
     use crate::template::text::extractable::ExtractableText;
@@ -88,7 +88,7 @@ mod tests{
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `<%name%>`"#;
-        let (i,a)=ExtractableText::parser(text).unwrap();
+        let (_i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("Atmaram",&context).await,true);
         assert_eq!(context.get_var_from_store(format!("name")).await,Option::Some(Value::String(format!("Atmaram"))));
     }
@@ -98,7 +98,7 @@ mod tests{
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `http://localhost:8090/<%name%>`"#;
-        let (i,a)=ExtractableText::parser(text).unwrap();
+        let (_i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("http://localhost:8090/Atmaram",&context).await,true);
         assert_eq!(context.get_var_from_store(format!("name")).await,Option::Some(Value::String(format!("Atmaram"))));
     }
@@ -108,7 +108,7 @@ mod tests{
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `<%code%>/salary`"#;
-        let (i,a)=ExtractableText::parser(text).unwrap();
+        let (_i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("E001/salary",&context).await,true);
         assert_eq!(context.get_var_from_store(format!("code")).await,Option::Some(Value::String(format!("E001"))));
     }
@@ -118,7 +118,7 @@ mod tests{
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `http://localhost:8090/employee/<%code%>/salary`"#;
-        let (i,a)=ExtractableText::parser(text).unwrap();
+        let (_i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("http://localhost:8090/employee/E001/salary",&context).await,true);
         assert_eq!(context.get_var_from_store(format!("code")).await,Option::Some(Value::String(format!("E001"))));
     }
@@ -128,7 +128,7 @@ mod tests{
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `http://localhost:8090/employee`"#;
-        let (i,a)=ExtractableText::parser(text).unwrap();
+        let (_i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("http://localhost:8090/employee/E001/salary",&context).await,false);
     }
     #[tokio::test]
@@ -137,7 +137,7 @@ mod tests{
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `http://localhost:8090/employee/<%code%>`"#;
-        let (i,a)=ExtractableText::parser(text).unwrap();
+        let (_i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("http://localhost:8090/employee/E001/salary",&context).await,true);
     }
     #[tokio::test]
@@ -146,7 +146,7 @@ mod tests{
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `http://localhost:8090/employee/<%code%>/salary`"#;
-        let (i,a)=ExtractableText::parser(text).unwrap();
+        let (_i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("http://localhost:8090/employee/",&context).await,false);
     }
     #[tokio::test]
@@ -155,7 +155,7 @@ mod tests{
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `http://localhost:8090/employee/<%code%>/sal`"#;
-        let (i,a)=ExtractableText::parser(text).unwrap();
+        let (_i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("http://localhost:8090/employee/E001/salary",&context).await,false);
     }
     #[tokio::test]
@@ -164,7 +164,7 @@ mod tests{
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `http://localhost:8090/employee/<%code%>`"#;
-        let (i,a)=ExtractableText::parser(text).unwrap();
+        let (_i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("http://localhost:8090/employee/",&context).await,false);
     }
     #[tokio::test]
@@ -173,7 +173,7 @@ mod tests{
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
         let text=r#"text `http://localhost:8090/employee/<%code%>/`"#;
-        let (i,a)=ExtractableText::parser(text).unwrap();
+        let (_i,a)=ExtractableText::parser(text).unwrap();
         assert_eq!(a.capture("http://localhost:8090/employee//",&context).await,true);
     }
     // #[test]

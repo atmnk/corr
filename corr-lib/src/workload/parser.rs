@@ -2,7 +2,7 @@ use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{char, u64};
 use nom::combinator::{map, opt};
-use nom::multi::{many1, separated_list0, separated_list1};
+use nom::multi::{separated_list0, separated_list1};
 use nom::sequence::{delimited, tuple};
 use crate::core::parser::string;
 use crate::core::Variable;

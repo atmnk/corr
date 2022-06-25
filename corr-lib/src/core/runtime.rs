@@ -10,7 +10,7 @@ use std::future::Future;
 use futures_util::stream::SplitSink;
 use num_traits::ToPrimitive;
 use test::stats::Stats;
-use tokio::sync::oneshot::{Receiver, Sender};
+
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 use crate::core::scrapper::none::NoneScraper;
@@ -34,7 +34,7 @@ impl HeapObject{
             HeapObject::List(vals)=>{
                 let mut list = vec![];
                 for val in vals {
-                    let mut obj = val.read().await;
+                    let obj = val.read().await;
                     list.push(Arc::new(RwLock::new((*obj).copy().await)))
                 }
                 HeapObject::List(list)
@@ -43,7 +43,7 @@ impl HeapObject{
                 let mut map = HashMap::new();
                 for (key,value) in obj{
                     let arc = value.clone();
-                    let mut val = arc.read().await;
+                    let val = arc.read().await;
                     map.insert(key.clone(),Arc::new(RwLock::new((*val).copy().await)));
                 }
                 HeapObject::Object(map)
@@ -107,7 +107,6 @@ pub struct TransactionsStatsStore{
 }
 #[derive(Clone)]
 pub struct WebsocketConnectionStore{
-    parent:Option<Box<WebsocketConnectionStore>>,
     references:Arc<Mutex<HashMap<String,Arc<Mutex<SplitSink<WebSocketStream<tokio_tungstenite::stream::Stream<tokio::net::TcpStream,hyper_tls::TlsStream<tokio::net::TcpStream>>>,Message>>>>>>
 }
 #[derive(Clone)]
@@ -191,7 +190,7 @@ impl RestStatsStore{
     pub async fn print_stats_summary(&self){
         let samples = self.samples.lock().await;
         if (&*samples).len() > 0 {
-            let samples:Vec<f64> =(&(*samples)).iter().map(|(v,u,t)|t.to_f64().unwrap()).collect();
+            let samples:Vec<f64> =(&(*samples)).iter().map(|(_v,_u,t)|t.to_f64().unwrap()).collect();
             println!("MIN: {}",samples.min());
             println!("MAX: {}",samples.max());
             println!("Average: {}",samples.mean());
@@ -311,13 +310,11 @@ impl ConnectionStore{
 impl WebsocketConnectionStore{
     pub fn new()->Self{
         Self{
-            parent:Option::None,
             references:Arc::new(Mutex::new(HashMap::new()))
         }
     }
     pub async fn from(rs:&WebsocketConnectionStore)->Self{
         return Self{
-            parent:Option::Some(Box::new(rs.clone())),
             references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
         }
     }
@@ -346,7 +343,7 @@ impl ReferenceStore{
         let mut hm = HashMap::new();
         let refs = references.read().await;
         for (key,value) in &(*refs) {
-            let mut obj = value.read().await;
+            let obj = value.read().await;
             hm.insert(key.clone(),Arc::new(RwLock::new((*obj).copy().await)));
         }
         ReferenceStore{
@@ -516,7 +513,7 @@ impl Context {
     }
     pub async fn exit(&self,message:i32){
         if let Some(tx) = self.sender.clone() {
-            let mut vl = tx.lock().await;
+            let vl = tx.lock().await;
             (*vl).send(message);
         }
     }

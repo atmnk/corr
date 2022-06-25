@@ -9,12 +9,12 @@ impl Scrapper for NoneScraper{
 
     }
 
-    async fn ingest(&self, series: &str, data: f64, tags: Vec<(String, String)>) {
+    async fn ingest(&self, _series: &str, _data: f64, _tags: Vec<(String, String)>) {
 
     }
 
 
-    async fn ingest_metric(&self, metrics: Arc<Metrics>, tag: (String, String)) {
+    async fn ingest_metric(&self, _metrics: Arc<Metrics>, _tag: (String, String)) {
 
     }
 }

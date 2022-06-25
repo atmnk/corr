@@ -3,7 +3,7 @@ use nom::lib::std::collections::HashMap;
 use crate::core::runtime::HeapObject;
 use num_traits::cast::ToPrimitive;
 use std::sync::Arc;
-use futures::lock::Mutex;
+
 use core::str::FromStr;
 use tokio::sync::RwLock;
 
@@ -524,7 +524,7 @@ impl Value {
             Value::Double(val)=>serde_json::Value::Number(serde_json::Number::from_f64(val.clone()).unwrap()),
             Value::Integer(val)=>serde_json::Value::from(val.clone() as i64),
             Value::PositiveInteger(val)=>serde_json::Value::from(val.clone() as u64),
-            Value::Buffer(val)=>panic!("Can't converted to jason value"),
+            Value::Buffer(_val)=>panic!("Can't converted to jason value"),
             Value::Null=>serde_json::Value::Null,
             Value::Map(hm)=>{
                 let mut new_hm = serde_json::Map::new();

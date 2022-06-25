@@ -1,6 +1,6 @@
 pub mod parser;
 
-use std::fmt::format;
+
 use crate::template::object::extractable::{Extractable};
 use crate::template::rest::{ RequestBody, RequestHeaders, RestVerb, FillableRequest};
 use crate::template::rest::extractable::{ExtractableRestData, CorrResponse};
@@ -15,8 +15,8 @@ use hyper_tls::HttpsConnector;
 use hyper::Client;
 use hyper::client::HttpConnector;
 use lazy_static::lazy_static;
-use std::time::{Duration, Instant};
-use crate::core::Value;
+use std::time::{Instant};
+
 lazy_static! {
     static ref HTTPCLIENT: Client<HttpConnector> = Client::builder().build::<_, hyper::Body>(HttpConnector::new());
 }

@@ -1,10 +1,10 @@
 use std::env;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration};
 use futures::lock::Mutex;
 use core::option::Option;
-use futures::channel::mpsc::UnboundedSender;
-use futures::stream;
+
+
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tokio::time::{Instant, sleep};
@@ -13,9 +13,9 @@ use crate::interfaces::standalone::StandAloneInterface;
 use corr_lib::core::runtime::{Context as CorrContext, Context};
 use corr_lib::core::scrapper::influxdb2::InfluxDB2Scrapper;
 use corr_lib::core::scrapper::none::NoneScraper;
-use corr_lib::core::scrapper::{Metrics, Scrapper};
-use corr_lib::core::Value;
-use corr_lib::journey::{Executable, Journey};
+use corr_lib::core::scrapper::{Scrapper};
+
+use corr_lib::journey::{Journey};
 use corr_lib::workload::{ModelScenario, Scenario, WorkLoad};
 pub struct WorkLoadRunner;
 impl WorkLoadRunner{
@@ -69,7 +69,7 @@ pub async fn schedule_workload(workload:WorkLoad,journeys:Vec<Journey>,scrapper:
 
 }
 async fn schedule_scenario(scenario:Scenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,context:CorrContext){
-    let mut count = Arc::new(RwLock::new(0.0));
+    let count = Arc::new(RwLock::new(0.0));
     let cc = count.clone();
     let scpr = scrapper.clone();
     let iteration_scrapper = async move |jn:String|{
@@ -102,11 +102,11 @@ async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journ
     let mut threads = vec![];
     let mut vu =0;
     for stage in stages{
-        let mut delta = stage.target;
+        let delta = stage.target;
         println!("Ramping up {} Iterations in {} seconds for test {}",delta,stage.duration,scenario.journey.clone());
         if delta!=0{
             let delay = stage.duration * 1000000 / (delta  as u64);
-            for i in 0..delta{
+            for _i in 0..delta{
                 let th=start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone(),context.clone()).await;
                 threads.push(th);
                 sleep(Duration::from_micros(delay)).await;
@@ -135,17 +135,17 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
     let mut prev_num:i64 = 0;
     let vu_count = Arc::new(RwLock::new(0 as f64));
     let mut vu =0;
-    let vcc = vu_count.clone();
-    let scc = scrapper.clone();
+    let _vcc = vu_count.clone();
+    let _scc = scrapper.clone();
     let jnn = scenario.journey.clone();
-    let jnnc = scenario.journey.clone();
+    let _jnnc = scenario.journey.clone();
     for stage in stages{
-        let mut delta = (stage.target as i64) - prev_num;
+        let delta = (stage.target as i64) - prev_num;
         if delta >= 0 {
             println!("Ramping up {} VUs in {} seconds for test {}",delta,stage.duration,scenario.journey.clone());
             if delta!=0{
                 let delay = stage.duration * 1000 / (delta  as u64);
-                for i in 0..delta{
+                for _i in 0..delta{
                     let (vuh,th)=start_vu(vu,scenario.journey.clone(),journeys.clone(),scrapper.clone(),vu_count.clone(),ic.clone(),context.clone()).await;
                     vus.push(vuh);
                     threads.push(th);
@@ -167,8 +167,8 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
         } else {
             println!("Ramping down {} VUs in {} seconds for test {}",delta*-1,stage.duration,scenario.journey.clone());
             let delay = stage.duration * 1000 / ((delta * -1) as u64);
-            for i in 0..(delta*-1){
-                if let Some(mut vu) = vus.pop(){
+            for _i in 0..(delta*-1){
+                if let Some(vu) = vus.pop(){
                     vu.send(1);
                 }
                 sleep(Duration::from_millis(delay)).await;
@@ -179,8 +179,8 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Jou
         }
         prev_num = stage.target as i64;
     }
-    for i  in 0..vus.len(){
-        if let Some(mut vu) = vus.pop(){
+    for _i  in 0..vus.len(){
+        if let Some(vu) = vus.pop(){
             vu.send(1);
         }
     }
@@ -199,13 +199,13 @@ async fn start_vu(number:u64,name:String,journeys:Vec<Journey>,scrapper:Arc<Box<
     let flag = Arc::new(RwLock::new(true));
     let name_clone=name.clone();
     let setter = async move |checker:Arc<RwLock<bool>>|{
-        if let Some(val)=rx.recv().await{
+        if let Some(_val)=rx.recv().await{
             println!("Got Signal to Stop VU {} for test {}",number, name_clone);
             let mut flg = checker.write().await;
             *flg = false;
         }
     };
-    let im = Arc::new(RwLock::new((0,0.0)));
+    let _im = Arc::new(RwLock::new((0,0.0)));
     let vu_loop = async move |checker:Arc<RwLock<bool>>|{
         let mut iteration = 0;
         let vu_count = vu_count.clone();
@@ -256,7 +256,7 @@ async fn start_iteration(name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn 
     };
     tokio::spawn(cc())
 }
-async fn test(name:String,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,context:CorrContext)->u128{
+async fn test(name:String,journeys:Vec<Journey>,_scrapper:Arc<Box<dyn Scrapper>>,context:CorrContext)->u128{
     let context = CorrContext::copy_from(&context).await;//CorrContext::new(Arc::new(Mutex::new(StandAloneInterface{})),journeys.clone(),scrapper.clone());
     let now = Instant::now();
     let mut jn = Option::None;

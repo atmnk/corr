@@ -2,27 +2,27 @@ use corr_lib::core::runtime::{Client, IO};
 use corr_lib::core::runtime::Context as CorrContext;
 
 use corr_lib::core::proto::{Input, Output};
-use async_trait::async_trait;
+
 use flate2::read::GzDecoder;
 use std::fs::{create_dir_all, File, remove_dir_all};
 use tar::Archive;
 use std::path::{Path, PathBuf};
 use corr_lib::journey::{Executable, Journey};
-use std::sync::Arc;
-use futures::lock::Mutex;
+
+
 use async_recursion::async_recursion;
 use nom::error::convert_error;
 
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::{Receiver, Sender};
+
+
 
 
 
 use corr_lib::parser::Parsable;
 
-use tokio::io::{AsyncBufReadExt, BufReader, Lines, Stdin};
+
 use corr_lib::workload::WorkLoad;
-pub async fn start_internal(journey:Journey,mut context:CorrContext) {
+pub async fn start_internal(journey:Journey,context:CorrContext) {
     for param in journey.params.clone(){
         context.read(param).await;
     }

@@ -35,7 +35,7 @@ pub struct WebSocketSendBinaryStep{
 impl Executable for WebSocketClientConnectStep {
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let url = self.url.evaluate(context).await.to_string();
-        let mut conn=connect_async(Url::parse(url.as_str()).unwrap()).await;
+        let conn=connect_async(Url::parse(url.as_str()).unwrap()).await;
         match conn {
             Ok((socket, _))=> {
                 let (ssk,mut ssm) = socket.split();

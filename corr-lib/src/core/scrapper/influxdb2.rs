@@ -1,13 +1,13 @@
-use std::collections::HashMap;
+
 use std::sync::{Arc};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use test::test::Metric;
+
 use futures_util::stream;
 use influxdb2::Client;
 use influxdb2::models::DataPoint;
 use crate::core::scrapper::{Metrics, Scrapper};
 use async_trait::async_trait;
-use env_logger::fmt::Timestamp;
+
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 #[derive(Clone)]
@@ -26,13 +26,13 @@ pub struct InfluxDB2Scrapper{
 impl Scrapper for InfluxDB2Scrapper{
     async fn start_metrics_loop(&self) {
         loop {
-            let mut points_copy= vec![];
+            let mut points_copy;
             {
                 let mut points = self.data_points.write().await;
                 points_copy = (*points).clone();
                 *points = vec![];
             }
-            let mut pts :Vec<DataPoint> = points_copy.iter().map(|p| {
+            let pts :Vec<DataPoint> = points_copy.iter().map(|p| {
                 let mut builder = DataPoint::builder(p.series.as_str());
                 for (tag_name,tag_value) in &p.tags{
                     builder=builder.tag(tag_name.as_str(),tag_value.as_str());
