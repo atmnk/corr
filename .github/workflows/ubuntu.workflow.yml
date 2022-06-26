@@ -13,6 +13,7 @@ jobs:
         with:
           toolchain: nightly
           override: true
+      - uses: Swatinem/rust-cache@v1
       - name: Build corr Package
         uses: actions-rs/cargo@v1
         with:
