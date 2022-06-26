@@ -34,7 +34,7 @@ jobs:
           package: corr
           package_root: .debpkg
           maintainer: Atmaram
-          version: steps.get_version.outputs.VERSION
+          version: ${{steps.get_version.outputs.VERSION}}
           arch: 'amd64'
           desc: 'Corr Binaries'
       - name: Upload corr binaries to release
