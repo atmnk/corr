@@ -1,20 +1,11 @@
 name: Build Ubuntu
-
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version'     
-        required: true
-        default: '0.0.22-u'
-      baseos:
-        description: 'BaseOS'
-        required: true
-        default: 'ubuntu-20.04'
-
+  push:
+    tags:
+      - 'u*'
 jobs:
   build:
-    runs-on: ${{github.event.inputs.baseos}}
+    runs-on: ubuntu-20.04
     name: Build Ubuntu
     steps:
       - uses: actions/checkout@v2
@@ -27,21 +18,30 @@ jobs:
         with:
           command: build
           args: --release --all-features --package corr
-      - name: Compress corr package
-        uses: master-atul/tar-action@v1.0.2
-        id: compress-corr
-        with:
-          command: c
-          cwd: target/release
-          files: |
-            corr
-          outPath: corr.tar.gz
-
+      - name: Script To create Debian Package
+        run: |
+          mkdir -p .debpkg/usr/bin
+          mkdir -p .debpkg/usr/lib/corr
+          cp target/release/corr .debpkg/usr/bin/corr
+          chmod +x .debpkg/usr/bin/corr
+          echo -e "a=1" > .debpkg/usr/lib/samplescript/corr.conf
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -c2-)
+    - uses: jiro4989/build-deb-action@v2
+      id: bundle_debian
+      with:
+        package: corr
+        package_root: .debpkg
+        maintainer: Atmaram
+        version: steps.get_version.outputs.VERSION
+        arch: 'amd64'
+        desc: 'Corr Binaries'
       - name: Upload corr binaries to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: corr.tar.gz
-          asset_name: corr.tar.gz
+          file: steps.bundle_debian.outputs.file_name
+          asset_name: steps.bundle_debian.outputs.file_name
           tag: ${{github.event.inputs.version}}
           overwrite: true
