@@ -24,7 +24,7 @@ jobs:
           mkdir -p .debpkg/usr/lib/corr
           cp target/release/corr .debpkg/usr/bin/corr
           chmod +x .debpkg/usr/bin/corr
-          echo -e "a=1" > .debpkg/usr/lib/samplescript/corr.conf
+          echo -e "a=1" > .debpkg/usr/lib/corr/corr.conf
       - name: Get the version
         id: get_version
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -c2-)
