@@ -38,6 +38,3 @@ jobs:
           asset_name: corr.tar.gz
           tag: ${{ github.ref }}
           overwrite: true
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -c2-)
