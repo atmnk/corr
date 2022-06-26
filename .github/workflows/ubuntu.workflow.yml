@@ -41,7 +41,7 @@ jobs:
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: steps.bundle_debian.outputs.file_name
-          asset_name: steps.bundle_debian.outputs.file_name
-          tag: ${{github.event.inputs.version}}
+          file: ${{steps.bundle_debian.outputs.file_name}}
+          asset_name: ${{steps.bundle_debian.outputs.file_name}}
+          tag: ${{ github.ref }}
           overwrite: true
