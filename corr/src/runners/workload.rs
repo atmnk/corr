@@ -51,6 +51,7 @@ impl WorkLoadRunner{
 }
 pub async fn schedule_workload(workload:WorkLoad,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>){
     let context = CorrContext::new(Arc::new(Mutex::new(StandAloneInterface{})),journeys.clone(),scrapper.clone());
+    let mut cont = true;
     if let Some(setup) = &workload.setup{
         let mut jn = Option::None;
         for jrn in &journeys {
@@ -59,14 +60,21 @@ pub async fn schedule_workload(workload:WorkLoad,journeys:Vec<Journey>,scrapper:
                 break;
             }
         }
-        client::start(jn.unwrap(), context.clone()).await;
-    }
-    let joins:Vec<_> = workload.scenarios.iter().map(|sc|sc.clone()).map(|sc|schedule_scenario(sc,journeys.clone(),scrapper.clone(),context.clone())).collect();
-    tokio::select! {
-        _= scrapper.start_metrics_loop()=>{},
-        _= futures::future::join_all(joins)=>{}
-    }
+        if let Some(jn) = jn {
+            client::start(jn, context.clone()).await;
+        } else {
+            cont = false;
+            eprintln!("Runtime Error: Setup Journey {} not found exiting execution",setup);
+        }
 
+    }
+    if cont {
+        let joins:Vec<_> = workload.scenarios.iter().map(|sc|sc.clone()).map(|sc|schedule_scenario(sc,journeys.clone(),scrapper.clone(),context.clone())).collect();
+        tokio::select! {
+            _= scrapper.start_metrics_loop()=>{},
+            _= futures::future::join_all(joins)=>{}
+        }
+    }
 }
 async fn schedule_scenario(scenario:Scenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,context:CorrContext){
     let count = Arc::new(RwLock::new(0.0));
