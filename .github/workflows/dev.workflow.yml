@@ -2,6 +2,10 @@ name: Dev Workflow - Test Sanity of Commits
 
 on:
   push:
+    paths:
+      - 'corr/**'
+      - 'corr-lib/**'
+      - 'corrs/**'
     branches:
       - '*'
 jobs:
