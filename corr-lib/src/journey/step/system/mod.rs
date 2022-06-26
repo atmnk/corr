@@ -17,6 +17,7 @@ use tokio::time::sleep;
 #[derive(Debug, Clone,PartialEq)]
 pub enum SystemStep{
     Wait(WaitStep),
+    Exit(ExitStep),
     Print(PrintStep),
     ForLoop(ForLoopStep),
     Condition(ConditionalStep),
@@ -28,6 +29,8 @@ pub enum SystemStep{
     Background(Vec<Step>),
     JourneyStep(JourneyStep),
     Transaction(TransactionStep),
+    Metric(MetricStep),
+    While(WhileStep)
     // Comment(String)
 
 }
@@ -35,6 +38,16 @@ pub enum SystemStep{
 pub struct TransactionStep {
     name:Expression,
     block:Vec<Step>,
+}
+#[derive(Debug, Clone,PartialEq)]
+pub struct MetricStep {
+    tags:Vec<Expression>,
+    value: Expression
+}
+#[derive(Debug, Clone,PartialEq)]
+pub struct WhileStep {
+    condition:Expression,
+    steps:Vec<Step>,
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum AssignmentStep {
@@ -52,6 +65,10 @@ pub enum PrintStep{
 #[derive(Debug, Clone,PartialEq)]
 pub enum WaitStep{
     WithTime(Expression)
+}
+#[derive(Debug, Clone,PartialEq)]
+pub enum ExitStep{
+    WithCode(Expression)
 }
 #[derive(Debug, Clone,PartialEq)]
 pub struct JourneyStep{
@@ -93,9 +110,46 @@ impl Executable for TransactionStep{
             handles.append(&mut step.execute(&context).await);
         }
         let duration = start.elapsed();
+        context.scrapper.ingest("transaction",duration.as_millis() as f64,vec![("name".to_string(),name.clone().to_string())]).await;
         context.tr_stats_store.push_stat((name,duration.as_millis())).await;
         // context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
         handles
+    }
+}
+#[async_trait]
+impl Executable for WhileStep{
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        let exp = self.condition.clone();
+        let mut handles = vec![];
+        let mut continue_loop = exp.evaluate(context).await.to_bool();
+        while continue_loop {
+            for step in &self.steps {
+                handles.append(&mut step.execute(&context).await);
+            }
+            continue_loop = exp.evaluate(context).await.to_bool();
+        }
+        handles
+    }
+}
+#[async_trait]
+impl Executable for MetricStep{
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        let mut tags = vec![];
+        for tag in &self.tags{
+            tags.push(("tag".to_string(),tag.evaluate(context).await.to_string()))
+        }
+        let val = self.value.evaluate(context).await;
+        let metric = match val {
+            Value::Double(m)=>{
+                m
+            },
+            Value::PositiveInteger(i)=>i as f64,
+            Value::Integer(i)=>i as f64,
+            Value::String(s)=>s.parse().unwrap(),
+            _=>0.0
+        };
+        context.scrapper.ingest("metric",metric,tags).await;
+        vec![]
     }
 }
 #[async_trait]
@@ -179,6 +233,18 @@ impl Executable for WaitStep {
     }
 }
 #[async_trait]
+impl Executable for ExitStep {
+    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+        match &self {
+            ExitStep::WithCode(code)=>{
+                let code = code.evaluate(context).await.to_number().unwrap_or(Number::Integer(0)).as_i32().unwrap();
+                context.exit(code).await;
+                return vec![];
+            }
+        }
+    }
+}
+#[async_trait]
 impl Executable for ForLoopStep{
     async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
@@ -211,11 +277,17 @@ impl Executable for SystemStep{
             SystemStep::Wait(ws)=>{
                 ws.execute(context).await
             },
+            SystemStep::Exit(es)=>{
+                es.execute(context).await
+            },
             SystemStep::Print(ps)=>{
                 ps.execute(context).await
             },
             SystemStep::ForLoop(fls)=>{
                 fls.execute(context).await
+            },
+            SystemStep::While(wl)=>{
+                wl.execute(context).await
             },
             SystemStep::Push(pt)=>{
                 pt.execute(context).await
@@ -231,6 +303,7 @@ impl Executable for SystemStep{
             }
             SystemStep::Assignment(asst)=>asst.execute(context).await,
             SystemStep::Transaction(tr)=>tr.execute(context).await,
+            SystemStep::Metric(ms)=>ms.execute(context).await,
             SystemStep::Background(steps)=>{
                 let context = context.clone();
                 let steps_to_pass = steps.clone();

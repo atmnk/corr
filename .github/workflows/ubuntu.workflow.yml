@@ -12,7 +12,6 @@ on:
         required: true
         default: 'ubuntu-20.04'
 
-  
 jobs:
   build:
     runs-on: ${{github.event.inputs.baseos}}

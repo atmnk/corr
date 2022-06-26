@@ -1,5 +1,6 @@
 use crate::core::{Value, DataType, Variable, VariableValue};
-use std::sync::Arc;
+use std::sync::{Arc};
+use tokio::sync::RwLock;
 use futures::lock::Mutex;
 use std::collections::HashMap;
 use async_recursion::async_recursion;
@@ -9,18 +10,46 @@ use std::future::Future;
 use futures_util::stream::SplitSink;
 use num_traits::ToPrimitive;
 use test::stats::Stats;
+
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
+use crate::core::scrapper::none::NoneScraper;
+use crate::core::scrapper::Scrapper;
 use crate::journey::Journey;
 use crate::template::rest::RestVerb;
 use crate::template::VariableReferenceName;
 pub enum HeapObject{
     Final(Value),
-    List(Vec<Arc<Mutex<HeapObject>>>),
-    Object(HashMap<String,Arc<Mutex<HeapObject>>>),
+    List(Vec<Arc<RwLock<HeapObject>>>),
+    Object(HashMap<String,Arc<RwLock<HeapObject>>>),
 }
 
 impl HeapObject{
+    #[async_recursion]
+    pub async fn copy(&self)->HeapObject {
+        match &self {
+            HeapObject::Final(val)=>{
+                HeapObject::Final(val.clone())
+            },
+            HeapObject::List(vals)=>{
+                let mut list = vec![];
+                for val in vals {
+                    let obj = val.read().await;
+                    list.push(Arc::new(RwLock::new((*obj).copy().await)))
+                }
+                HeapObject::List(list)
+            },
+            HeapObject::Object(obj)=>{
+                let mut map = HashMap::new();
+                for (key,value) in obj{
+                    let arc = value.clone();
+                    let val = arc.read().await;
+                    map.insert(key.clone(),Arc::new(RwLock::new((*val).copy().await)));
+                }
+                HeapObject::Object(map)
+            }
+        }
+    }
     pub fn from(val:Value)->Self{
         HeapObject::Final(val)
     }
@@ -52,14 +81,14 @@ impl HeapObject{
             HeapObject::List(lst)=>{
                 let mut vec_val=Vec::new();
                 for val in lst {
-                    vec_val.push(val.lock().await.to_value().await)
+                    vec_val.push(val.read().await.to_value().await)
                 }
                 return Value::Array(vec_val);
             },
             HeapObject::Object(obj)=>{
                 let mut hm_val=HashMap::new();
                 for (key,val) in obj {
-                    hm_val.insert(key.clone(),val.lock().await.to_value().await);
+                    hm_val.insert(key.clone(),val.read().await.to_value().await);
                 }
                 return Value::Map(hm_val);
             }
@@ -78,18 +107,16 @@ pub struct TransactionsStatsStore{
 }
 #[derive(Clone)]
 pub struct WebsocketConnectionStore{
-    parent:Option<Box<WebsocketConnectionStore>>,
     references:Arc<Mutex<HashMap<String,Arc<Mutex<SplitSink<WebSocketStream<tokio_tungstenite::stream::Stream<tokio::net::TcpStream,hyper_tls::TlsStream<tokio::net::TcpStream>>>,Message>>>>>>
 }
 #[derive(Clone)]
 pub struct ConnectionStore{
-    parent:Option<Box<ConnectionStore>>,
     references:Arc<Mutex<HashMap<String,Arc<Mutex<Box<dyn rdbc_async::sql::Connection>>>>>>
 }
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ReferenceStore{
     parent:Option<Box<ReferenceStore>>,
-    references:Arc<Mutex<HashMap<String,Arc<Mutex<HeapObject>>>>>
+    references:Arc<RwLock<HashMap<String,Arc<RwLock<HeapObject>>>>>
 }
 
 pub fn break_on(path:String,chr:char)->Option<(String,String)>{
@@ -103,8 +130,8 @@ pub fn break_on(path:String,chr:char)->Option<(String,String)>{
 }
 
 #[async_recursion]
-pub async fn get_value_from(path:String,heap_object_ref:Arc<Mutex<HeapObject>>)->Option<Arc<Mutex<HeapObject>>>{
-    let ho = &*heap_object_ref.lock().await;
+pub async fn get_value_from(path:String,heap_object_ref:Arc<RwLock<HeapObject>>)->Option<Arc<RwLock<HeapObject>>>{
+    let ho = &*heap_object_ref.read().await;
     match ho {
         HeapObject::Object(obj)=>{
             if let Some((left,right))=break_on(path.clone(),'.'){
@@ -126,15 +153,15 @@ pub async fn get_value_from(path:String,heap_object_ref:Arc<Mutex<HeapObject>>)-
     }
 }
 #[async_recursion]
-pub async fn set_value_at(path:String,heap_object_ref:Arc<Mutex<HeapObject>>,value:Arc<Mutex<HeapObject>>)->Option<Arc<Mutex<HeapObject>>>{
-    let ho = &mut *heap_object_ref.lock().await;
+pub async fn set_value_at(path:String,heap_object_ref:Arc<RwLock<HeapObject>>,value:Arc<RwLock<HeapObject>>)->Option<Arc<RwLock<HeapObject>>>{
+    let ho = &mut *heap_object_ref.write().await;
     match ho {
         HeapObject::Object(obj)=>{
             if let Some((left,right))=break_on(path.clone(),'.'){
                 if let Some(key_value)=obj.get(&left){
                     set_value_at(right.clone(),key_value.clone(),value).await
                 } else {
-                    let inner_obj = Arc::new(Mutex::new(HeapObject::Object(HashMap::new())));
+                    let inner_obj = Arc::new(RwLock::new(HeapObject::Object(HashMap::new())));
                     obj.insert(left.clone(),inner_obj.clone());
                     set_value_at(right.clone(),inner_obj.clone(),value).await
                 }
@@ -162,7 +189,7 @@ impl RestStatsStore{
     pub async fn print_stats_summary(&self){
         let samples = self.samples.lock().await;
         if (&*samples).len() > 0 {
-            let samples:Vec<f64> =(&(*samples)).iter().map(|(v,u,t)|t.to_f64().unwrap()).collect();
+            let samples:Vec<f64> =(&(*samples)).iter().map(|(_v,_u,t)|t.to_f64().unwrap()).collect();
             println!("MIN: {}",samples.min());
             println!("MAX: {}",samples.max());
             println!("Average: {}",samples.mean());
@@ -255,13 +282,11 @@ impl TransactionsStatsStore{
 impl ConnectionStore{
     pub fn new()->Self{
         Self{
-            parent:Option::None,
             references:Arc::new(Mutex::new(HashMap::new()))
         }
     }
     pub async fn from(rs:&ConnectionStore)->Self{
         return Self{
-            parent:Option::Some(Box::new(rs.clone())),
             references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
         }
     }
@@ -282,13 +307,11 @@ impl ConnectionStore{
 impl WebsocketConnectionStore{
     pub fn new()->Self{
         Self{
-            parent:Option::None,
             references:Arc::new(Mutex::new(HashMap::new()))
         }
     }
     pub async fn from(rs:&WebsocketConnectionStore)->Self{
         return Self{
-            parent:Option::Some(Box::new(rs.clone())),
             references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
         }
     }
@@ -310,31 +333,43 @@ impl ReferenceStore{
     pub fn new()->Self{
         Self{
             parent:Option::None,
-            references:Arc::new(Mutex::new(HashMap::new()))
+            references:Arc::new(RwLock::new(HashMap::new()))
+        }
+    }
+    pub async fn new_from_references(references:Arc<RwLock<HashMap<String,Arc<RwLock<HeapObject>>>>>)->Self{
+        let mut hm = HashMap::new();
+        let refs = references.read().await;
+        for (key,value) in &(*refs) {
+            let obj = value.read().await;
+            hm.insert(key.clone(),Arc::new(RwLock::new((*obj).copy().await)));
+        }
+        ReferenceStore{
+            references:Arc::new(RwLock::new(hm)),
+            parent:None
         }
     }
     pub async fn from(rs:&ReferenceStore)->Self{
         return Self{
             parent:Option::Some(Box::new(rs.clone())),
-            references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
+            references:Arc::new(RwLock::new(rs.references.read().await.clone()))
         }
     }
     #[async_recursion]
-    pub async fn push(&self,path:String,value:Arc<Mutex<HeapObject>>){
+    pub async fn push(&self,path:String,value:Arc<RwLock<HeapObject>>){
         let mut new_array = false;
-        let array = if let Some(arc) = self.references.lock().await.get(&path){
+        let array = if let Some(arc) = self.references.read().await.get(&path){
             arc.clone()
         } else {
             new_array = true;
-            Arc::new(Mutex::new(HeapObject::List(vec![value.clone()])))
+            Arc::new(RwLock::new(HeapObject::List(vec![value.clone()])))
         };
         if new_array {
-            self.references.lock().await.insert(path.clone(),array.clone());
+            self.references.write().await.insert(path.clone(),array.clone());
             if let Some(parent) = &self.parent{
                 parent.set(path.clone(),array.clone()).await;
             }
         } else {
-            let ho =&mut *array.lock().await;
+            let ho =&mut *array.write().await;
             match ho {
                 HeapObject::List(ls)=>{
                     ls.push(value);
@@ -344,24 +379,24 @@ impl ReferenceStore{
         }
     }
     #[async_recursion]
-    pub async fn set(&self,path:String,value:Arc<Mutex<HeapObject>>){
+    pub async fn set(&self,path:String,value:Arc<RwLock<HeapObject>>){
         if let Some((left,right)) = break_on(path.clone(),'.'){
             let mut new_obj = false;
-            let obj = if let Some(arc) = self.references.lock().await.get(&left){
+            let obj = if let Some(arc) = self.references.read().await.get(&left){
                 arc.clone()
             } else {
                 new_obj=true;
-                Arc::new(Mutex::new(HeapObject::Object(HashMap::new())))
+                Arc::new(RwLock::new(HeapObject::Object(HashMap::new())))
             };
             set_value_at(right.clone(),obj.clone(),value).await;
             if new_obj {
-                self.references.lock().await.insert(left.clone(),obj.clone());
+                self.references.write().await.insert(left.clone(),obj.clone());
                 if let Some(parent) = &self.parent{
                     parent.set(left.clone(),obj.clone()).await;
                 }
             }
         } else {
-            self.references.lock().await.insert(path.clone(),value.clone());
+            self.references.write().await.insert(path.clone(),value.clone());
             if let Some(parent) = &self.parent{
                 parent.set(path.clone(),value).await;
             }
@@ -371,21 +406,21 @@ impl ReferenceStore{
 
     #[async_recursion]
     pub async fn delete(&self,path:String){
-        self.references.lock().await.remove(&path);
+        self.references.write().await.remove(&path);
         if let Some(parent) = &self.parent{
             parent.delete(path).await;
         }
     }
 
-    pub async fn get(&self,path:String)->Option<Arc<Mutex<HeapObject>>>{
+    pub async fn get(&self,path:String)->Option<Arc<RwLock<HeapObject>>>{
         if let Some((left,right)) = break_on(path.clone(),'.'){
-            if let Some(arc) = self.references.lock().await.get(&left){
+            if let Some(arc) = self.references.read().await.get(&left){
                 get_value_from(right.clone(),arc.clone()).await
             } else {
                 None
             }
         } else {
-            if let Some(arc) = self.references.lock().await.get(&path){
+            if let Some(arc) = self.references.read().await.get(&path){
                 Some(arc.clone())
             } else {
                 None
@@ -402,7 +437,7 @@ impl IO for Context {
 
     async fn read(&self, variable: Variable)->VariableValue{
         let val = if let Some(val) = self.store.get(variable.name.clone()).await{
-            let ref_val = &*val.lock().await;
+            let ref_val = &*val.read().await;
             if let Some(dt) = &variable.data_type {
                 if ref_val.is_of_type(dt.clone()){
                     Option::Some(ref_val.to_value().await)
@@ -434,7 +469,7 @@ impl IO for Context {
                     _=>Option::None
                 }{
                     if var.name.eq(&variable.name){
-                        self.store.set(variable.name.clone(),Arc::new(Mutex::new(HeapObject::from(var.value.clone())))).await;
+                        self.store.set(variable.name.clone(),Arc::new(RwLock::new(HeapObject::from(var.value.clone())))).await;
                         return var;
                     } else {
                         continue;
@@ -456,6 +491,7 @@ impl IO for Context {
 
 #[derive(Clone)]
 pub struct Context{
+    pub scrapper:Arc<Box<dyn Scrapper>>,
     pub journeys:Vec<Journey>,
     pub user:Arc<Mutex<dyn Client>>,
     pub store:ReferenceStore,
@@ -463,18 +499,46 @@ pub struct Context{
     pub websocket_connection_store:WebsocketConnectionStore,
     pub rest_stats_store:RestStatsStore,
     pub tr_stats_store:TransactionsStatsStore,
-    pub fallback:bool
+    pub fallback:bool,
+    pub sender:Option<Arc<Mutex<tokio::sync::mpsc::UnboundedSender<i32>>>>
 }
 impl Context {
+    pub fn exiter(&mut self)->tokio::sync::mpsc::UnboundedReceiver<i32>{
+        let (tx,rx) = tokio::sync::mpsc::unbounded_channel::<i32>();
+        self.sender = Some(Arc::new(Mutex::new(tx)));
+        rx
+    }
+    pub async fn exit(&self,message:i32){
+        if let Some(tx) = self.sender.clone() {
+            let vl = tx.lock().await;
+            let _ = (*vl).send(message);
+        }
+    }
     pub async fn get_var_from_store(&self,name:String)->Option<Value>{
         if let Some(var)=self.store.get(name).await{
-            Option::Some(var.lock().await.to_value().await)
+            Option::Some(var.read().await.to_value().await)
         } else {
             Option::None
         }
     }
-    pub fn new(user:Arc<Mutex<dyn Client>>,journeys:Vec<Journey>)->Self{
+    pub async fn copy_from(context:&Context)->Context{
         Context{
+            sender:Option::None,
+            scrapper:context.scrapper.clone(),
+            journeys:context.journeys.clone(),
+            user:context.user.clone(),
+            connection_store:ConnectionStore::new(),
+            websocket_connection_store:WebsocketConnectionStore::new(),
+            rest_stats_store:context.rest_stats_store.clone(),
+            tr_stats_store:context.tr_stats_store.clone(),
+            store:ReferenceStore::new_from_references(context.store.references.clone()).await,
+            fallback:true
+        }
+    }
+    pub fn new(user:Arc<Mutex<dyn Client>>,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>)->Self{
+        Context{
+            sender:Option::None,
+            scrapper,
             journeys,
             user:user,
             connection_store:ConnectionStore::new(),
@@ -486,16 +550,18 @@ impl Context {
         }
     }
     pub async fn define(&self,var:String,value:Value){
-        self.store.set(var,Arc::new(Mutex::new(value.to_heap_object()))).await;
+        self.store.set(var,Arc::new(RwLock::new(value.to_heap_object()))).await;
     }
     pub async fn undefine(&self,var:String){
         self.store.delete(var).await;
     }
     pub async fn push(&self,var:String,value:Value){
-        self.store.push(var,Arc::new(Mutex::new(value.to_heap_object()))).await;
+        self.store.push(var,Arc::new(RwLock::new(value.to_heap_object()))).await;
     }
     pub async fn from(context:&Context)->Self{
         Context{
+            sender:context.sender.clone(),
+            scrapper:context.scrapper.clone(),
             journeys:context.journeys.clone(),
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
@@ -508,6 +574,8 @@ impl Context {
     }
     pub async fn from_without_fallback(context:&Context)->Self{
         Context{
+            sender:context.sender.clone(),
+            scrapper: context.scrapper.clone(),
             journeys:context.journeys.clone(),
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
@@ -528,7 +596,7 @@ impl Context {
     {
         let mut result=vec![];
 
-        let mut vec:Vec<Arc<Mutex<HeapObject>>>=vec![];
+        let mut vec:Vec<Arc<RwLock<HeapObject>>>=vec![];
         let mut i =0;
         for value in vec_val {
             let new_ct = Context::from(self).await;
@@ -536,12 +604,12 @@ impl Context {
             if let Some(ho)=self.store.get(temp.clone()).await{
                 vec.push(ho.clone());
             } else {
-                vec.push(Arc::new(Mutex::new(HeapObject::Final(Value::Null))));
+                vec.push(Arc::new(RwLock::new(HeapObject::Final(Value::Null))));
             }
             self.delete(temp.clone()).await;
             i = i + 1;
         }
-        self.store.set(path.clone(),Arc::new(Mutex::new(HeapObject::List(vec)))).await;
+        self.store.set(path.clone(),Arc::new(RwLock::new(HeapObject::List(vec)))).await;
         result
     }
     pub async fn iterate<F, Fut,T>(&self,path:String,opt_temp:Option<String>,iterate_this: F)->Vec<T>
@@ -553,7 +621,7 @@ impl Context {
 
         if let Some(arc) = self.store.get(path.clone()).await{
 
-            if let HeapObject::List(lst) = &*arc.lock().await {
+            if let HeapObject::List(lst) = &*arc.read().await {
                 let mut i = 0;
 
                 for l in lst {
@@ -570,7 +638,7 @@ impl Context {
             }
         } else {
             let val=self.read(Variable{name:format!("{}::length",path.clone()),data_type:Option::Some(DataType::PositiveInteger)}).await;
-            let mut vec:Vec<Arc<Mutex<HeapObject>>>=vec![];
+            let mut vec:Vec<Arc<RwLock<HeapObject>>>=vec![];
             if let Value::PositiveInteger(size)=&val.value{
                 for i in 0..size.clone() {
                     let new_ct = Context::from(self).await;
@@ -579,14 +647,14 @@ impl Context {
                         if let Some(ho) = self.store.get(temp.clone()).await {
                             vec.push(ho.clone());
                         } else {
-                            vec.push(Arc::new(Mutex::new(HeapObject::Final(Value::Null))));
+                            vec.push(Arc::new(RwLock::new(HeapObject::Final(Value::Null))));
                         }
                         self.delete(temp.clone()).await;
                     } else {
-                        vec.push(Arc::new(Mutex::new(HeapObject::Final(Value::Null))));
+                        vec.push(Arc::new(RwLock::new(HeapObject::Final(Value::Null))));
                     }
                 }
-                self.store.set(path.clone(),Arc::new(Mutex::new(HeapObject::List(vec)))).await
+                self.store.set(path.clone(),Arc::new(RwLock::new(HeapObject::List(vec)))).await
             }
         };
         result
@@ -611,7 +679,7 @@ pub struct MockClient {
 impl Context{
     pub fn mock(inputs:Vec<Input>,buffer:Arc<std::sync::Mutex<Vec<Output>>>)->Self{
         let user=Arc::new(futures::lock::Mutex::new(MockClient::new(inputs,buffer)));
-        Context::new(user,vec![])
+        Context::new(user,vec![],Arc::new(Box::new(NoneScraper{})))
     }
 }
 

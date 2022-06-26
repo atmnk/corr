@@ -3,6 +3,8 @@
 #![feature(test)]
 extern crate lazy_static;
 extern crate test;
+extern crate influxdb2;
+extern crate rand;
 pub mod journey;
 pub mod core;
 pub mod template;
@@ -15,9 +17,14 @@ pub fn get_keywords<'a>()->Vec<&'a str>{
 }
 pub fn get_journey_keywords<'a>()->Vec<&'a str>{
     return vec![
+        "startup",
+        "while",
         "undef",
         "measure",
+        "ingest",
+        "as",
         "wait",
+        "exit",
         "print",
                 "respond",
                 "connect",

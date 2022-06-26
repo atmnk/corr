@@ -14,7 +14,7 @@ use rand::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
 use strfmt::{ Formatter, strfmt_map};
 use std::collections::HashMap;
-use std::mem::size_of_val;
+
 use captcha::Captcha;
 use num_traits::ToPrimitive;
 

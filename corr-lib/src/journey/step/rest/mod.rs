@@ -1,4 +1,6 @@
 pub mod parser;
+
+
 use crate::template::object::extractable::{Extractable};
 use crate::template::rest::{ RequestBody, RequestHeaders, RestVerb, FillableRequest};
 use crate::template::rest::extractable::{ExtractableRestData, CorrResponse};
@@ -13,8 +15,8 @@ use hyper_tls::HttpsConnector;
 use hyper::Client;
 use hyper::client::HttpConnector;
 use lazy_static::lazy_static;
-use std::time::{Duration, Instant};
-use crate::core::Value;
+use std::time::{Instant};
+
 lazy_static! {
     static ref HTTPCLIENT: Client<HttpConnector> = Client::builder().build::<_, hyper::Body>(HttpConnector::new());
 }
@@ -40,6 +42,7 @@ impl Executable for RestSetp{
         let req = self.request.fill(context).await;
         rest(req.clone(),self.response.clone(),context,self.is_async).await;
         let duration = start.elapsed();
+        context.scrapper.ingest("response_time",duration.as_millis() as f64,vec![("method".to_string(),req.method.clone().as_str().to_string()),("url".to_string(),req.url.clone())]).await;
         context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
         return vec![]
     }
@@ -92,10 +95,12 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, co
                                 status:parts.status.as_u16()
                             }).await
                         } else {
+                            context.scrapper.ingest("errors",1.0,vec![("api".to_string(),request.url.clone()),("message".to_string(),format!("{}",rb.status().as_str()))]).await;
                             eprintln!("Rest api {} Failed with code {}", request.url, rb.status())
                         }
                     },
                     Err(e)=>{
+                        context.scrapper.ingest("errors",1.0,vec![("api".to_string(),request.url.clone()),("message".to_string(),format!("{}",e.to_string()))]).await;
                         eprintln!("Error Response for api {} {:?}", request.url,e)
                     }
                 }
@@ -104,12 +109,12 @@ pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, co
                 match i_response {
                     Ok(rb)=>{
                         if rb.status().as_u16() > 399 {
-                            {
-                                eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.unwrap().to_string_body(), rb.status())
-                            }
+                            context.scrapper.ingest("errors",1.0,vec![(format!("status"),format!("{}",rb.status())),(format!("api"),format!("{}",request.url))]).await;
+                            eprintln!("Rest api {} with body {} Failed with code {}", request.url, request.body.map(|b|b.to_string_body()).unwrap_or(format!("")), rb.status())
                         }
                     },
                     Err(e)=>{
+                        context.scrapper.ingest("errors",1.0,vec![(format!("api"),format!("{}",request.url))]).await;
                         eprintln!("Error Response for api {} {:?}", request.url,e)
                     }
                 }

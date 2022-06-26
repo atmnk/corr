@@ -7,7 +7,7 @@ use url::Url;
 #[tokio::main]
 async fn main()->Result<()>{
     let (mut socket, _)=connect_async(Url::parse("ws://localhost:9002").unwrap()).await?;
-    socket.send(Message::Text("{\"name\":\"Atmaram\"}".to_string())).await;
+    let _ = socket.send(Message::Text("{\"name\":\"Atmaram\"}".to_string())).await;
     let msg=socket.next().await.unwrap()?;
     println!("{:?}",msg);
     Ok(())

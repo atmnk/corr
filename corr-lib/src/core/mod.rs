@@ -3,11 +3,14 @@ use nom::lib::std::collections::HashMap;
 use crate::core::runtime::HeapObject;
 use num_traits::cast::ToPrimitive;
 use std::sync::Arc;
-use futures::lock::Mutex;
+
 use core::str::FromStr;
+use tokio::sync::RwLock;
+
 pub mod proto;
 pub mod runtime;
 pub mod parser;
+pub mod scrapper;
 #[derive(Debug, Clone,Copy, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 pub enum DataType {
@@ -45,6 +48,13 @@ impl Number{
             Number::PositiveInteger(lng)=>lng.clone().to_usize(),
             Number::Integer(lng)=>lng.clone().to_usize(),
             Number::Double(dbl)=>dbl.clone().to_usize(),
+        }
+    }
+    pub fn as_i32(&self)->Option<i32>{
+        match self {
+            Number::PositiveInteger(lng)=>lng.clone().to_i32(),
+            Number::Integer(lng)=>lng.clone().to_i32(),
+            Number::Double(dbl)=>dbl.clone().to_i32(),
         }
     }
     pub fn to_value(&self)->Value{
@@ -493,14 +503,14 @@ impl Value {
             Value::Map(map)=>{
                 let mut hm=HashMap::new();
                 for (key,value) in map {
-                    hm.insert(key.clone(),Arc::new(Mutex::new(value.to_heap_object())));
+                    hm.insert(key.clone(),Arc::new(RwLock::new(value.to_heap_object())));
                 }
                 HeapObject::Object(hm)
             },
             Value::Array(vec)=>{
                 let mut vec_val=Vec::new();
                 for value in vec {
-                    vec_val.push(Arc::new(Mutex::new(value.to_heap_object())));
+                    vec_val.push(Arc::new(RwLock::new(value.to_heap_object())));
                 }
                 HeapObject::List(vec_val)
             },
@@ -514,7 +524,7 @@ impl Value {
             Value::Double(val)=>serde_json::Value::Number(serde_json::Number::from_f64(val.clone()).unwrap()),
             Value::Integer(val)=>serde_json::Value::from(val.clone() as i64),
             Value::PositiveInteger(val)=>serde_json::Value::from(val.clone() as u64),
-            Value::Buffer(val)=>panic!("Can't converted to jason value"),
+            Value::Buffer(_val)=>panic!("Can't converted to jason value"),
             Value::Null=>serde_json::Value::Null,
             Value::Map(hm)=>{
                 let mut new_hm = serde_json::Map::new();

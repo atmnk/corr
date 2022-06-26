@@ -13,6 +13,8 @@ use corr_lib::parser::{Parsable, result_option};
 use app_dirs2::{app_root, AppDataType, AppInfo};
 use std::fs::File;
 use std::io::Read;
+use corr_lib::core::scrapper::none::NoneScraper;
+
 const APP_INFO: AppInfo = AppInfo{name: "corrs", author: "Atmaram Naik"};
 pub struct Hub{
 }
@@ -67,7 +69,7 @@ impl Hub {
                 _=>format!("")
             };
             let journies=get_journies();
-            let context = Context::new(shared_user.clone(),journies.clone());
+            let context = Context::new(shared_user.clone(),journies.clone(),Arc::new(Box::new(NoneScraper{})));
             start(&journies,filter,context).await;
             shared_user.lock().await.send(Output::new_done("Done Executing Journey".to_string())).await;
         }
