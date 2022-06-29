@@ -7,7 +7,7 @@ use nom::branch::alt;
 use crate::journey::step::rest::RestSetp;
 use crate::journey::step::listner::StartListenerStep;
 use crate::journey::step::db::{DefineConnectionStep, ExecuteStep};
-use crate::journey::step::websocket::client::{WebSocketClientConnectStep, WebSocketSendStep};
+use crate::journey::step::websocket::client::{WebSocketClientConnectStep, WebSocketCloseStep, WebSocketSendStep};
 use crate::journey::step::websocket::server::WebSocketServerStep;
 
 impl Parsable for Step{
@@ -15,6 +15,7 @@ impl Parsable for Step{
         alt((
             map(ws(WebSocketClientConnectStep::parser),Step::WebSocketClientConnect),
             map(ws(WebSocketSendStep::parser),Step::WebSocketClientSend),
+            map(ws(WebSocketCloseStep::parser),Step::WebSocketClientClose),
             map(ws(WebSocketServerStep::parser),Step::WebSocketServer),
             map(ws(StartListenerStep::parser),Step::Listner),
             map(ws(SystemStep::parser),Step::System),

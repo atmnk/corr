@@ -1,4 +1,4 @@
 cargo build --release
-rm -rf /opt/homebrew/Cellar/corr/0.2.1/bin/corr
+rm -rf /opt/homebrew/Cellar/corr/1.0.0/bin/corr
 ./target/release/corr --help
-sudo cp ./target/release/corr /opt/homebrew/Cellar/corr/0.2.1/bin
+sudo cp ./target/release/corr /opt/homebrew/Cellar/corr/1.0.0/bin
