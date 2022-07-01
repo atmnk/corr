@@ -95,7 +95,6 @@ pub async fn get_journeis_in(path: impl AsRef<Path> + std::marker::Send + 'stati
     let mut dir = tokio::fs::read_dir(path).await?;
     while let Some(child) = dir.next_entry().await? {
         if child.metadata().await?.is_dir() {
-            println!("Directory:{:?}",child.path());
             let mut child_j = get_journeis_in(child.path()).await?;
             js.append(&mut child_j)
         } else {

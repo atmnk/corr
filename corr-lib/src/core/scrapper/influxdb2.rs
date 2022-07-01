@@ -48,16 +48,20 @@ impl Scrapper for InfluxDB2Scrapper{
     }
 
     async fn ingest(&self,series:&str,data:f64,tags:Vec<(String,String)>) {
-        let mut dp = self.data_points.write().await;
+
         let start = SystemTime::now();
         let since_the_epoch = start
             .duration_since(UNIX_EPOCH).unwrap();
-        (*dp).push(MDP{
+        let dpv = MDP{
             series:series.to_string(),
             data,
             tags,
             tt:since_the_epoch.as_nanos() as i64
-        });
+        };{
+            let mut dp = self.data_points.write().await;
+            (*dp).push(dpv);
+        }
+
    }
     async fn ingest_metric(&self, metrics: Arc<Metrics>, tag: (String, String)) {
         let mut iters = metrics.iterations.write().await;

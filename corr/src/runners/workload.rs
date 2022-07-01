@@ -109,21 +109,31 @@ async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journ
     let stages= scenario.stages.clone();
     let mut threads = vec![];
     let mut vu =0;
+    let mut prev = 0;
+    let mut last_stage = 0;
     for stage in stages{
-        let delta = stage.target;
-        println!("Ramping up {} Iterations in {} seconds for test {}",delta,stage.duration,scenario.journey.clone());
-        if delta!=0{
-            let delay = stage.duration * 1000000 / (delta  as u64);
-            for _i in 0..delta{
-                let th=start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone(),context.clone()).await;
-                threads.push(th);
-                sleep(Duration::from_micros(delay)).await;
-                vu = vu + 1;
+        for j in 0..stage.duration {
+            if stage.target > prev {
+                prev = last_stage + ((j+1) as f64*((stage.target - last_stage) as f64 / stage.duration as f64)) as u64;
+            } else {
+                prev = last_stage - ((j+1) as f64 *(( last_stage - stage.target) as f64 / stage.duration as f64)) as u64;
             }
+            if prev!=0{
+                let nowo = Instant::now();
+                for _i in 0..prev{
+                    let th=start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone(),context.clone()).await;
+                    threads.push(th);
+                }
+                let elo = nowo.elapsed().as_micros() as u64;
+                if elo < 1000000 {
+                    sleep(Duration::from_micros(1000000-elo)).await;
+                }
+            } else {
+                sleep(Duration::from_millis(1000)).await;
+            }
+
         }
-        else {
-            sleep(Duration::from_secs(stage.duration)).await;
-        }
+        last_stage = stage.target;
     }
     if let Some(ft) = &scenario.force_stop {
         tokio::select! {
