@@ -120,7 +120,7 @@ async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journ
             }
             if prev!=0{
                 let nowo = Instant::now();
-                for _i in 0..prev{
+                for _i in 0..(prev){
                     let th=start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone(),context.clone()).await;
                     threads.push(th);
                 }
