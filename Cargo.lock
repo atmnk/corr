@@ -464,7 +464,7 @@ checksum = "ea221b5284a47e40033bf9b66f35f984ec0ea2931eb03505246cd27a963f981b"
 
 [[package]]
 name = "corr"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "app_dirs2",
  "async-recursion",
@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "corr-lib"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -530,7 +530,7 @@ dependencies = [
 
 [[package]]
 name = "corrs"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "app_dirs2",
  "async-recursion",
@@ -1986,7 +1986,7 @@ checksum = "7c9b1041b4387893b91ee6746cddfc28516aff326a3519fb2adf820932c5e6cb"
 
 [[package]]
 name = "playground"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -1996,7 +1996,7 @@ dependencies = [
  "rdbc-async",
  "rdbc-async-postgres",
  "tokio",
- "tokio-tungstenite 0.15.0",
+ "tokio-tungstenite 0.13.0",
  "url",
 ]
 
