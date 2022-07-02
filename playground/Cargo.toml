@@ -1,6 +1,6 @@
 [package]
 name = "playground"
-version = "1.0.0"
+version = "1.0.2"
 authors = ["Atmaram Naik <naik.atmaram@gmail.com>"]
 edition = "2018"
 
