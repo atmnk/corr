@@ -68,8 +68,8 @@ async fn settle_workload(target_dir: String, source: String, item: String, jrns_
     let wklds = get_workloads_in(source.clone()).await.unwrap();
     let wlo = wklds.iter().find(|w|w.name.eq(&item));
     if let Some(wl) = wlo {
-        create_dir_all(format!("{}/{}", target_dir, path));
-        tokio::fs::copy(format!("{}/{}/{}.workload", source, path, name), format!("{}/{}/{}.workload", target_dir, path, name)).await;
+        create_dir_all(format!("{}/{}", target_dir, path)).unwrap();
+        tokio::fs::copy(format!("{}/{}/{}.workload", source, path, name), format!("{}/{}/{}.workload", target_dir, path, name)).await.unwrap();
         if let Some(s) = &wl.setup {
             settle_journey(target_dir.clone(), source.clone(), s.clone(), jrns_arc.clone()).await;
         }
