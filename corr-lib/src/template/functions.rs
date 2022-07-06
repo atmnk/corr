@@ -968,6 +968,9 @@ pub struct FromJson;
 #[derive(Debug,Clone,PartialEq)]
 pub struct ReadWavSamples;
 
+#[derive(Debug,Clone,PartialEq)]
+pub struct ReadFileBinary;
+
 #[async_trait]
 impl Function for FromJson{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
@@ -985,21 +988,45 @@ impl Function for FromJson{
         } else {
             Value::Null
         }
-
+    }
+}
+#[async_trait]
+impl Function for ReadFileBinary {
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
+        let path:String = args.get(0).unwrap().fill(context).await;
+        let res = tokio::fs::read(path.clone()).await;
+        match res {
+            Ok(data)=>{
+                Value::Buffer(data)
+            },
+            Err(e)=>{
+                eprintln!("Error {:?} while opening file {}",e,path);
+                context.exit(-1).await;
+                Value::Null
+            }
+        }
     }
 }
 #[async_trait]
 impl Function for ReadWavSamples{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
         let path:String = args.get(0).unwrap().fill(context).await;
-        if let Ok(mut reader) =  hound::WavReader::open(path){
-            let d={
-                let data:Vec<u8> = reader.samples().map(|s: hound::Result<i16>| {s.unwrap().to_le_bytes()}).flat_map(|b| b).collect();
-                Value::Buffer(data)
-            };
-            d
-        } else {
-            Value::Null
+        println!("Called Function");
+        let res = hound::WavReader::open(path.clone());
+        match res {
+            Ok(mut reader)=>{
+                let d={
+                    let data:Vec<u8> = reader.samples().map(|s: hound::Result<i16>| {s.unwrap().to_le_bytes()}).flat_map(|b| b).collect();
+                    println!("Length: {}",data.len());
+                    Value::Buffer(data)
+                };
+                d
+            },
+            Err(e)=>{
+                eprintln!("Error {:?} while opening file {}",e,path);
+                context.exit(-1).await;
+                Value::Null
+            }
         }
 
     }
@@ -1030,6 +1057,7 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("right",Arc::new(Right{})),
         ("from_json",Arc::new(FromJson{})),
         ("read_wav",Arc::new(ReadWavSamples{})),
+        ("read_binary",Arc::new(ReadFileBinary{})),
         ("chunked",Arc::new(Chunked{})),
         ("fake",Arc::new(FakeValue{})),
         ("encode",Arc::new(Encode{})),
