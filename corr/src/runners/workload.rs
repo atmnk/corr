@@ -108,7 +108,7 @@ async fn schedule_scenario(scenario:Scenario,journeys:Vec<Journey>,scrapper:Arc<
 async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,ic:Arc<RwLock<f64>>,context:CorrContext) {
     let stages= scenario.stages.clone();
     let mut threads = vec![];
-    let mut vu =0;
+    let _vu =0;
     let mut prev = 0;
     let mut last_stage = 0;
     for stage in stages{
