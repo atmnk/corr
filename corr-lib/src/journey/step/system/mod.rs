@@ -4,7 +4,6 @@ use std::time::{Duration, Instant};
 use async_trait::async_trait;
 use num_traits::ToPrimitive;
 use crate::journey::{Executable};
-use crate::template::text::{Text};
 use crate::core::runtime::{Context, IO};
 use crate::core::{Number, Value};
 use crate::template::{VariableReferenceName, Fillable, Assignable, Expression};
@@ -60,7 +59,7 @@ pub enum PushStep {
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum PrintStep{
-    WithText(Text)
+    WithAssignable(Assignable,bool)
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum WaitStep{
@@ -213,8 +212,16 @@ impl Executable for PushStep{
 impl Executable for PrintStep{
     async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
-            PrintStep::WithText(txt)=>{
-                context.write(txt.fill(context).await).await;
+            PrintStep::WithAssignable(asgn,debug)=>{
+                let to_print=asgn.fill(context).await.to_string();
+                if *debug {
+                    if context.debug {
+                        context.write(to_print).await;
+                    }
+                } else {
+                    context.write(to_print).await;
+                }
+
             }
         }
         return vec![]

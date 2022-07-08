@@ -4,7 +4,6 @@ use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
 use nom::sequence::{delimited, preceded, terminated, tuple};
 use nom::bytes::complete::{tag};
-use crate::template::text::{Text};
 use nom::character::complete::char;
 use nom::branch::alt;
 use crate::template::{VariableReferenceName, Assignable, Expression};
@@ -21,7 +20,7 @@ impl Parsable for WhileStep{
 }
 impl Parsable for PrintStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        preceded(ws(tag("print")),map(Text::parser,|txt|{PrintStep::WithText(txt)}))(input)
+        map(tuple((opt(ws(tag("debug"))),preceded(ws(tag("print")),ws(Assignable::parser)))),|(d,asg)|{PrintStep::WithAssignable(asg,d.map(|_|true).unwrap_or(false))})(input)
     }
 }
 impl Parsable for MetricStep{
@@ -225,7 +224,7 @@ mod tests{
         assert_if(j
                   , for_right_part(j)
                   , (Option::None,Option::None,vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false)))
             ]))
 
     }
@@ -235,7 +234,7 @@ mod tests{
         assert_if(j
                   , for_right_part(j)
                   , (Option::Some(VariableReferenceName::from("name")),Option::Some(VariableReferenceName::from("index")),vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false)))
             ]))
 
     }
@@ -246,7 +245,7 @@ mod tests{
         assert_if(j
                   ,unarged_for_parser(j)
                   ,(Option::None,Option::None,vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false)))
             ]))
 
     }
@@ -257,7 +256,7 @@ mod tests{
         assert_if(j
                   ,one_or_many_steps(j)
                   ,vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false)))
             ])
 
     }
@@ -270,8 +269,8 @@ mod tests{
         assert_if(j
                   ,one_or_many_steps(j)
                   ,vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]}))),
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello World".to_string())]})))
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false))),
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello World".to_string())]}),false)))
             ])
 
     }
@@ -282,7 +281,7 @@ mod tests{
         assert_if(j
                   ,arged_for_parser(j)
                   ,(Option::None,Option::None,vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false)))
             ]))
 
     }
@@ -293,7 +292,7 @@ mod tests{
         assert_if(j
                   ,arged_for_parser(j)
                   ,(Option::Some(VariableReferenceName{parts:vec!["name".to_string()]}),Option::None,vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false)))
             ]))
 
     }
@@ -303,7 +302,7 @@ mod tests{
         assert_if(j
                   ,arged_for_parser(j)
                   ,(Option::Some(VariableReferenceName{parts:vec!["name".to_string()]}),Option::Some(VariableReferenceName{parts:vec!["index".to_string()]}),vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false)))
             ]))
 
     }
@@ -313,7 +312,7 @@ mod tests{
         let j= r#"print text `Hello`;"#;
         assert_if(j
                   ,PrintStep::parser(j)
-                  ,PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]}))
+                  ,PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false))
 
     }
 
@@ -323,7 +322,7 @@ mod tests{
         assert_if(j
                   ,ForLoopStep::parser(j)
                   ,ForLoopStep::WithVariableReference(VariableReferenceName{ parts:vec![format!("atmaram")]},Option::None,Option::None,vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false)))
             ]))
 
     }
@@ -353,7 +352,7 @@ mod tests{
         let j= r#"print text `Hello`"#;
         assert_if(j
                   ,SystemStep::parser(j)
-                  ,SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+                  ,SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false)))
 
     }
     #[tokio::test]
@@ -372,7 +371,7 @@ mod tests{
         assert_if(j
                   ,SystemStep::parser(j)
                   ,SystemStep::ForLoop(ForLoopStep::WithVariableReference(VariableReferenceName{ parts:vec![format!("atmaram")]},Option::None,Option::None,vec![
-                Step::System(SystemStep::Print(PrintStep::WithText(Text{blocks:vec![Block::Text("Hello".to_string())]})))
+                Step::System(SystemStep::Print(PrintStep::WithAssignable(Assignable::FillableText(Text{blocks:vec![Block::Text("Hello".to_string())]}),false)))
             ])))
 
     }

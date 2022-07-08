@@ -491,6 +491,7 @@ impl IO for Context {
 
 #[derive(Clone)]
 pub struct Context{
+    pub debug:bool,
     pub scrapper:Arc<Box<dyn Scrapper>>,
     pub journeys:Vec<Journey>,
     pub user:Arc<Mutex<dyn Client>>,
@@ -523,6 +524,7 @@ impl Context {
     }
     pub async fn copy_from(context:&Context)->Context{
         Context{
+            debug:context.debug,
             sender:Option::None,
             scrapper:context.scrapper.clone(),
             journeys:context.journeys.clone(),
@@ -535,8 +537,9 @@ impl Context {
             fallback:true
         }
     }
-    pub fn new(user:Arc<Mutex<dyn Client>>,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>)->Self{
+    pub fn new(user:Arc<Mutex<dyn Client>>,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,debug:bool)->Self{
         Context{
+            debug,
             sender:Option::None,
             scrapper,
             journeys,
@@ -560,6 +563,7 @@ impl Context {
     }
     pub async fn from(context:&Context)->Self{
         Context{
+            debug:context.debug,
             sender:context.sender.clone(),
             scrapper:context.scrapper.clone(),
             journeys:context.journeys.clone(),
@@ -574,6 +578,7 @@ impl Context {
     }
     pub async fn from_without_fallback(context:&Context)->Self{
         Context{
+            debug:context.debug,
             sender:context.sender.clone(),
             scrapper: context.scrapper.clone(),
             journeys:context.journeys.clone(),
@@ -679,7 +684,7 @@ pub struct MockClient {
 impl Context{
     pub fn mock(inputs:Vec<Input>,buffer:Arc<std::sync::Mutex<Vec<Output>>>)->Self{
         let user=Arc::new(futures::lock::Mutex::new(MockClient::new(inputs,buffer)));
-        Context::new(user,vec![],Arc::new(Box::new(NoneScraper{})))
+        Context::new(user,vec![],Arc::new(Box::new(NoneScraper{})),false)
     }
 }
 

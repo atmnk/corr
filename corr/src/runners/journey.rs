@@ -9,11 +9,11 @@ use crate::{client, Out};
 use crate::interfaces::terminal::Terminal;
 pub struct JourneyRunner;
 impl JourneyRunner {
-    pub async fn run(target:String,journey:String,out:Out){
+    pub async fn run(target:String,journey:String,out:Out,debug:bool){
         let jp= client::unpack(target).unwrap();
-        Self::run_journey_in(jp,journey,out).await;
+        Self::run_journey_in(jp,journey,out,debug).await;
     }
-    pub async fn run_journey_in(jp:String,journey:String,out:Out){
+    pub async fn run_journey_in(jp:String,journey:String,out:Out,debug:bool){
         let jrns = client::get_journeis_in(format!("{}/src", jp)).await.unwrap();
         let j = if journey.clone().eq("<default>"){
             jrns.get(0).map(|j|j.clone())
@@ -35,7 +35,7 @@ impl JourneyRunner {
                 },
                 _=> Box::new(NoneScraper{})
             };
-            let context = CorrContext::new(Arc::new(Mutex::new(terminal.get_if())),jrns,Arc::new(scrapper));
+            let context = CorrContext::new(Arc::new(Mutex::new(terminal.get_if())),jrns,Arc::new(scrapper),debug);
             tokio::spawn(async move {
                 client::start(jn, context).await;
             });

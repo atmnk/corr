@@ -6,7 +6,6 @@ use crate::core::runtime::Context;
 use crate::journey::Executable;
 use crate::template::{Expression, Fillable, VariableReferenceName};
 use async_trait::async_trait;
-use url::Url;
 use crate::core::Value;
 use crate::journey::step::Step;
 use crate::template::rest::FillableRequestHeaders;

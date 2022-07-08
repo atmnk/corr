@@ -69,7 +69,7 @@ impl Hub {
                 _=>format!("")
             };
             let journies=get_journies();
-            let context = Context::new(shared_user.clone(),journies.clone(),Arc::new(Box::new(NoneScraper{})));
+            let context = Context::new(shared_user.clone(),journies.clone(),Arc::new(Box::new(NoneScraper{})),false);
             start(&journies,filter,context).await;
             shared_user.lock().await.send(Output::new_done("Done Executing Journey".to_string())).await;
         }

@@ -8,7 +8,7 @@ pub struct NoneScraper;
 #[async_trait]
 impl Scrapper for NoneScraper{
     async fn start_metrics_loop(&self) {
-        while true {
+        loop {
             sleep(Duration::from_secs(1)).await;
         }
     }

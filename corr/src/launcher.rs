@@ -38,11 +38,11 @@ fn pack(target:String) -> Result<String, std::io::Error> {
     tar.append_dir_all("./src", "./src")?;
     Ok(result)
 }
-pub async fn run(target:String, item:String, is_journey:bool, out:Out){
+pub async fn run(target:String, item:String, is_journey:bool, out:Out,debug:bool){
     if is_journey
     {
-        JourneyRunner::run(target, item,out).await;
+        JourneyRunner::run(target, item,out,debug).await;
     } else {
-        WorkLoadRunner::run(target,item,out).await;
+        WorkLoadRunner::run(target,item,out,debug).await;
     }
 }

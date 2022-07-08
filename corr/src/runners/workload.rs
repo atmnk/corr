@@ -19,11 +19,11 @@ use corr_lib::journey::{Journey};
 use corr_lib::workload::{ModelScenario, Scenario, WorkLoad};
 pub struct WorkLoadRunner;
 impl WorkLoadRunner{
-    pub async fn run(target:String,workload:String,out:Out){
+    pub async fn run(target:String,workload:String,out:Out,debug:bool){
         let jp= client::unpack(target).unwrap();
-        Self::run_workload_in(jp, workload,out).await;
+        Self::run_workload_in(jp, workload,out,debug).await;
     }
-    pub async fn run_workload_in(jp:String, workload:String,out:Out){
+    pub async fn run_workload_in(jp:String, workload:String,out:Out,debug:bool){
         let wrklds = client::get_workloads_in(format!("{}/src", jp)).await.unwrap();
         let jrns = client::get_journeis_in(format!("{}/src", jp)).await.unwrap();
         let workload = if workload.clone().eq("<default>"){
@@ -45,12 +45,12 @@ impl WorkLoadRunner{
                         },
                         _=> Box::new(NoneScraper{})
                     };
-            schedule_workload(wl,jrns,Arc::new(scrp)).await
+            schedule_workload(wl,jrns,Arc::new(scrp),debug).await
         }
     }
 }
-pub async fn schedule_workload(workload:WorkLoad,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>){
-    let context = CorrContext::new(Arc::new(Mutex::new(StandAloneInterface{})),journeys.clone(),scrapper.clone());
+pub async fn schedule_workload(workload:WorkLoad,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,debug:bool){
+    let context = CorrContext::new(Arc::new(Mutex::new(StandAloneInterface{})),journeys.clone(),scrapper.clone(),debug);
     let mut cont = true;
     if let Some(setup) = &workload.setup{
         let mut jn = Option::None;

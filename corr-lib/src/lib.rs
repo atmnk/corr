@@ -19,6 +19,7 @@ pub fn get_journey_keywords<'a>()->Vec<&'a str>{
     return vec![
         "close",
         "startup",
+        "debug",
         "while",
         "undef",
         "measure",

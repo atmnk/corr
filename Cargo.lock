@@ -464,7 +464,7 @@ checksum = "ea221b5284a47e40033bf9b66f35f984ec0ea2931eb03505246cd27a963f981b"
 
 [[package]]
 name = "corr"
-version = "1.0.2"
+version = "1.0.4"
 dependencies = [
  "app_dirs2",
  "async-recursion",
@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "corr-lib"
-version = "1.0.2"
+version = "1.0.4"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -530,7 +530,7 @@ dependencies = [
 
 [[package]]
 name = "corrs"
-version = "1.0.2"
+version = "1.0.4"
 dependencies = [
  "app_dirs2",
  "async-recursion",
