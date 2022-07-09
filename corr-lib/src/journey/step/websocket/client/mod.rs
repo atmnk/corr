@@ -99,12 +99,11 @@ impl Executable for WebSocketSendStep{
             if let Err(e)=(*connection).send(msg).await{
                 context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",e.to_string())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
                 eprintln!("Error while sending data over websocket {} - {}",conn_name.clone(),e.to_string());
-                context.exit(1).await;
             }
         } else {
-            // let msg = format!("Websocket with name {} not found",conn_name.clone());
-            // context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",msg.clone())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
-            // eprintln!("{}",msg);
+            let msg = format!("Websocket with name {} not found",conn_name.clone());
+            context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",msg.clone())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
+            eprintln!("{}",msg);
         }
         return vec![];
     }
@@ -119,12 +118,11 @@ impl Executable for WebSocketCloseStep{
             if let Err(e)=(*connection).close().await{
                 context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",e.to_string())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
                 eprintln!("Error {} while closing websocket connection named  {}",e.to_string(),conn_name.clone());
-                context.exit(1).await;
             }
         } else {
-            // let msg = format!("Websocket with name {} not found",conn_name.clone());
-            // context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",msg.clone())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
-            // eprintln!("{}",msg);
+            let msg = format!("Websocket with name {} not found",conn_name.clone());
+            context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",msg.clone())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
+            eprintln!("{}",msg);
         }
         return vec![];
     }

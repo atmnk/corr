@@ -256,6 +256,7 @@ impl Executable for ForLoopStep{
     async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
             ForLoopStep::WithVariableReference(on,with,index_var,inner_steps)=>{
+
                 let outer_handles:Vec<Vec<JoinHandle<bool>>> = context.iterate(on.to_string(),with.clone().map(|val|{val.to_string()}),async move |context,index|{
                     let mut handles = vec![];
                     if let Some(iv)=index_var.clone(){

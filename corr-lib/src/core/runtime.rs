@@ -287,7 +287,7 @@ impl ConnectionStore{
     }
     pub async fn from(rs:&ConnectionStore)->Self{
         return Self{
-            references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
+            references:rs.references.clone()
         }
     }
 
@@ -312,7 +312,7 @@ impl WebsocketConnectionStore{
     }
     pub async fn from(rs:&WebsocketConnectionStore)->Self{
         return Self{
-            references:Arc::new(Mutex::new(rs.references.lock().await.clone()))
+            references:rs.references.clone()
         }
     }
 
