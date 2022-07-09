@@ -50,7 +50,7 @@ impl WorkLoadRunner{
         }
     }
 }
-pub async fn schedule_workload(workload:WorkLoad,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,debug:bool){
+pub async fn schedule_workload(workload:WorkLoad, journeys:HashMap<String,Arc<Journey>>, scrapper:Arc<Box<dyn Scrapper>>, debug:bool){
     let context = CorrContext::new(Arc::new(Mutex::new(StandAloneInterface{})),journeys.clone(),scrapper.clone(),debug);
     let mut cont = true;
     if let Some(setup) = &workload.setup{
@@ -63,14 +63,14 @@ pub async fn schedule_workload(workload:WorkLoad,journeys:HashMap<String,Arc<Jou
 
     }
     if cont {
-        let joins:Vec<_> = workload.scenarios.iter().map(|sc|sc.clone()).map(|sc|schedule_scenario(sc,journeys.clone(),scrapper.clone(),context.clone(),debug)).collect();
+        let joins:Vec<_> = workload.scenarios.iter().map(|sc|sc.clone()).map(|sc|schedule_scenario(sc, journeys.clone(), scrapper.clone(), context.clone(), debug)).collect();
         tokio::select! {
             _= scrapper.start_metrics_loop()=>{},
             _= futures::future::join_all(joins)=>{}
         }
     }
 }
-async fn schedule_scenario(scenario:Scenario,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,context:CorrContext,debug:bool){
+async fn schedule_scenario(scenario:Scenario, journeys:HashMap<String,Arc<Journey>>, scrapper:Arc<Box<dyn Scrapper>>, context:CorrContext, debug:bool){
     let count = Arc::new(RwLock::new(0.0));
     let cc = count.clone();
     let scpr = scrapper.clone();
@@ -99,7 +99,7 @@ async fn schedule_scenario(scenario:Scenario,journeys:HashMap<String,Arc<Journey
         }
     }
 }
-async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,ic:Arc<RwLock<f64>>,context:CorrContext,debug:bool) {
+async fn open_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMap<String,Arc<Journey>>, scrapper:Arc<Box<dyn Scrapper>>, ic:Arc<RwLock<f64>>, context:CorrContext, debug:bool) {
     let stages= scenario.stages.clone();
     let mut threads = vec![];
     let mut vu =0;
@@ -134,7 +134,7 @@ async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:HashMap<S
     }
 
 }
-async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,ic:Arc<RwLock<f64>>,context:CorrContext,test:bool) {
+async fn closed_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMap<String,Arc<Journey>>, scrapper:Arc<Box<dyn Scrapper>>, ic:Arc<RwLock<f64>>, context:CorrContext, debug:bool) {
 
     let stages= scenario.stages.clone();
     let mut vus = vec![];
@@ -146,7 +146,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:HashMap
     let _scc = scrapper.clone();
     let jnn = scenario.journey.clone();
     let _jnnc = scenario.journey.clone();
-    if test {
+    if debug {
         start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone(),context.clone()).await.await.unwrap();
     } else {
         for stage in stages{
