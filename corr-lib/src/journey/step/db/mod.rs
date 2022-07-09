@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+use std::sync::Arc;
 use crate::template::{VariableReferenceName, Expression};
-use crate::journey::Executable;
+use crate::journey::{Executable, Journey};
 use crate::core::runtime::Context;
 use async_trait::async_trait;
 use tokio::task::JoinHandle;
@@ -29,6 +31,7 @@ pub struct QueryStep {
 }
 #[async_trait]
 impl Executable for DefineConnectionStep{
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let cstr = self.connection_string.evaluate(&context).await;
         let connection =  rdbc_async_postgres::sql::Driver.connect(cstr.to_string().as_str()).await.unwrap();
@@ -36,10 +39,17 @@ impl Executable for DefineConnectionStep{
         return vec![];
 
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
 }
 
 #[async_trait]
 impl Executable for QueryStep {
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let conn = context.connection_store.get(self.connection_name.clone()).await.unwrap();
         let connection = conn.lock().await;
@@ -60,6 +70,9 @@ impl Executable for QueryStep {
 
 #[async_trait]
 impl Executable for ExecuteStep {
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let conn = context.connection_store.get(self.connection_name.clone()).await.unwrap();
         let connection = conn.lock().await;

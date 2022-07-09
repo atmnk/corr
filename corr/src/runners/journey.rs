@@ -14,18 +14,10 @@ impl JourneyRunner {
         Self::run_journey_in(jp,journey,out,debug).await;
     }
     pub async fn run_journey_in(jp:String,journey:String,out:Out,debug:bool){
-        let jrns = client::get_journeis_in(format!("{}/src", jp)).await.unwrap();
-        let j = if journey.clone().eq("<default>"){
-            jrns.get(0).map(|j|j.clone())
-        } else {
-            let mut jn = Option::None;
-            for jrn in &jrns {
-                if jrn.name.eq(&journey.clone()) {
-                    jn = Option::Some(jrn.clone());
-                    break;
-                }
-            }
-            jn
+        let jrns = client::get_journeis_in(format!("{}/src", jp),"".to_string()).await.unwrap();
+        let j = {
+
+            jrns.get(&journey).map(|j|j.clone())
         };
         if let Some(jn) = j {
             let mut terminal = Terminal::new();
@@ -37,9 +29,11 @@ impl JourneyRunner {
             };
             let context = CorrContext::new(Arc::new(Mutex::new(terminal.get_if())),jrns,Arc::new(scrapper),debug);
             tokio::spawn(async move {
-                client::start(jn, context).await;
+                client::start(jn.clone(), context).await;
             });
             terminal.start().await;
+        } else {
+            println!("{:?}",jrns.keys())
         }
         // let (_,jrn) = Journey::parser(j.as_str()).unwrap();//Self::get_journey(jp,journey);
 

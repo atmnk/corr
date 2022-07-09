@@ -1,13 +1,16 @@
 pub mod parser;
+
+use std::collections::HashMap;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
 use crate::core::runtime::Context;
-use crate::journey::Executable;
+use crate::journey::{Executable, Journey};
 use crate::journey::step::Step;
 use crate::template::{Expression, VariableReferenceName};
 
 use async_trait::async_trait;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::{accept_async, tungstenite::Error};
 use tokio_tungstenite::tungstenite::{Message, Result};
@@ -36,6 +39,7 @@ pub enum WebSocketStep{
 }
 #[async_trait]
 impl Executable for WebSocketServerStep {
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let addr = format!("0.0.0.0:{}",self.port.evaluate(context).await.to_string());
         let listner = TcpListener::bind(&addr).await.expect("Can't listen");
@@ -87,5 +91,18 @@ impl Executable for WebSocketServerStep {
         };
         let handle = tokio::spawn(connect());
         vec![handle]
+    }
+
+    fn get_deps(&self) -> Vec<String> {
+        let mut deps = vec![];
+        for step in &self.hook.block {
+            match step {
+                WebSocketStep::NormalStep(s)=>{
+                    deps.append(&mut s.get_deps());
+                }
+                _=>{}
+            }
+        }
+        deps
     }
 }

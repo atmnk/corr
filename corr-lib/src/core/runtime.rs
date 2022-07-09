@@ -493,7 +493,8 @@ impl IO for Context {
 pub struct Context{
     pub debug:bool,
     pub scrapper:Arc<Box<dyn Scrapper>>,
-    pub journeys:Vec<Journey>,
+    pub local_program_lookup:Arc<RwLock<HashMap<String,Arc<Journey>>>>,
+    pub global_program_lookup:HashMap<String,Arc<Journey>>,
     pub user:Arc<Mutex<dyn Client>>,
     pub store:ReferenceStore,
     pub connection_store:ConnectionStore,
@@ -504,6 +505,12 @@ pub struct Context{
     pub sender:Option<Arc<Mutex<tokio::sync::mpsc::UnboundedSender<i32>>>>
 }
 impl Context {
+    pub async fn get_local_journey(&self,name:String)->Option<Arc<Journey>>{
+        self.local_program_lookup.read().await.get(&name).map(|a|a.clone())
+    }
+    pub fn get_global_journey(&self,name:String)->Option<Arc<Journey>>{
+        self.global_program_lookup.get(&name).map(|a|a.clone())
+    }
     pub fn exiter(&mut self)->tokio::sync::mpsc::UnboundedReceiver<i32>{
         let (tx,rx) = tokio::sync::mpsc::unbounded_channel::<i32>();
         self.sender = Some(Arc::new(Mutex::new(tx)));
@@ -527,7 +534,8 @@ impl Context {
             debug:context.debug,
             sender:Option::None,
             scrapper:context.scrapper.clone(),
-            journeys:context.journeys.clone(),
+            local_program_lookup:context.local_program_lookup.clone(),
+            global_program_lookup:context.global_program_lookup.clone(),
             user:context.user.clone(),
             connection_store:ConnectionStore::new(),
             websocket_connection_store:WebsocketConnectionStore::new(),
@@ -537,12 +545,13 @@ impl Context {
             fallback:true
         }
     }
-    pub fn new(user:Arc<Mutex<dyn Client>>,journeys:Vec<Journey>,scrapper:Arc<Box<dyn Scrapper>>,debug:bool)->Self{
+    pub fn new(user:Arc<Mutex<dyn Client>>,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,debug:bool)->Self{
         Context{
             debug,
             sender:Option::None,
             scrapper,
-            journeys,
+            local_program_lookup:Arc::new(RwLock::new(HashMap::new())),
+            global_program_lookup: journeys,
             user:user,
             connection_store:ConnectionStore::new(),
             websocket_connection_store:WebsocketConnectionStore::new(),
@@ -566,7 +575,8 @@ impl Context {
             debug:context.debug,
             sender:context.sender.clone(),
             scrapper:context.scrapper.clone(),
-            journeys:context.journeys.clone(),
+            local_program_lookup:context.local_program_lookup.clone(),
+            global_program_lookup:context.global_program_lookup.clone(),
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
             websocket_connection_store:WebsocketConnectionStore::from(&context.websocket_connection_store).await,
@@ -581,7 +591,8 @@ impl Context {
             debug:context.debug,
             sender:context.sender.clone(),
             scrapper: context.scrapper.clone(),
-            journeys:context.journeys.clone(),
+            local_program_lookup:context.local_program_lookup.clone(),
+            global_program_lookup:context.global_program_lookup.clone(),
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
             websocket_connection_store:WebsocketConnectionStore::from(&context.websocket_connection_store).await,
@@ -684,7 +695,7 @@ pub struct MockClient {
 impl Context{
     pub fn mock(inputs:Vec<Input>,buffer:Arc<std::sync::Mutex<Vec<Output>>>)->Self{
         let user=Arc::new(futures::lock::Mutex::new(MockClient::new(inputs,buffer)));
-        Context::new(user,vec![],Arc::new(Box::new(NoneScraper{})),false)
+        Context::new(user,HashMap::new(),Arc::new(Box::new(NoneScraper{})),false)
     }
 }
 

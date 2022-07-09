@@ -75,8 +75,14 @@ impl FromStr for Out {
 #[derive(Clap,Debug)]
 #[clap(version = crate_version!(), author = "Atmaram Naik <atmnk@yahoo.com>")]
 pub struct BuildCommand{
-    #[clap(default_value = ".")]
+    #[clap(long,short, default_value = ".")]
     target:String,
+
+    #[clap(short, long)]
+    workload:bool,
+
+    #[clap(default_value = "<default>")]
+    item:String,
 }
 #[async_trait]
 pub trait Executable{
@@ -85,7 +91,7 @@ pub trait Executable{
 #[async_trait]
 impl Executable for BuildCommand{
     async fn execute(&self) {
-        build((&self.target).clone()).unwrap();
+        build(self.target.clone(),self.item.clone(),self.workload).await.unwrap();
     }
 }
 #[async_trait]
@@ -94,7 +100,7 @@ impl Executable for RunCommand{
         if self.package {
             run(self.target.clone(), self.item.clone(), !self.workload, self.out.clone(),self.debug).await
         } else {
-            let target = build((&self.target).clone()).unwrap();
+            let target = build(self.target.clone(),self.item.clone(),self.workload.clone()).await.unwrap();
             run(target, self.item.clone(), !self.workload, self.out.clone(),self.debug).await
         }
     }

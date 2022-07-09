@@ -54,9 +54,9 @@ impl Parsable for AssignmentStep{
 }
 impl Parsable for JourneyStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map( tuple((parse_name,ws(tag("(")),separated_list0(ws(tag(",")),Expression::parser),ws(tag(")")))),|(journey,_,args,_,)|{
+        map( tuple((ws(VariableReferenceName::parser),ws(tag("(")),separated_list0(ws(tag(",")),Expression::parser),ws(tag(")")))),|(journey,_,args,_,)|{
             JourneyStep{
-                journey,
+                journey:journey.to_string(),
                 args
             }
         })(input)
