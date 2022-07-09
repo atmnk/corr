@@ -1011,13 +1011,11 @@ impl Function for ReadFileBinary {
 impl Function for ReadWavSamples{
     async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Value {
         let path:String = args.get(0).unwrap().fill(context).await;
-        println!("Called Function");
         let res = hound::WavReader::open(path.clone());
         match res {
             Ok(mut reader)=>{
                 let d={
                     let data:Vec<u8> = reader.samples().map(|s: hound::Result<i16>| {s.unwrap().to_le_bytes()}).flat_map(|b| b).collect();
-                    println!("Length: {}",data.len());
                     Value::Buffer(data)
                 };
                 d
