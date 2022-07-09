@@ -3,7 +3,7 @@ pub mod parser;
 use std::collections::HashMap;
 use crate::template::rest::{RestVerb, MultipartField};
 
-use crate::journey::{Executable, Journey};
+use crate::journey::{Executable};
 use crate::core::runtime::{Context, Client};
 use crate::template::{Expression};
 use std::convert::Infallible;

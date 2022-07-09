@@ -10,7 +10,7 @@ use crate::template::{VariableReferenceName, Assignable, Expression};
 use crate::journey::step::Step;
 use nom::multi::{many0, many1, separated_list0, separated_list1};
 
-use crate::journey::parser::parse_name;
+
 impl Parsable for WhileStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(tuple((ws(tag("while")),ws(Expression::parser),delimited(ws(tag("{")),many1(ws(Step::parser)),ws(tag("}"))))),

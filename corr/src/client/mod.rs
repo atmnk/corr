@@ -101,7 +101,7 @@ pub async fn get_journeis_in(path: impl AsRef<Path> + std::marker::Send + 'stati
             } else {
                 child.file_name().to_str().unwrap().to_string()
             };
-            let mut child_j = get_journeis_in(child.path(),fqn).await?;
+            let child_j = get_journeis_in(child.path(),fqn).await?;
             js.extend(child_j);
         } else {
             let path:PathBuf = child.path();

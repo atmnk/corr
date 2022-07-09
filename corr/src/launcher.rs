@@ -53,7 +53,7 @@ pub async fn run(target:String, item:String, is_journey:bool, out:Out,debug:bool
     }
 }
 pub async fn copy_dependencies_in(target_dir:String, source:String, item:String, is_workload:bool){
-    let mut jrns = get_journeis_in(source.clone(),"".to_string()).await.unwrap();
+    let jrns = get_journeis_in(source.clone(),"".to_string()).await.unwrap();
     let jrns_arc = Arc::new(jrns);
     if is_workload {
         settle_workload(target_dir, source, item, jrns_arc).await;
@@ -65,7 +65,7 @@ async fn settle_workload(target_dir: String, source: String, item: String, jrns_
     let mut p: Vec<String> = item.split(".").map(|s| s.to_string()).collect();
     let name = p.pop().unwrap();
     let path = p.join("/");
-    let mut wklds = get_workloads_in(source.clone()).await.unwrap();
+    let wklds = get_workloads_in(source.clone()).await.unwrap();
     let wlo = wklds.iter().find(|w|w.name.eq(&item));
     if let Some(wl) = wlo {
         create_dir_all(format!("{}/{}", target_dir, path));
@@ -92,15 +92,15 @@ async fn settle_journey(target_dir: String, source: String, item: String, jrns_a
     let mut p: Vec<String> = item.split(".").map(|s| s.to_string()).collect();
     let name = p.pop().unwrap();
     let path = p.join("/");
-    create_dir_all(format!("{}/{}", target_dir, path));
-    tokio::fs::copy(format!("{}/{}/{}.journey", source, path, name), format!("{}/{}/{}.journey", target_dir, path, name)).await;
+    create_dir_all(format!("{}/{}", target_dir, path)).unwrap();
+    tokio::fs::copy(format!("{}/{}/{}.journey", source, path, name), format!("{}/{}/{}.journey", target_dir, path, name)).await.unwrap();
     let deps = get_total_dependencies(vec![], item, jrns_arc).await;
     for dep in deps {
         let mut p: Vec<String> = dep.clone().split(".").map(|s| s.to_string()).collect();
         let name = p.pop().unwrap();
         let path = p.join("/");
-        create_dir_all(format!("{}/{}", target_dir, path));
-        tokio::fs::copy(format!("{}/{}/{}.journey", source, path, name), format!("{}/{}/{}.journey", target_dir, path, name)).await;
+        create_dir_all(format!("{}/{}", target_dir, path)).unwrap();
+        tokio::fs::copy(format!("{}/{}/{}.journey", source, path, name), format!("{}/{}/{}.journey", target_dir, path, name)).await.unwrap();
     }
 }
 

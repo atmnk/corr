@@ -1,11 +1,11 @@
 pub mod parser;
 
-use std::collections::HashMap;
-use std::sync::Arc;
+
+
 use std::time::{Duration, Instant};
 use async_trait::async_trait;
 use num_traits::ToPrimitive;
-use crate::journey::{Executable, Journey};
+use crate::journey::{Executable};
 use crate::template::text::{Text};
 use crate::core::runtime::{Context, IO};
 use crate::core::{Number, Value};
@@ -419,7 +419,7 @@ impl Executable for SystemStep{
 
     fn get_deps(&self) -> Vec<String> {
         match self {
-            SystemStep::Undefine(vrn)=>{
+            SystemStep::Undefine(_vrn)=>{
                 vec![]
             }
             SystemStep::Wait(ws)=>{
