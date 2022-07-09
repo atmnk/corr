@@ -65,7 +65,7 @@ async fn settle_workload(target_dir: String, source: String, item: String, jrns_
     let mut p: Vec<String> = item.split(".").map(|s| s.to_string()).collect();
     let name = p.pop().unwrap();
     let path = p.join("/");
-    let wklds = get_workloads_in(source.clone()).await.unwrap();
+    let wklds = get_workloads_in(source.clone(),"".to_string()).await.unwrap();
     let wlo = wklds.iter().find(|w|w.name.eq(&item));
     if let Some(wl) = wlo {
         create_dir_all(format!("{}/{}", target_dir, path)).unwrap();
@@ -85,22 +85,33 @@ async fn settle_workload(target_dir: String, source: String, item: String, jrns_
         }
 
     } else {
-        eprintln!("Workload {} not found",item)
+        eprintln!("Workload {} not found only workloads {:?}",item,wklds)
     }
 }
 async fn settle_journey(target_dir: String, source: String, item: String, jrns_arc: Arc<HashMap<String, Arc<Journey>>>) {
     let mut p: Vec<String> = item.split(".").map(|s| s.to_string()).collect();
     let name = p.pop().unwrap();
     let path = p.join("/");
-    create_dir_all(format!("{}/{}", target_dir, path)).unwrap();
-    tokio::fs::copy(format!("{}/{}/{}.journey", source, path, name), format!("{}/{}/{}.journey", target_dir, path, name)).await.unwrap();
+    let jp = if path.len()>0 {
+        create_dir_all(format!("{}/{}", target_dir, path)).unwrap();
+        format!("{}/{}.journey",  path, name)
+    } else {
+        format!("{}.journey",  name)
+    };
+    tokio::fs::copy(format!("{}/{}", source, jp.clone()), format!("{}/{}", target_dir, jp.clone())).await.unwrap();
     let deps = get_total_dependencies(vec![], item, jrns_arc).await;
     for dep in deps {
         let mut p: Vec<String> = dep.clone().split(".").map(|s| s.to_string()).collect();
         let name = p.pop().unwrap();
         let path = p.join("/");
-        create_dir_all(format!("{}/{}", target_dir, path)).unwrap();
-        tokio::fs::copy(format!("{}/{}/{}.journey", source, path, name), format!("{}/{}/{}.journey", target_dir, path, name)).await.unwrap();
+        let jp = if path.len()>0 {
+            create_dir_all(format!("{}/{}", target_dir, path)).unwrap();
+            format!("{}/{}.journey",  path, name)
+        } else {
+            format!("{}.journey",  name)
+        };
+
+        tokio::fs::copy(format!("{}/{}", source, jp.clone()), format!("{}/{}", target_dir, jp.clone())).await.unwrap();
     }
 }
 

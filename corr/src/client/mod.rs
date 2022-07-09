@@ -59,12 +59,17 @@ pub enum Message{
     Output(Output)
 }
 #[async_recursion]
-pub async fn get_workloads_in(path: impl AsRef<Path> + std::marker::Send + 'static)->tokio::io::Result<Vec<WorkLoad>>{
+pub async fn get_workloads_in(path: impl AsRef<Path> + std::marker::Send + 'static,prefix:String)->tokio::io::Result<Vec<WorkLoad>>{
     let mut js:Vec<WorkLoad> = vec![];
     let mut dir = tokio::fs::read_dir(path).await?;
     while let Some(child) = dir.next_entry().await? {
         if child.metadata().await?.is_dir() {
-            let mut child_j = get_workloads_in(child.path()).await?;
+            let fqn = if prefix.len() > 0 {
+                format!("{}.{}",prefix,child.file_name().to_str().unwrap())
+            } else {
+                format!("{}",child.file_name().to_str().unwrap())
+            };
+            let mut child_j = get_workloads_in(child.path(),fqn).await?;
             js.append(&mut child_j)
         } else {
             let path:PathBuf = child.path();
@@ -77,7 +82,13 @@ pub async fn get_workloads_in(path: impl AsRef<Path> + std::marker::Send + 'stat
                             eprintln!("Unable to parse following errors {}",convert_error(text.as_str(),er))
                         },
                         Ok((_i,jrn))=>{
-                            js.push(jrn);
+                            let mut md = jrn.clone();
+                            md.name = if prefix.len() > 0 {
+                                format!("{}.{}",prefix,md.name)
+                            } else {
+                                md.name.clone()
+                            };
+                            js.push(md);
                         },
                         _=>{
                             eprintln!("Some Other Error")

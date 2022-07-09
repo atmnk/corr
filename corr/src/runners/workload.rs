@@ -25,7 +25,7 @@ impl WorkLoadRunner{
         Self::run_workload_in(jp, workload,out,debug).await;
     }
     pub async fn run_workload_in(jp:String, workload:String,out:Out,debug:bool){
-        let wrklds = client::get_workloads_in(format!("{}/src", jp)).await.unwrap();
+        let wrklds = client::get_workloads_in(format!("{}/src", jp),"".to_string()).await.unwrap();
         let jrns = client::get_journeis_in(format!("{}/src", jp),"".to_string()).await.unwrap();
         let workload = if workload.clone().eq("<default>"){
             wrklds.get(0).map(|j|j.clone())
@@ -63,14 +63,14 @@ pub async fn schedule_workload(workload:WorkLoad,journeys:HashMap<String,Arc<Jou
 
     }
     if cont {
-        let joins:Vec<_> = workload.scenarios.iter().map(|sc|sc.clone()).map(|sc|schedule_scenario(sc,journeys.clone(),scrapper.clone(),context.clone())).collect();
+        let joins:Vec<_> = workload.scenarios.iter().map(|sc|sc.clone()).map(|sc|schedule_scenario(sc,journeys.clone(),scrapper.clone(),context.clone(),debug)).collect();
         tokio::select! {
             _= scrapper.start_metrics_loop()=>{},
             _= futures::future::join_all(joins)=>{}
         }
     }
 }
-async fn schedule_scenario(scenario:Scenario,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,context:CorrContext){
+async fn schedule_scenario(scenario:Scenario,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,context:CorrContext,debug:bool){
     let count = Arc::new(RwLock::new(0.0));
     let cc = count.clone();
     let scpr = scrapper.clone();
@@ -86,50 +86,55 @@ async fn schedule_scenario(scenario:Scenario,journeys:HashMap<String,Arc<Journey
         Scenario::Closed(cms)=>{
             let jn = cms.journey.clone();
             tokio::select! {
-                _=closed_model_scenario_scheduler(cms,journeys,scrapper,cc,context.clone())=>{},
+                _=closed_model_scenario_scheduler(cms,journeys,scrapper,cc,context.clone(),debug)=>{},
                 _=iteration_scrapper(jn)=>{},
             };
         },
         Scenario::Open(oms)=>{
             let jn = oms.journey.clone();
             tokio::select! {
-                _=open_model_scenario_scheduler(oms,journeys,scrapper,cc,context.clone())=>{},
+                _=open_model_scenario_scheduler(oms,journeys,scrapper,cc,context.clone(),debug)=>{},
                 _=iteration_scrapper(jn)=>{},
             };
         }
     }
 }
-async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,ic:Arc<RwLock<f64>>,context:CorrContext) {
+async fn open_model_scenario_scheduler(scenario:ModelScenario,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,ic:Arc<RwLock<f64>>,context:CorrContext,debug:bool) {
     let stages= scenario.stages.clone();
     let mut threads = vec![];
     let mut vu =0;
-    for stage in stages{
-        let delta = stage.target;
-        println!("Ramping up {} Iterations in {} seconds for test {}",delta,stage.duration,scenario.journey.clone());
-        if delta!=0{
-            let delay = stage.duration * 1000000 / (delta  as u64);
-            for _i in 0..delta{
-                let th=start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone(),context.clone()).await;
-                threads.push(th);
-                sleep(Duration::from_micros(delay)).await;
-                vu = vu + 1;
+    if debug {
+        start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone(),context.clone()).await.await.unwrap();
+    } else {
+        for stage in stages{
+            let delta = stage.target;
+            println!("Ramping up {} Iterations in {} seconds for test {}",delta,stage.duration,scenario.journey.clone());
+            if delta!=0{
+                let delay = stage.duration * 1000000 / (delta  as u64);
+                for _i in 0..delta{
+                    let th=start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone(),context.clone()).await;
+                    threads.push(th);
+                    sleep(Duration::from_micros(delay)).await;
+                    vu = vu + 1;
+                }
+            }
+            else {
+                sleep(Duration::from_secs(stage.duration)).await;
             }
         }
-        else {
-            sleep(Duration::from_secs(stage.duration)).await;
-        }
-    }
-    if let Some(ft) = &scenario.force_stop {
-        tokio::select! {
+        if let Some(ft) = &scenario.force_stop {
+            tokio::select! {
             _=sleep(Duration::from_secs(ft.clone()))=>{println!("Forcefully stopped {}",scenario.journey)},
             _=futures::future::join_all(threads)=>{println!("Normally stopped {}",scenario.journey)}
         }
-    } else {
-        futures::future::join_all(threads).await;
-        println!("Normally stopped {}",scenario.journey)
+        } else {
+            futures::future::join_all(threads).await;
+            println!("Normally stopped {}",scenario.journey)
+        }
     }
+
 }
-async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,ic:Arc<RwLock<f64>>,context:CorrContext) {
+async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,ic:Arc<RwLock<f64>>,context:CorrContext,test:bool) {
 
     let stages= scenario.stages.clone();
     let mut vus = vec![];
@@ -141,60 +146,65 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario,journeys:HashMap
     let _scc = scrapper.clone();
     let jnn = scenario.journey.clone();
     let _jnnc = scenario.journey.clone();
-    for stage in stages{
-        let delta = (stage.target as i64) - prev_num;
-        if delta >= 0 {
-            println!("Ramping up {} VUs in {} seconds for test {}",delta,stage.duration,scenario.journey.clone());
-            if delta!=0{
-                let delay = stage.duration * 1000 / (delta  as u64);
-                for _i in 0..delta{
-                    let (vuh,th)=start_vu(vu,scenario.journey.clone(),journeys.clone(),scrapper.clone(),vu_count.clone(),ic.clone(),context.clone()).await;
-                    vus.push(vuh);
-                    threads.push(th);
+    if test {
+        start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone(),context.clone()).await.await.unwrap();
+    } else {
+        for stage in stages{
+            let delta = (stage.target as i64) - prev_num;
+            if delta >= 0 {
+                println!("Ramping up {} VUs in {} seconds for test {}",delta,stage.duration,scenario.journey.clone());
+                if delta!=0{
+                    let delay = stage.duration * 1000 / (delta  as u64);
+                    for _i in 0..delta{
+                        let (vuh,th)=start_vu(vu,scenario.journey.clone(),journeys.clone(),scrapper.clone(),vu_count.clone(),ic.clone(),context.clone()).await;
+                        vus.push(vuh);
+                        threads.push(th);
+                        sleep(Duration::from_millis(delay)).await;
+                        vu = vu + 1;
+                        let count = vu_count.read().await;
+                        scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
+                    }
+                }
+                else {
+                    let mut st=0;
+                    while st<stage.duration {
+                        let count = vu_count.read().await;
+                        scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
+                        sleep(Duration::from_secs(1)).await;
+                        st =st +1;
+                    }
+                }
+            } else {
+                println!("Ramping down {} VUs in {} seconds for test {}",delta*-1,stage.duration,scenario.journey.clone());
+                let delay = stage.duration * 1000 / ((delta * -1) as u64);
+                for _i in 0..(delta*-1){
+                    if let Some(vu) = vus.pop(){
+                        let _ = vu.send(1);
+                    }
                     sleep(Duration::from_millis(delay)).await;
-                    vu = vu + 1;
                     let count = vu_count.read().await;
                     scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
                 }
-            }
-            else {
-                let mut st=0;
-                while st<stage.duration {
-                    let count = vu_count.read().await;
-                    scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
-                    sleep(Duration::from_secs(1)).await;
-                    st =st +1;
-                }
-            }
-        } else {
-            println!("Ramping down {} VUs in {} seconds for test {}",delta*-1,stage.duration,scenario.journey.clone());
-            let delay = stage.duration * 1000 / ((delta * -1) as u64);
-            for _i in 0..(delta*-1){
-                if let Some(vu) = vus.pop(){
-                    let _ = vu.send(1);
-                }
-                sleep(Duration::from_millis(delay)).await;
-                let count = vu_count.read().await;
-                scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
-            }
 
+            }
+            prev_num = stage.target as i64;
         }
-        prev_num = stage.target as i64;
-    }
-    for _i  in 0..vus.len(){
-        if let Some(vu) = vus.pop(){
-            let _ = vu.send(1);
+        for _i  in 0..vus.len(){
+            if let Some(vu) = vus.pop(){
+                let _ = vu.send(1);
+            }
         }
-    }
-    if let Some(ft) = &scenario.force_stop {
-        tokio::select! {
+        if let Some(ft) = &scenario.force_stop {
+            tokio::select! {
             _=sleep(Duration::from_secs(ft.clone()))=>{println!("Forcefully stopped {}",scenario.journey)},
             _=futures::future::join_all(threads)=>{println!("Normally stopped {}",scenario.journey)}
         }
-    } else {
-        futures::future::join_all(threads).await;
-        println!("Normally stopped {}",scenario.journey)
+        } else {
+            futures::future::join_all(threads).await;
+            println!("Normally stopped {}",scenario.journey)
+        }
     }
+
 }
 async fn start_vu(number:u64,name:String,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,vu_count:Arc<RwLock<f64>>,ic:Arc<RwLock<f64>>,context:CorrContext)->(tokio::sync::mpsc::UnboundedSender<u64>,JoinHandle<()>){
     let (tx,mut rx) = tokio::sync::mpsc::unbounded_channel();
