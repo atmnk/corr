@@ -127,6 +127,8 @@ pub async fn get_journeis_in(path: impl AsRef<Path> + std::marker::Send + 'stati
                         Ok((_i,jrn))=>{
                             if prefix.len()>0 {
                                 js.insert(format!("{}.{}",prefix,jrn.name),Arc::new(jrn));
+                            } else {
+                                js.insert(format!("{}",jrn.name),Arc::new(jrn));
                             }
 
                         },

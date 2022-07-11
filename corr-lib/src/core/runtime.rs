@@ -10,7 +10,6 @@ use std::future::Future;
 use futures_util::stream::SplitSink;
 use num_traits::ToPrimitive;
 use test::stats::Stats;
-
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 use crate::core::scrapper::none::NoneScraper;
@@ -126,6 +125,30 @@ pub fn break_on(path:String,chr:char)->Option<(String,String)>{
     }
     else {
         Option::None
+    }
+}
+
+#[async_recursion]
+pub async fn contains_reference_in(path:String,heap_object_ref:Arc<RwLock<HeapObject>>)->bool{
+    let ho = &*heap_object_ref.read().await;
+    match ho {
+        HeapObject::Object(obj)=>{
+            if let Some((left,right))=break_on(path.clone(),'.'){
+                if let Some(key_value)=obj.get(&left){
+                    contains_reference_in(right.clone(),key_value.clone()).await
+                } else {
+                    false
+                }
+
+            } else {
+                if let Some(_)=obj.get(&path.clone()){
+                    true
+                } else {
+                    false
+                }
+            }
+        },
+        _=> false
     }
 }
 
@@ -411,7 +434,36 @@ impl ReferenceStore{
             parent.delete(path).await;
         }
     }
-
+    pub async fn has_parent(&self,path:String)->bool{
+        if let Some((left,_)) = break_on(path.clone(),'.'){
+            if let Some(_) = self.references.read().await.get(&left){
+                true
+            } else {
+                false
+            }
+        } else {
+            if let Some(_) = self.references.read().await.get(&path){
+                true
+            } else {
+                false
+            }
+        }
+    }
+    pub async fn contains_reference(&self,path:String)->bool{
+        if let Some((left,right)) = break_on(path.clone(),'.'){
+            if let Some(arc) = self.references.read().await.get(&left){
+                contains_reference_in(right.clone(),arc.clone()).await
+            } else {
+                false
+            }
+        } else {
+            if let Some(_) = self.references.read().await.get(&path){
+                true
+            } else {
+                false
+            }
+        }
+    }
     pub async fn get(&self,path:String)->Option<Arc<RwLock<HeapObject>>>{
         if let Some((left,right)) = break_on(path.clone(),'.'){
             if let Some(arc) = self.references.read().await.get(&left){
@@ -447,8 +499,19 @@ impl IO for Context {
             } else {
                 Option::Some(ref_val.to_value().await)
             }
+        } else if let Some(val) = self.global_store.get(variable.name.clone()).await{
+            let ref_val = &*val.read().await;
+            if let Some(dt) = &variable.data_type {
+                if ref_val.is_of_type(dt.clone()){
+                    Option::Some(ref_val.to_value().await)
+                } else {
+                    Option::None
+                }
+            } else {
+                Option::Some(ref_val.to_value().await)
+            }
         } else {
-            Option::None
+            None
         };
         if let Some(o_val)=val{
             VariableValue{
@@ -469,7 +532,7 @@ impl IO for Context {
                     _=>Option::None
                 }{
                     if var.name.eq(&variable.name){
-                        self.store.set(variable.name.clone(),Arc::new(RwLock::new(HeapObject::from(var.value.clone())))).await;
+                        self.set(variable.name.clone(),Arc::new(RwLock::new(HeapObject::from(var.value.clone())))).await;
                         return var;
                     } else {
                         continue;
@@ -496,7 +559,8 @@ pub struct Context{
     pub local_program_lookup:Arc<RwLock<HashMap<String,Arc<Journey>>>>,
     pub global_program_lookup:HashMap<String,Arc<Journey>>,
     pub user:Arc<Mutex<dyn Client>>,
-    pub store:ReferenceStore,
+    global_store:ReferenceStore,
+    store:ReferenceStore,
     pub connection_store:ConnectionStore,
     pub websocket_connection_store:WebsocketConnectionStore,
     pub rest_stats_store:RestStatsStore,
@@ -523,10 +587,14 @@ impl Context {
         }
     }
     pub async fn get_var_from_store(&self,name:String)->Option<Value>{
-        if let Some(var)=self.store.get(name).await{
+        if let Some(var)=self.store.get(name.clone()).await{
             Option::Some(var.read().await.to_value().await)
         } else {
-            Option::None
+            if let Some(var)=self.global_store.get(name).await{
+                Option::Some(var.read().await.to_value().await)
+            } else {
+                Option::None
+            }
         }
     }
     pub async fn copy_from(context:&Context)->Context{
@@ -541,6 +609,7 @@ impl Context {
             websocket_connection_store:WebsocketConnectionStore::new(),
             rest_stats_store:context.rest_stats_store.clone(),
             tr_stats_store:context.tr_stats_store.clone(),
+            global_store:context.global_store.clone(),
             store:ReferenceStore::new_from_references(context.store.references.clone()).await,
             fallback:true
         }
@@ -557,6 +626,7 @@ impl Context {
             websocket_connection_store:WebsocketConnectionStore::new(),
             rest_stats_store:RestStatsStore::new(),
             tr_stats_store:TransactionsStatsStore::new(),
+            global_store:ReferenceStore::new(),
             store:ReferenceStore::new(),
             fallback:true
         }
@@ -564,11 +634,30 @@ impl Context {
     pub async fn define(&self,var:String,value:Value){
         self.store.set(var,Arc::new(RwLock::new(value.to_heap_object()))).await;
     }
+    pub async fn global_define(&self,var:String,value:Value){
+        self.global_store.set(var,Arc::new(RwLock::new(value.to_heap_object()))).await;
+    }
     pub async fn undefine(&self,var:String){
-        self.store.delete(var).await;
+        self.delete(var).await;
     }
     pub async fn push(&self,var:String,value:Value){
-        self.store.push(var,Arc::new(RwLock::new(value.to_heap_object()))).await;
+        if self.store.contains_reference(var.clone()).await{
+            self.store.push(var,Arc::new(RwLock::new(value.to_heap_object()))).await;
+        } else if self.global_store.contains_reference(var.clone()).await {
+            self.global_store.push(var,Arc::new(RwLock::new(value.to_heap_object()))).await;
+        } else {
+            self.store.push(var,Arc::new(RwLock::new(value.to_heap_object()))).await;
+        }
+
+    }
+    pub async fn set(&self,path:String,value:Arc<RwLock<HeapObject>>){
+        if self.store.has_parent(path.clone()).await {
+            self.store.set(path,value).await;
+        } else if self.global_store.has_parent(path.clone()).await {
+            self.global_store.set(path,value).await;
+        } else {
+            self.store.set(path,value).await;
+        }
     }
     pub async fn from(context:&Context)->Self{
         Context{
@@ -582,6 +671,7 @@ impl Context {
             websocket_connection_store:WebsocketConnectionStore::from(&context.websocket_connection_store).await,
             rest_stats_store:RestStatsStore::from(&context.rest_stats_store).await,
             tr_stats_store:TransactionsStatsStore::from(&context.tr_stats_store).await,
+            global_store:context.global_store.clone(),
             store:ReferenceStore::from(&context.store).await,
             fallback:context.fallback
         }
@@ -598,12 +688,19 @@ impl Context {
             websocket_connection_store:WebsocketConnectionStore::from(&context.websocket_connection_store).await,
             rest_stats_store:RestStatsStore::from(&context.rest_stats_store).await,
             tr_stats_store:TransactionsStatsStore::from(&context.tr_stats_store).await,
+            global_store:context.global_store.clone(),
             store:ReferenceStore::from(&context.store).await,
             fallback:false
         }
     }
     pub async fn delete(&self,path:String){
-        self.store.delete(path).await;
+        if self.store.contains_reference(path.clone()).await{
+            self.store.delete(path).await;
+        } else if self.global_store.contains_reference(path.clone()).await{
+            self.global_store.delete(path).await
+        } else {
+            self.store.delete(path).await;
+        }
     }
     pub async fn iterate_like<F, Fut,T,U>(&self, vec_val:Vec<U>, path:String, temp:String, iterate_this: F) ->Vec<T>
         where
@@ -625,7 +722,7 @@ impl Context {
             self.delete(temp.clone()).await;
             i = i + 1;
         }
-        self.store.set(path.clone(),Arc::new(RwLock::new(HeapObject::List(vec)))).await;
+        self.set(path.clone(),Arc::new(RwLock::new(HeapObject::List(vec)))).await;
         result
     }
     pub async fn iterate<F, Fut,T>(&self,path:String,opt_temp:Option<String>,iterate_this: F)->Vec<T>
@@ -670,7 +767,7 @@ impl Context {
                         vec.push(Arc::new(RwLock::new(HeapObject::Final(Value::Null))));
                     }
                 }
-                self.store.set(path.clone(),Arc::new(RwLock::new(HeapObject::List(vec)))).await
+                self.set(path.clone(),Arc::new(RwLock::new(HeapObject::List(vec)))).await
             }
         };
         result

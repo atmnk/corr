@@ -49,7 +49,7 @@ impl Parsable for ForLoopStep{
 }
 impl Parsable for AssignmentStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map(tuple((ws(tag("let")),ws(VariableReferenceName::parser),ws(char('=')),ws(Assignable::parser))),|(_,var,_,assbl)|{AssignmentStep::WithVariableName(var,assbl)})(input)
+        map(tuple((ws(tag("let")),opt(ws(tag("global"))),ws(VariableReferenceName::parser),ws(char('=')),ws(Assignable::parser))),|(_,go,var,_,assbl)|{AssignmentStep::WithVariableName(var,assbl,go.is_some())})(input)
     }
 }
 impl Parsable for JourneyStep{
@@ -332,7 +332,7 @@ mod tests{
         let j= r#"let a = name"#;
         assert_if(j
                   ,AssignmentStep::parser(j)
-                  ,AssignmentStep::WithVariableName(VariableReferenceName::from("a"),Assignable::Expression(Expression::Variable(format!("name"),Option::None))))
+                  ,AssignmentStep::WithVariableName(VariableReferenceName::from("a"),Assignable::Expression(Expression::Variable(format!("name"),Option::None)),false))
 
     }
     #[tokio::test]
@@ -382,7 +382,17 @@ mod tests{
                   ,SystemStep::parser(j)
                   ,SystemStep::Assignment(AssignmentStep::WithVariableName(VariableReferenceName::from("name"),Assignable::FillableText(Text{
                 blocks:vec![Block::Text(format!("Hello"))]
-            }))))
+            }),false)))
+
+    }
+    #[tokio::test]
+    async fn should_parse_systemstep_with_global_assignment_step(){
+        let j= r#"let global name = text `Hello`"#;
+        assert_if(j
+                  ,SystemStep::parser(j)
+                  ,SystemStep::Assignment(AssignmentStep::WithVariableName(VariableReferenceName::from("name"),Assignable::FillableText(Text{
+                blocks:vec![Block::Text(format!("Hello"))]
+            }),true)))
 
     }
     #[tokio::test]

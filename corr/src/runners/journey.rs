@@ -9,8 +9,8 @@ use crate::{client, Out};
 use crate::interfaces::terminal::Terminal;
 pub struct JourneyRunner;
 impl JourneyRunner {
-    pub async fn run(target:String,journey:String,out:Out,debug:bool){
-        let jp= client::unpack(target).unwrap();
+    pub async fn run(journey_package:String, journey:String, out:Out, debug:bool){
+        let jp= client::unpack(journey_package).unwrap();
         Self::run_journey_in(jp,journey,out,debug).await;
     }
     pub async fn run_journey_in(jp:String,journey:String,out:Out,debug:bool){
@@ -33,7 +33,7 @@ impl JourneyRunner {
             });
             terminal.start().await;
         } else {
-            println!("{:?}",jrns.keys())
+            eprintln!("Only {:?} Journeys",jrns.keys())
         }
         // let (_,jrn) = Journey::parser(j.as_str()).unwrap();//Self::get_journey(jp,journey);
 

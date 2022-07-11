@@ -53,7 +53,7 @@ pub struct WhileStep {
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum AssignmentStep {
-    WithVariableName(VariableReferenceName,Assignable)
+    WithVariableName(VariableReferenceName,Assignable,bool)
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum PushStep {
@@ -472,8 +472,12 @@ impl Executable for AssignmentStep {
 
     async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
         match self {
-            AssignmentStep::WithVariableName(var, asbl)=>{
-                context.define(var.to_string(),asbl.fill(context).await).await;
+            AssignmentStep::WithVariableName(var, asbl,global)=>{
+                if *global {
+                    context.global_define(var.to_string(),asbl.fill(context).await).await;
+                } else {
+                    context.define(var.to_string(),asbl.fill(context).await).await;
+                }
             }
         }
         return vec![]
@@ -568,6 +572,23 @@ mod tests{
     #[tokio::test]
     async fn should_execute_assignment_step(){
         let text = r#"let name = concat("Atmaram"," Naik")"#;
+        let (_,step)=SystemStep::parser(text).unwrap();
+        let input = vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context= Context::mock(input,buffer.clone());
+        step.execute(&context).await;
+        assert_eq!(context.read(Variable {
+            name:format!("name"),
+            data_type:Option::Some(DataType::String)
+        }).await,VariableValue {
+            name:format!("name"),
+            value:Value::String("Atmaram Naik".to_string())
+        })
+
+    }
+    #[tokio::test]
+    async fn should_execute_global_assignment_step(){
+        let text = r#"let global name = concat("Atmaram"," Naik")"#;
         let (_,step)=SystemStep::parser(text).unwrap();
         let input = vec![];
         let buffer = Arc::new(Mutex::new(vec![]));

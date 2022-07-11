@@ -53,12 +53,18 @@ pub async fn run(target:String, item:String, is_journey:bool, out:Out,debug:bool
     }
 }
 pub async fn copy_dependencies_in(target_dir:String, source:String, item:String, is_workload:bool){
-    let jrns = get_journeis_in(source.clone(),"".to_string()).await.unwrap();
-    let jrns_arc = Arc::new(jrns);
-    if is_workload {
-        settle_workload(target_dir, source, item, jrns_arc).await;
-    } else {
-        settle_journey(target_dir, source, item, jrns_arc).await;
+    match get_journeis_in(source.clone(),"".to_string()).await {
+        Ok(jrns)=>{
+            let jrns_arc = Arc::new(jrns);
+            if is_workload {
+                settle_workload(target_dir, source, item, jrns_arc).await;
+            } else {
+                settle_journey(target_dir, source, item, jrns_arc).await;
+            }
+        },
+        Err(e)=>{
+            panic!("Error {} while reading source directory {}",e,source)
+        }
     }
 }
 async fn settle_workload(target_dir: String, source: String, item: String, jrns_arc: Arc<HashMap<String, Arc<Journey>>>) {
@@ -98,7 +104,9 @@ async fn settle_journey(target_dir: String, source: String, item: String, jrns_a
     } else {
         format!("{}.journey",  name)
     };
-    tokio::fs::copy(format!("{}/{}", source, jp.clone()), format!("{}/{}", target_dir, jp.clone())).await.unwrap();
+    if let Err(e)=tokio::fs::copy(format!("{}/{}", source, jp.clone()), format!("{}/{}", target_dir, jp.clone())).await{
+        eprintln!("Error {} while building source {}",e,format!("{}/{}", source, jp.clone()))
+    }
     let deps = get_total_dependencies(vec![], item, jrns_arc).await;
     for dep in deps {
         let mut p: Vec<String> = dep.clone().split(".").map(|s| s.to_string()).collect();
@@ -110,8 +118,10 @@ async fn settle_journey(target_dir: String, source: String, item: String, jrns_a
         } else {
             format!("{}.journey",  name)
         };
+        if let Err(e)=tokio::fs::copy(format!("{}/{}", source, jp.clone()), format!("{}/{}", target_dir, jp.clone())).await{
+            eprintln!("Error {} while building source {}",e,format!("{}/{}", source, jp.clone()))
+        }
 
-        tokio::fs::copy(format!("{}/{}", source, jp.clone()), format!("{}/{}", target_dir, jp.clone())).await.unwrap();
     }
 }
 
