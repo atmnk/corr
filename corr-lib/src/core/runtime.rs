@@ -611,7 +611,7 @@ impl Context {
             tr_stats_store:context.tr_stats_store.clone(),
             global_store:context.global_store.clone(),
             store:ReferenceStore::new_from_references(context.store.references.clone()).await,
-            fallback:true
+            fallback:context.fallback
         }
     }
     pub fn new(user:Arc<Mutex<dyn Client>>,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,debug:bool)->Self{
