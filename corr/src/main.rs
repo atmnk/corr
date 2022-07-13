@@ -1,6 +1,6 @@
 #![feature(generators, generator_trait)]
 #![feature(async_closure)]
-
+#![feature(backtrace)]
 use std::str::FromStr;
 use clap::Clap;
 use clap::AppSettings;
