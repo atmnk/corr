@@ -25,12 +25,14 @@ jobs:
         with:
           command: wix
           args: --package corr
-
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -c2-)
       - name: Upload corr binaries to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/wix/corr-1.0.4-x86_64.msi
-          asset_name: corr-1.0.4-x86_64.msi
-          tag: ${{github.event.inputs.version}}
+          file: 'target/wix/corr-${{steps.get_version.outputs.VERSION}}-x86_64.msi'
+          asset_name: 'corr-${{steps.get_version.outputs.VERSION}}-x86_64.msi'
+          tag: ${{ github.ref }}
           overwrite: true
