@@ -15,7 +15,7 @@ use tokio::task::JoinHandle;
 use tokio::fs::{OpenOptions};
 use tokio::io::{AsyncWriteExt};
 use tokio::time::sleep;
-
+use anyhow::Result;
 #[derive(Debug, Clone,PartialEq)]
 pub enum SystemStep{
     Wait(WaitStep),
@@ -104,18 +104,18 @@ pub enum ForLoopStep{
 }
 #[async_trait]
 impl Executable for TransactionStep{
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
-        let name=self.name.evaluate(context).await.to_string();
+    async fn execute(&self, context: &Context) -> Result<Vec<JoinHandle<Result<bool>>>> {
+        let name=self.name.evaluate(context).await?.to_string();
         let mut handles = vec![];
         let start = Instant::now();
         for step in &self.block {
-            handles.append(&mut step.execute(&context).await);
+            handles.append(&mut step.execute(&context).await?);
         }
         let duration = start.elapsed();
         context.scrapper.ingest("transaction",duration.as_millis() as f64,vec![("name".to_string(),name.clone().to_string())]).await;
         context.tr_stats_store.push_stat((name,duration.as_millis())).await;
         // context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
-        handles
+        Ok(handles)
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -129,17 +129,17 @@ impl Executable for TransactionStep{
 #[async_trait]
 impl Executable for WhileStep{
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+    async fn execute(&self, context: &Context) -> Result<Vec<JoinHandle<Result<bool>>>> {
         let exp = self.condition.clone();
         let mut handles = vec![];
-        let mut continue_loop = exp.evaluate(context).await.to_bool();
+        let mut continue_loop = exp.evaluate(context).await?.to_bool();
         while continue_loop {
             for step in &self.steps {
-                handles.append(&mut step.execute(&context).await);
+                handles.append(&mut step.execute(&context).await?);
             }
-            continue_loop = exp.evaluate(context).await.to_bool();
+            continue_loop = exp.evaluate(context).await?.to_bool();
         }
-        handles
+        Ok(handles)
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -153,12 +153,12 @@ impl Executable for WhileStep{
 #[async_trait]
 impl Executable for MetricStep{
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+    async fn execute(&self, context: &Context) -> Result<Vec<JoinHandle<Result<bool>>>> {
         let mut tags = vec![];
         for tag in &self.tags{
-            tags.push(("tag".to_string(),tag.evaluate(context).await.to_string()))
+            tags.push(("tag".to_string(),tag.evaluate(context).await?.to_string()))
         }
-        let val = self.value.evaluate(context).await;
+        let val = self.value.evaluate(context).await?;
         let metric = match val {
             Value::Double(m)=>{
                 m
@@ -169,7 +169,7 @@ impl Executable for MetricStep{
             _=>0.0
         };
         context.scrapper.ingest("metric",metric,tags).await;
-        vec![]
+        Ok(vec![])
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -179,7 +179,7 @@ impl Executable for MetricStep{
 #[async_trait]
 impl Executable for JourneyStep{
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+    async fn execute(&self, context: &Context) -> Result<Vec<JoinHandle<Result<bool>>>> {
         let mut handles = vec![];
         let mut jn = context.get_local_journey(self.journey.clone()).await;
         if jn.is_none() {
@@ -190,20 +190,20 @@ impl Executable for JourneyStep{
             let mut defines = vec![];
             for arg in self.args.clone() {
                 if let Some(param) = journey.params.get(i) {
-                    context.define(param.name.clone(),arg.evaluate(context).await).await;
+                    context.define(param.name.clone(),arg.evaluate(context).await?).await;
                     defines.push(param.name.clone());
                 }
                 i = i + 1
             }
-            handles.append(&mut journey.execute(context).await);
+            handles.append(&mut journey.execute(context).await?);
             for var in defines {
                 context.undefine(var).await;
             }
         } else {
-            context.write(format!("{} Journey Not Found",self.journey)).await;
+            context.write(format!("{} Journey Not Found",self.journey)).await?;
             context.exit(-1).await;
         }
-        handles
+        Ok(handles)
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -213,24 +213,24 @@ impl Executable for JourneyStep{
 #[async_trait]
 impl Executable for ConditionalStep{
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+    async fn execute(&self, context: &Context) -> Result<Vec<JoinHandle<Result<bool>>>> {
         let mut handles = vec![];
         let mut found = false;
         for ip in &self.if_parts {
-            if ip.condition.evaluate(context).await.parse::<bool>().unwrap_or(false) {
+            if ip.condition.evaluate(context).await?.parse::<bool>().unwrap_or(false) {
                 found = true;
                 for step in &ip.block{
-                    handles.append(&mut step.execute(context).await)
+                    handles.append(&mut step.execute(context).await?)
                 }
                 break;
             }
         }
         if !found {
             for step in &self.else_part{
-                handles.append(&mut step.execute(context).await)
+                handles.append(&mut step.execute(context).await?)
             }
         }
-        handles
+        Ok(handles)
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -249,13 +249,13 @@ impl Executable for ConditionalStep{
 #[async_trait]
 impl Executable for PushStep{
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+    async fn execute(&self, context: &Context) -> Result<Vec<JoinHandle<Result<bool>>>> {
         match self {
             PushStep::WithVariableName(var, asbl)=>{
-                context.push(var.to_string(),asbl.fill(context).await).await;
+                context.push(var.to_string(),asbl.fill(context).await?).await;
             }
         }
-        return vec![]
+        return Ok(vec![])
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -265,21 +265,21 @@ impl Executable for PushStep{
 #[async_trait]
 impl Executable for PrintStep{
 
-    async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         match self {
             PrintStep::WithAssignable(asgn,debug)=>{
-                let to_print=asgn.fill(context).await.to_string();
+                let to_print=asgn.fill(context).await?.to_string();
                 if *debug {
                     if context.debug {
-                        context.write(to_print).await;
+                        context.write(to_print).await?;
                     }
                 } else {
-                    context.write(to_print).await;
+                    context.write(to_print).await?;
                 }
 
             }
         }
-        return vec![]
+        return Ok(vec![])
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -289,12 +289,12 @@ impl Executable for PrintStep{
 #[async_trait]
 impl Executable for WaitStep {
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         match &self {
             WaitStep::WithTime(time_exp)=>{
-                let wt = time_exp.evaluate(context).await.to_number().unwrap_or(Number::Integer(128)).as_usize().unwrap();
+                let wt = time_exp.evaluate(context).await?.to_number().unwrap_or(Number::Integer(128)).as_usize().unwrap();
                 sleep(Duration::from_millis(wt.to_u64().unwrap())).await;
-                return vec![];
+                return Ok(vec![]);
             }
         }
     }
@@ -306,12 +306,12 @@ impl Executable for WaitStep {
 #[async_trait]
 impl Executable for ExitStep {
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         match &self {
             ExitStep::WithCode(code)=>{
-                let code = code.evaluate(context).await.to_number().unwrap_or(Number::Integer(0)).as_i32().unwrap();
+                let code = code.evaluate(context).await?.to_number().unwrap_or(Number::Integer(0)).as_i32().unwrap();
                 context.exit(code).await;
-                return vec![];
+                return Ok(vec![]);
             }
         }
     }
@@ -323,21 +323,21 @@ impl Executable for ExitStep {
 #[async_trait]
 impl Executable for ForLoopStep{
 
-    async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         match self {
             ForLoopStep::WithVariableReference(on,with,index_var,inner_steps)=>{
 
-                let outer_handles:Vec<Vec<JoinHandle<bool>>> = context.iterate(on.to_string(),with.clone().map(|val|{val.to_string()}),async move |context,index|{
+                let outer_handles:Vec<Vec<JoinHandle<Result<bool>>>> = context.iterate(on.to_string(),with.clone().map(|val|{val.to_string()}),async move |context,index|{
                     let mut handles = vec![];
                     if let Some(iv)=index_var.clone(){
                         context.define(iv.to_string(),Value::PositiveInteger(index as u128)).await
                     }
                     for step in inner_steps.clone() {
-                        handles.append(&mut step.execute(&context).await);
+                        handles.append(&mut step.execute(&context).await?);
                     }
-                    handles
-                }).await;
-                outer_handles.into_iter().flatten().collect()
+                    Ok(handles)
+                }).await?;
+                Ok(outer_handles.into_iter().flatten().collect())
                 //To Do
             }
         }
@@ -359,11 +359,11 @@ impl Executable for ForLoopStep{
 #[async_trait]
 impl Executable for SystemStep{
 
-    async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         match self {
             SystemStep::Undefine(vrn)=>{
                 context.delete(vrn.to_string()).await;
-                vec![]
+                Ok(vec![])
             }
             SystemStep::Wait(ws)=>{
                 ws.execute(context).await
@@ -401,13 +401,13 @@ impl Executable for SystemStep{
                 let step = async move ||{
                     let mut handles = vec![];
                     for step in steps_to_pass {
-                        let mut inner_handles = step.execute(&context).await;
+                        let mut inner_handles = step.execute(&context).await?;
                         handles.append(&mut inner_handles);
                     }
                     futures::future::join_all(handles).await;
-                    true
+                    Ok(true)
                 };
-                vec![tokio::spawn(step())]
+                Ok(vec![tokio::spawn(step())])
             },
             SystemStep::JourneyStep(js)=>{
                 js.execute(context).await
@@ -470,17 +470,17 @@ impl Executable for SystemStep{
 #[async_trait]
 impl Executable for AssignmentStep {
 
-    async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         match self {
             AssignmentStep::WithVariableName(var, asbl,global)=>{
                 if *global {
-                    context.global_define(var.to_string(),asbl.fill(context).await).await;
+                    context.global_define(var.to_string(),asbl.fill(context).await?).await;
                 } else {
-                    context.define(var.to_string(),asbl.fill(context).await).await;
+                    context.define(var.to_string(),asbl.fill(context).await?).await;
                 }
             }
         }
-        return vec![]
+        return Ok(vec![])
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -490,9 +490,9 @@ impl Executable for AssignmentStep {
 #[async_trait]
 impl Executable for LoadAssignStep {
 
-    async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         let dir:String = if let Some(sb)=&self.sandbox{
-            sb.evaluate(context).await.to_string()
+            sb.evaluate(context).await?.to_string()
         } else {
             format!("data")
         };
@@ -503,13 +503,13 @@ impl Executable for LoadAssignStep {
             if let Ok(value) = file_contents{
                 Value::from_json_value(value)
             } else {
-                self.default_value.evaluate(context).await
+                self.default_value.evaluate(context).await?
             }
         } else {
-            self.default_value.evaluate(context).await
+            self.default_value.evaluate(context).await?
         };
         context.define(self.variable.to_string(),val).await;
-        return vec![]
+        return Ok(vec![])
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -519,9 +519,9 @@ impl Executable for LoadAssignStep {
 #[async_trait]
 impl Executable for SyncStep {
 
-    async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         let dir:String = if let Some(sb)=&self.sandbox{
-            sb.evaluate(context).await.to_string()
+            sb.evaluate(context).await?.to_string()
         } else {
             format!("data")
         };
@@ -541,7 +541,7 @@ impl Executable for SyncStep {
             }
 
         }
-        return vec![]
+        return Ok(vec![])
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -580,7 +580,7 @@ mod tests{
         assert_eq!(context.read(Variable {
             name:format!("name"),
             data_type:Option::Some(DataType::String)
-        }).await,VariableValue {
+        }).await.unwrap(),VariableValue {
             name:format!("name"),
             value:Value::String("Atmaram Naik".to_string())
         })
@@ -597,7 +597,7 @@ mod tests{
         assert_eq!(context.read(Variable {
             name:format!("name"),
             data_type:Option::Some(DataType::String)
-        }).await,VariableValue {
+        }).await.unwrap(),VariableValue {
             name:format!("name"),
             value:Value::String("Atmaram Naik".to_string())
         })

@@ -8,7 +8,7 @@ use crate::core::runtime::Context;
 use crate::journey::{Executable};
 use crate::template::{Expression, Fillable, VariableReferenceName};
 use async_trait::async_trait;
-
+use anyhow::Result;
 use crate::core::Value;
 use crate::journey::step::Step;
 use crate::template::rest::FillableRequestHeaders;
@@ -43,11 +43,11 @@ pub struct WebSocketSendBinaryStep{
 #[async_trait]
 impl Executable for WebSocketClientConnectStep {
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
-        let url = self.url.evaluate(context).await.to_string();
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
+        let url = self.url.evaluate(context).await?.to_string();
         let mut req_builder = http::Request::get(url.as_str());
         if let Some(headers) = &self.headers {
-            let fh = headers.fill(context).await;
+            let fh = headers.fill(context).await?;
             for header in fh.headers {
                 req_builder = req_builder.header(header.key.clone(),header.value.clone());
             }
@@ -56,10 +56,10 @@ impl Executable for WebSocketClientConnectStep {
         match conn {
             Ok((socket, _))=> {
                 let (ssk,mut ssm) = socket.split();
-                context.websocket_connection_store.define(self.connection_name.evaluate(context).await.to_string(),ssk).await;
+                context.websocket_connection_store.define(self.connection_name.evaluate(context).await?.to_string(),ssk).await;
                 let hook = self.hook.clone();
                 let new_ct = context.clone();
-                let handle:JoinHandle<bool> = tokio::spawn(async move {
+                let handle:JoinHandle<Result<bool>> = tokio::spawn(async move {
                     loop {
                         if let Some(Ok(m)) = ssm.next().await{
                             if m.is_text(){
@@ -67,22 +67,22 @@ impl Executable for WebSocketClientConnectStep {
                                 new_ct.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
                                 let mut handles = vec![];
                                 for step in &hook.block {
-                                    let mut inner_handles = step.execute(&new_ct).await;
+                                    let mut inner_handles = step.execute(&new_ct).await?;
                                     handles.append(&mut inner_handles);
                                 }
                                 futures::future::join_all(handles).await;
                             }
                         } else {
-                            return true;
+                            return Ok(true);
                         }
                     }
                 });
-                return vec![handle]
+                return Ok(vec![handle])
             },
             Err(e)=> {
                 context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",e.to_string())),(format!("api"),format!("{}",url))]).await;
                 eprintln!("Error while connecting websocket {} - {}",url,e.to_string());
-                return vec![]
+                return Ok(vec![])
             }
         }
 
@@ -100,14 +100,14 @@ impl Executable for WebSocketClientConnectStep {
 #[async_trait]
 impl Executable for WebSocketSendStep{
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
-        let conn_name = self.name.evaluate(context).await.to_string();
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
+        let conn_name = self.name.evaluate(context).await?.to_string();
         if let Some(conn) = context.websocket_connection_store.get(conn_name.clone()).await{
             let mut connection = conn.lock().await;
             let msg = if self.is_binary {
-                Message::Binary(self.message.evaluate(context).await.to_binary())
+                Message::Binary(self.message.evaluate(context).await?.to_binary())
             } else {
-                Message::Text(self.message.evaluate(context).await.to_string())
+                Message::Text(self.message.evaluate(context).await?.to_string())
             };
             if let Err(e)=(*connection).send(msg).await{
                 context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",e.to_string())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
@@ -118,7 +118,7 @@ impl Executable for WebSocketSendStep{
             context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",msg.clone())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
             eprintln!("{}",msg);
         }
-        return vec![];
+        return Ok(vec![]);
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -128,8 +128,8 @@ impl Executable for WebSocketSendStep{
 #[async_trait]
 impl Executable for WebSocketCloseStep{
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
-        let conn_name = self.name.evaluate(context).await.to_string();
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
+        let conn_name = self.name.evaluate(context).await?.to_string();
         if let Some(conn) = context.websocket_connection_store.get(conn_name.clone()).await{
             let mut connection = conn.lock().await;
 
@@ -142,7 +142,7 @@ impl Executable for WebSocketCloseStep{
             context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",msg.clone())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
             eprintln!("{}",msg);
         }
-        return vec![];
+        return Ok(vec![]);
     }
 
     fn get_deps(&self) -> Vec<String> {

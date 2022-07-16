@@ -24,12 +24,21 @@ use corr_lib::parser::Parsable;
 
 
 use corr_lib::workload::WorkLoad;
+use anyhow::Result;
 pub async fn start_internal(journey:Arc<Journey>,context:CorrContext) {
     for param in journey.params.clone(){
         context.read(param).await;
     }
     let handles = journey.execute(&context).await;
-    futures::future::join_all(handles).await;
+    match handles {
+        Err(e)=>{
+            eprintln!("Error {} while executing journey {}",e,journey.name);
+        },
+        Ok(handles)=>{
+            futures::future::join_all(handles).await;
+        }
+    }
+
 }
 pub async fn start(journey:Arc<Journey>,mut context:CorrContext) {
     let mut rx = context.exiter();

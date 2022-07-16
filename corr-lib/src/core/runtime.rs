@@ -3,6 +3,8 @@ use std::sync::{Arc};
 use tokio::sync::RwLock;
 use futures::lock::Mutex;
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt::{Display, Formatter};
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use crate::core::proto::{Input, Output};
@@ -17,12 +19,13 @@ use crate::core::scrapper::Scrapper;
 use crate::journey::Journey;
 use crate::template::rest::RestVerb;
 use crate::template::VariableReferenceName;
+use anyhow::Result;
+
 pub enum HeapObject{
     Final(Value),
     List(Vec<Arc<RwLock<HeapObject>>>),
     Object(HashMap<String,Arc<RwLock<HeapObject>>>),
 }
-
 impl HeapObject{
     #[async_recursion]
     pub async fn copy(&self)->HeapObject {
@@ -483,11 +486,12 @@ impl ReferenceStore{
 
 #[async_trait]
 impl IO for Context {
-    async fn write(&self, data:String){
-        self.user.lock().await.send(Output::new_know_that(data)).await;
+    async fn write(&self, data:String)->Result<()>{
+        self.user.lock().await.send(Output::new_know_that(data)).await?;
+        Ok(())
     }
 
-    async fn read(&self, variable: Variable)->VariableValue{
+    async fn read(&self, variable: Variable)->Result<VariableValue>{
         let val = if let Some(val) = self.store.get(variable.name.clone()).await{
             let ref_val = &*val.read().await;
             if let Some(dt) = &variable.data_type {
@@ -514,39 +518,39 @@ impl IO for Context {
             None
         };
         if let Some(o_val)=val{
-            VariableValue{
+            Ok(VariableValue{
                 name:variable.name.clone(),
                 value:o_val.clone()
-            }
+            })
         } else if self.fallback {
             let dt=if let Some(dt)= &variable.data_type{
                 dt.clone()
             } else {
                 DataType::String
             };
-            self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone())).await;
+            self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone())).await?;
             loop{
-                let message=self.user.lock().await.get_message().await;
+                let message=self.user.lock().await.get_message().await?;
                 if let Some(var) =match message {
                     Input::Continue(continue_input)=>continue_input.convert(),
                     _=>Option::None
                 }{
                     if var.name.eq(&variable.name){
                         self.set(variable.name.clone(),Arc::new(RwLock::new(HeapObject::from(var.value.clone())))).await;
-                        return var;
+                        return Ok(var);
                     } else {
                         continue;
                     }
                 } else {
-                    self.user.lock().await.send(Output::new_know_that(format!("Invalid Value"))).await;
-                    self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone())).await;
+                    self.user.lock().await.send(Output::new_know_that(format!("Invalid Value"))).await?;
+                    self.user.lock().await.send(Output::new_tell_me(variable.name.clone(),dt.clone())).await?;
                 }
             }
         } else {
-            VariableValue{
+            Ok(VariableValue{
                 name:variable.name.clone(),
                 value:Value::Null
-            }
+            })
         }
 
     }
@@ -725,10 +729,10 @@ impl Context {
         self.set(path.clone(),Arc::new(RwLock::new(HeapObject::List(vec)))).await;
         result
     }
-    pub async fn iterate<F, Fut,T>(&self,path:String,opt_temp:Option<String>,iterate_this: F)->Vec<T>
+    pub async fn iterate<F, Fut,T>(&self,path:String,opt_temp:Option<String>,iterate_this: F)->Result<Vec<T>>
         where
             F: FnOnce(Context,usize) -> Fut + Copy,
-            Fut: Future<Output = T>,
+            Fut: Future<Output = Result<T>>,
     {
         let mut result=vec![];
 
@@ -742,7 +746,7 @@ impl Context {
                     if let Some(temp) = opt_temp.clone() {
                         new_ct.store.set(temp.clone(),l.clone()).await;
                     }
-                    result.push(iterate_this(new_ct,i).await);
+                    result.push(iterate_this(new_ct,i).await?);
                     if let Some(temp) = opt_temp.clone() {
                         self.delete(temp.clone()).await;
                     }
@@ -750,12 +754,12 @@ impl Context {
                 }
             }
         } else {
-            let val=self.read(Variable{name:format!("{}::length",path.clone()),data_type:Option::Some(DataType::PositiveInteger)}).await;
+            let val=self.read(Variable{name:format!("{}::length",path.clone()),data_type:Option::Some(DataType::PositiveInteger)}).await?;
             let mut vec:Vec<Arc<RwLock<HeapObject>>>=vec![];
             if let Value::PositiveInteger(size)=&val.value{
                 for i in 0..size.clone() {
                     let new_ct = Context::from(self).await;
-                    result.push(iterate_this(new_ct,i as usize).await);
+                    result.push(iterate_this(new_ct,i as usize).await?);
                     if let Some(temp) = opt_temp.clone() {
                         if let Some(ho) = self.store.get(temp.clone()).await {
                             vec.push(ho.clone());
@@ -770,18 +774,37 @@ impl Context {
                 self.set(path.clone(),Arc::new(RwLock::new(HeapObject::List(vec)))).await
             }
         };
-        result
+        Ok(result)
+    }
+}
+#[derive(Debug,Clone)]
+pub struct RuntimeError{
+    pub message:String,
+}
+impl Display for RuntimeError{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f,"Runtime Error {}",self.message)
+    }
+}
+
+impl Error for RuntimeError {
+    fn description(&self) -> &str {
+        "Runtime Error"
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        None
     }
 }
 #[async_trait]
 pub trait Client:Send+Sync{
-    async fn send(&self,output:Output);
-    async fn get_message(&mut self)->Input;
+    async fn send(&self,output:Output)->Result<()>;
+    async fn get_message(&mut self)->Result<Input>;
 }
 #[async_trait]
 pub trait IO {
-    async fn write(&self,data:String);
-    async fn read(&self,variable:Variable)->VariableValue;
+    async fn write(&self,data:String)->Result<()>;
+    async fn read(&self,variable:Variable)->Result<VariableValue>;
 }
 pub struct MockClient {
     cursur:usize,
@@ -808,13 +831,14 @@ impl MockClient {
 
 #[async_trait]
 impl Client for MockClient {
-    async fn send(&self, output: Output) {
+    async fn send(&self, output: Output) ->Result<()>{
         self.buffer.lock().unwrap().push(output);
+        Ok(())
     }
 
-    async fn get_message(&mut self) -> Input {
+    async fn get_message(&mut self) -> Result<Input> {
         self.cursur = self.cursur +1;
-        self.messages.get(self.cursur-1).unwrap().clone()
+        Ok(self.messages.get(self.cursur-1).unwrap().clone())
     }
 }
 
@@ -834,9 +858,11 @@ pub mod tests{
         let buffer= Arc::new(Mutex::new(vec![]));
         let context = Context::mock(vec![Input::new_continue("names::length".to_ascii_lowercase(), "4".to_string(), DataType::PositiveInteger)],buffer.clone());
         let a=context.iterate("names".to_string(),Option::Some("name".to_string()),async move |_ct,_i|{
-        }).await;
+            Ok(())
+        }).await.unwrap();
         let b=context.iterate("names".to_string(),Option::Some("name".to_string()),async move |_ct,_i|{
-        }).await;
+            Ok(())
+        }).await.unwrap();
         assert_eq!(a.len(), 4);
         assert_eq!(b.len(), 4);
         assert_eq!( buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("names::length".to_string(),DataType::PositiveInteger));
@@ -863,13 +889,13 @@ pub mod tests{
                 name:"name".to_string(),
                 data_type:Option::Some(DataType::String)
             }).await
-        }).await;
+        }).await.unwrap();
         let b=context.iterate("names".to_string(),Option::Some("name".to_string()),async move |ct,_|{
             ct.read(Variable{
                 name:"name".to_string(),
                 data_type:Option::Some(DataType::String)
             }).await
-        }).await;
+        }).await.unwrap();
         assert_eq!(a.len(), 2);
         assert_eq!(b.len(), 2);
         assert_eq!( buffer.lock().unwrap().len(),3);
@@ -891,13 +917,13 @@ pub mod tests{
                 name:"person.name".to_string(),
                 data_type:Option::Some(DataType::String)
             }).await
-        }).await;
+        }).await.unwrap();
         let b=context.iterate("persons".to_string(),Option::Some("person".to_string()),async move |ct,_|{
             ct.read(Variable{
                 name:"person.name".to_string(),
                 data_type:Option::Some(DataType::String)
             }).await
-        }).await;
+        }).await.unwrap();
         assert_eq!(a.len(), 2);
         assert_eq!(b.len(), 2);
         assert_eq!( buffer.lock().unwrap().len(),3);

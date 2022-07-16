@@ -8,7 +8,7 @@ use crate::template::object::FillableObject;
 use crate::core::Value;
 use crate::journey::step::rest::CorrRequest;
 use multer::bytes::Bytes;
-
+use anyhow::Result;
 #[derive(Debug, Clone,PartialEq)]
 pub enum RestVerb{
     GET,
@@ -96,28 +96,28 @@ impl RequestBody{
 }
 #[async_trait]
 impl Fillable<CorrRequest> for FillableRequest{
-    async fn fill(&self, context: &Context) -> CorrRequest {
+    async fn fill(&self, context: &Context) -> Result<CorrRequest> {
         let body = if let Some(bd)=&self.body{
-            Option::Some(bd.fill(context).await)
+            Option::Some(bd.fill(context).await?)
         } else {
             Option::None
         };
         let headers = if let Some(frh)=&self.headers{
-            Option::Some(frh.fill(context).await)
+            Option::Some(frh.fill(context).await?)
         } else {
             Option::None
         };
-        CorrRequest{
-            method:self.verb.clone(),
+        Ok(CorrRequest {
+            method: self.verb.clone(),
             body,
-            url:self.url.fill(context).await,
-            headers
-        }
+            url: self.url.fill(context).await?,
+            headers,
+        })
     }
 }
 #[async_trait]
 impl Fillable<String> for URL{
-    async fn fill(&self, context: &Context) -> String {
+    async fn fill(&self, context: &Context) -> Result<String> {
         match self {
             URL::WithText(txt)=>txt.fill(context).await,
             URL::WithExpression(expr)=>expr.fill(context).await
@@ -126,10 +126,10 @@ impl Fillable<String> for URL{
 }
 #[async_trait]
 impl Fillable<RequestBody> for FillableRequestBody{
-    async fn fill(&self, context: &Context) -> RequestBody {
+    async fn fill(&self, context: &Context) -> Result<RequestBody> {
         match self{
             FillableRequestBody::WithObject(obj)=>{
-                RequestBody::JSON(obj.fill(context).await)
+                Ok(RequestBody::JSON(obj.fill(context).await?))
             }
         }
     }
@@ -137,7 +137,7 @@ impl Fillable<RequestBody> for FillableRequestBody{
 
 #[async_trait]
 impl Fillable<String> for FillableRequestHeaderValue{
-    async fn fill(&self, context: &Context) -> String {
+    async fn fill(&self, context: &Context) -> Result<String> {
         match self {
             FillableRequestHeaderValue::WithExpression(expr)=>expr.fill(context).await,
             FillableRequestHeaderValue::WithText(txt)=>txt.fill(context).await
@@ -151,23 +151,23 @@ pub struct RequestHeader{
 }
 #[async_trait]
 impl Fillable<RequestHeader> for FillableRequestHeaderPair{
-    async fn fill(&self, context: &Context) -> RequestHeader {
-        RequestHeader{
-            key:self.key.clone(),
-            value:self.value.fill(context).await
-        }
+    async fn fill(&self, context: &Context) -> Result<RequestHeader> {
+        Ok(RequestHeader {
+            key: self.key.clone(),
+            value: self.value.fill(context).await?,
+        })
     }
 }
 #[async_trait]
 impl Fillable<RequestHeaders> for FillableRequestHeaders{
-    async fn fill(&self, context: &Context) -> RequestHeaders {
+    async fn fill(&self, context: &Context) -> Result<RequestHeaders> {
         let mut vec_val=vec![];
         for header in &self.headers {
-            vec_val.push(header.fill(context).await);
+            vec_val.push(header.fill(context).await?);
         }
-        RequestHeaders{
-            headers:vec_val
-        }
+        Ok(RequestHeaders {
+            headers: vec_val
+        })
     }
 }
 #[cfg(test)]
@@ -191,7 +191,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"id".to_string(),value:"3".to_string(),data_type:DataType::PositiveInteger})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = fr.fill(&context).await;
+        let filled = fr.fill(&context).await.unwrap();
         assert_eq!(filled,CorrRequest{
             method:RestVerb::GET,
             url:format!("http://localhost/3"),
@@ -212,7 +212,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = fr.fill(&context).await;
+        let filled = fr.fill(&context).await.unwrap();
         let mut mp = HashMap::new();
         mp.insert(format!("name"),Value::String(format!("Atmaram")));
         assert_eq!(filled,CorrRequest{
@@ -237,7 +237,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = fr.fill(&context).await;
+        let filled = fr.fill(&context).await.unwrap();
         assert_eq!(filled,CorrRequest{
             method:RestVerb::POST,
             url:format!("http://localhost/3"),
@@ -267,7 +267,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = fr.fill(&context).await;
+        let filled = fr.fill(&context).await.unwrap();
         let mut mp = HashMap::new();
         mp.insert(format!("name"),Value::String(format!("Atmaram")));
         assert_eq!(filled,CorrRequest{
@@ -289,7 +289,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"id".to_string(),value:"3".to_string(),data_type:DataType::PositiveInteger})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = url.fill(&context).await;
+        let filled = url.fill(&context).await.unwrap();
         assert_eq!(filled,format!("http://localhost/3"))
     }
     #[tokio::test]
@@ -299,7 +299,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"id".to_string(),value:"3".to_string(),data_type:DataType::PositiveInteger})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = url.fill(&context).await;
+        let filled = url.fill(&context).await.unwrap();
         assert_eq!(filled,format!("http://localhost/3"))
     }
     #[tokio::test]
@@ -309,7 +309,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = frb.fill(&context).await;
+        let filled = frb.fill(&context).await.unwrap();
         let mut mp = HashMap::new();
         mp.insert(format!("name"),Value::String(format!("Atmaram")));
         assert_eq!(filled,RequestBody::JSON(Value::Map(mp)))
@@ -321,7 +321,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = frhv.fill(&context).await;
+        let filled = frhv.fill(&context).await.unwrap();
         assert_eq!(filled,format!("ABC-Atmaram"))
     }
 }

@@ -8,7 +8,7 @@ use tokio::task::JoinHandle;
 use rdbc_async::sql::Driver;
 use crate::core::Value;
 use crate::template::object::extractable::{ExtractableObject};
-
+use anyhow::Result;
 pub mod parser;
 #[derive(Debug, Clone,PartialEq)]
 pub struct DefineConnectionStep {
@@ -32,11 +32,11 @@ pub struct QueryStep {
 #[async_trait]
 impl Executable for DefineConnectionStep{
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
-        let cstr = self.connection_string.evaluate(&context).await;
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
+        let cstr = self.connection_string.evaluate(&context).await?;
         let connection =  rdbc_async_postgres::sql::Driver.connect(cstr.to_string().as_str()).await.unwrap();
         context.connection_store.define(self.connection_name.to_string(),connection).await;
-        return vec![];
+        return Ok(vec![]);
 
     }
 
@@ -50,11 +50,11 @@ impl Executable for QueryStep {
     fn get_deps(&self) -> Vec<String> {
         vec![]
     }
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         let conn = context.connection_store.get(self.connection_name.clone()).await.unwrap();
         let connection = conn.lock().await;
-        let query = self.query.evaluate(context).await.to_string();
-        let data = self.value.evaluate(context).await;
+        let query = self.query.evaluate(context).await?.to_string();
+        let data = self.value.evaluate(context).await?;
         println!("{}",query);
         if let Value::Array(values) = data {
             println!("{}",query);
@@ -64,7 +64,7 @@ impl Executable for QueryStep {
                 }).collect();
             let _res = stm.execute_query(vals).await.unwrap();
         };
-        return vec![]
+        return Ok(vec![])
     }
 }
 
@@ -73,11 +73,11 @@ impl Executable for ExecuteStep {
     fn get_deps(&self) -> Vec<String> {
         vec![]
     }
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         let conn = context.connection_store.get(self.connection_name.clone()).await.unwrap();
         let connection = conn.lock().await;
-        let query = self.query.evaluate(context).await.to_string();
-        let data = self.value.evaluate(context).await;
+        let query = self.query.evaluate(context).await?.to_string();
+        let data = self.value.evaluate(context).await?;
         println!("{}",query);
         if let Value::Array(values) = data {
             println!("{}",query);
@@ -117,7 +117,7 @@ impl Executable for ExecuteStep {
             }
 
         };
-        return vec![]
+        return Ok(vec![])
 
     }
 }

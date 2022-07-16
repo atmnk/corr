@@ -5,7 +5,7 @@ pub mod listner;
 pub mod db;
 pub mod websocket;
 
-
+use anyhow::Result;
 
 use crate::journey::{Executable};
 use crate::journey::step::system::SystemStep;
@@ -35,7 +35,7 @@ pub enum Step{
 
 #[async_trait]
 impl Executable for Step{
-    async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         match self {
             Step::System(sys_step)=>{
                 return sys_step.execute(context).await

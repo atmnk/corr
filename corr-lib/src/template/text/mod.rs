@@ -4,7 +4,7 @@ use crate::template::{Expression, VariableReferenceName, Fillable};
 use crate::core::runtime::{Context};
 use async_trait::async_trait;
 use crate::core::Value;
-
+use anyhow::Result;
 #[derive(Clone,Debug,PartialEq)]
 pub struct Text{
     pub blocks:Vec<Block>
@@ -35,30 +35,30 @@ pub enum TextLoopInnerTemplate {
 
 #[async_trait]
 impl Fillable<String> for Text{
-    async fn fill(&self, context: &Context) -> String {
+    async fn fill(&self, context: &Context) -> Result<String> {
         let mut ret="".to_string();
         for block in self.blocks.iter() {
-            ret.push_str(block.fill(context).await.as_str());
+            ret.push_str(block.fill(context).await?.as_str());
         }
-        ret
+        Ok(ret)
     }
 }
 #[async_trait]
 impl Fillable<String> for Block{
-    async fn fill(&self, context: &Context) -> String {
+    async fn fill(&self, context: &Context) -> Result<String> {
         match self {
             Block::Scriplet(scriplet)=>{
                 scriplet.fill(context).await
             },
             Block::Text(str)=>{
-                str.clone()
+                Ok(str.clone())
             }
         }
     }
 }
 #[async_trait]
 impl Fillable<String> for Scriplet{
-    async fn fill(&self, context: &Context) -> String {
+    async fn fill(&self, context: &Context) -> Result<String> {
         match self {
             Scriplet::Expression(expr)=>{
                 expr.fill(context).await
@@ -71,40 +71,40 @@ impl Fillable<String> for Scriplet{
 }
 #[async_trait]
 impl Fillable<String> for TextForLoop{
-    async fn fill(&self, context: &Context) -> String {
+    async fn fill(&self, context: &Context) -> Result<String> {
         match self {
             TextForLoop::WithVariableReference(on,with,opt_index,inner)=>{
-                context.iterate(on.to_string(),with.clone().map(|val|val.to_string()),
+                Ok(context.iterate(on.to_string(),with.clone().map(|val|val.to_string()),
                                 async move |context,i|{
                                     if let Some(index) = opt_index {
                                         context.define(index.to_string(),Value::PositiveInteger(i as u128)).await;
                                     }
                                     inner.fill(&context).await
-                }).await.join("")
+                }).await?.join(""))
             }
         }
     }
 }
 #[async_trait]
 impl Fillable<String> for TextLoopInnerTemplate {
-    async fn fill(&self, context: &Context) -> String {
+    async fn fill(&self, context: &Context) -> Result<String> {
         match self {
             TextLoopInnerTemplate::ForLoop(tfl)=>tfl.fill(context).await,
             TextLoopInnerTemplate::Expression(expr)=>expr.fill(context).await,
             TextLoopInnerTemplate::Blocks(blocks)=> {
                 let mut values = vec![];
                 for block in blocks {
-                    values.push(block.fill(context).await)
+                    values.push(block.fill(context).await?)
                 }
-                values.join("")
+                Ok(values.join(""))
             }
         }
     }
 }
 #[async_trait]
 impl Fillable<String> for Expression{
-    async fn fill(&self, context: &Context) -> String {
-        self.evaluate(context).await.to_string()
+    async fn fill(&self, context: &Context) -> Result<String> {
+        Ok(self.evaluate(context).await?.to_string())
     }
 }
 
@@ -126,7 +126,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=fillable.fill(&context).await;
+        let result=fillable.fill(&context).await.unwrap();
         assert_eq!(result,"Hello Atmaram".to_string());
         assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
     }
@@ -137,7 +137,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=fillable.fill(&context).await;
+        let result=fillable.fill(&context).await.unwrap();
         assert_eq!(result,"hello".to_string());
         assert_eq!(buffer.lock().unwrap().len(),0);
 
@@ -149,7 +149,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=fillable.fill(&context).await;
+        let result=fillable.fill(&context).await.unwrap();
         assert_eq!(result,"Atmaram".to_string());
         assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
 
@@ -161,7 +161,7 @@ mod tests{
             let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
             let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
             let context=Context::mock(input,buffer.clone());
-            let result=scriplet.fill(&context).await;
+            let result=scriplet.fill(&context).await.unwrap();
             assert_eq!(result,"Atmaram".to_string());
             assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
 
@@ -177,7 +177,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=scriplet.fill(&context).await;
+        let result=scriplet.fill(&context).await.unwrap();
         assert_eq!(result,"AtmaramYogesh".to_string());
     }
 
@@ -190,7 +190,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=tfl.fill(&context).await;
+        let result=tfl.fill(&context).await.unwrap();
         assert_eq!(result,"TwiseTwise".to_string());
     }
 
@@ -203,7 +203,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=tlit.fill(&context).await;
+        let result=tlit.fill(&context).await.unwrap();
         assert_eq!(result,"TwiseTwise".to_string());
     }
 
@@ -216,7 +216,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=tlit.fill(&context).await;
+        let result=tlit.fill(&context).await.unwrap();
         assert_eq!(result,"Atmaram".to_string());
     }
 
@@ -229,7 +229,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=tlit.fill(&context).await;
+        let result=tlit.fill(&context).await.unwrap();
         assert_eq!(result,"Hello 100.0".to_string());
     }
 
@@ -239,7 +239,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result:String=expression.fill(&context).await;
+        let result:String=expression.fill(&context).await.unwrap();
         assert_eq!(result,"Atmaram".to_string());
         assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
     }

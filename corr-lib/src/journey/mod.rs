@@ -8,7 +8,7 @@ use crate::core::{runtime::Context, runtime::IO, Variable, DataType, Value};
 use async_trait::async_trait;
 use tokio::task::JoinHandle;
 use crate::template::VariableReferenceName;
-
+use anyhow::Result;
 #[derive(Debug, Clone,PartialEq)]
 pub struct Journey{
     pub import_statements:Vec<ImportStatement>,
@@ -35,7 +35,7 @@ pub struct ImportStatement{
 }
 #[async_trait]
 pub trait Executable{
-    async fn execute(&self,context:&Context)->Vec<JoinHandle<bool>>;
+    async fn execute(&self,context:&Context)->Result<Vec<JoinHandle<Result<bool>>>>;
     fn get_deps(&self)->Vec<String>;
 }
 
@@ -43,7 +43,7 @@ pub trait Executable{
 
 #[async_trait]
 impl Executable for Journey{
-    async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>>{
+    async fn execute(&self, context: &Context)->Result<Vec<JoinHandle<Result<bool>>>>{
         for is in &self.import_statements{
             if let Some(jn)=context.get_global_journey(is.physical_name.to_string()){
                 let mut hm = context.local_program_lookup.write().await;
@@ -56,9 +56,9 @@ impl Executable for Journey{
         // context.write(format!("Executing Journey {}",self.name)).await;
         let mut handles = vec![];
         for step in self.steps.iter() {
-            handles.append(&mut step.execute(context).await)
+            handles.append(&mut step.execute(context).await?)
         }
-        handles
+        Ok(handles)
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -80,22 +80,22 @@ impl Executable for Journey{
 pub fn filter(journies:HashMap<String,Arc<Journey>>,_filter:String)->HashMap<String,Arc<Journey>>{
     journies
 }
-pub async fn start(journies:&HashMap<String,Arc<Journey>>,filter_string: String,context:Context) {
+pub async fn start(journies:&HashMap<String,Arc<Journey>>,filter_string: String,context:Context) ->Result<()>{
     loop {
         let filtered=filter(journies.clone(),filter_string.clone());
         let mut i=0;
-        context.write(format!("Choose from below matching journies")).await;
+        context.write(format!("Choose from below matching journies")).await?;
         let mut arr = vec![];
         for journey in filtered.clone() {
-            context.write(format!("{})\t{}",i,journey.0)).await;
+            context.write(format!("{})\t{}",i,journey.0)).await?;
             arr.push(journey.1.clone());
             i=i+1
         }
-        context.write(format!("Please Enter value between 0 to {}",filtered.len()-1)).await;
+        context.write(format!("Please Enter value between 0 to {}",filtered.len()-1)).await?;
         let choice=context.read(Variable{
             name:format!("choice"),
             data_type:Option::Some(DataType::PositiveInteger)
-        }).await;
+        }).await?;
         if let Value::PositiveInteger(val) = choice.value.clone(){
             if val < journies.len()  as u128{
                 arr.get(val as usize).unwrap().execute(&context).await;
@@ -107,7 +107,7 @@ pub async fn start(journies:&HashMap<String,Arc<Journey>>,filter_string: String,
             }
         }
     }
-
+    Ok(())
 }
 
 #[cfg(test)]
