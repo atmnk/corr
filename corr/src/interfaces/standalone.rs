@@ -1,6 +1,6 @@
 use anyhow::bail;
 use anyhow::Result;
-use backtrace::Backtrace;
+
 use corr_lib::core::proto::{Input, Output};
 use corr_lib::core::runtime::{Client, RuntimeError};
 use async_trait::async_trait;

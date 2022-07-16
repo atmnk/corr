@@ -27,7 +27,9 @@ use corr_lib::workload::WorkLoad;
 use anyhow::Result;
 pub async fn start_internal(journey:Arc<Journey>,context:CorrContext) {
     for param in journey.params.clone(){
-        context.read(param).await;
+        if let Err(e) = context.read(param.clone()).await {
+            panic!("Parameter {} not defined",param.name)
+        }
     }
     let handles = journey.execute(&context).await;
     match handles {
@@ -47,7 +49,7 @@ pub async fn start(journey:Arc<Journey>,mut context:CorrContext) {
         _ = rx.recv() => {},
         _ = start_internal(journey,context) => {},
     }
-    user.lock().await.send(Output::new_done("Done Executing Journey".to_string())).await;
+    user.lock().await.send(Output::new_done("Done Executing Journey".to_string())).await.unwrap();
 }
 pub fn unpack(target:String) -> Result<String, std::io::Error> {
     let tc = target.clone();

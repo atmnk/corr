@@ -9,7 +9,7 @@ use tokio::task::JoinHandle;
 use tokio::time::{Instant, sleep};
 use crate::{client, Out};
 use crate::interfaces::standalone::StandAloneInterface;
-use corr_lib::core::runtime::{Context as CorrContext, Context};
+use corr_lib::core::runtime::{Context as CorrContext};
 use corr_lib::core::scrapper::influxdb2::InfluxDB2Scrapper;
 use corr_lib::core::scrapper::none::NoneScraper;
 use corr_lib::core::scrapper::{Scrapper};

@@ -78,7 +78,7 @@ pub struct CliInterface{
 #[async_trait]
 impl Client for CliInterface {
     async fn send(&self,output:Output)->Result<()>{
-         &self.tx.send(Message::Output(output)).await?;
+         let _ = &self.tx.send(Message::Output(output)).await?;
         Ok(())
     }
     async fn get_message(&mut self)->Result<Input>{

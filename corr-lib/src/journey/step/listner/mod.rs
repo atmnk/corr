@@ -7,7 +7,7 @@ use crate::journey::{Executable};
 use crate::core::runtime::{Context, Client, RuntimeError};
 use crate::template::{Expression};
 use std::convert::Infallible;
-use std::fmt::format;
+
 use std::net::SocketAddr;
 use hyper::{Body, Request, Response, Server, StatusCode};
 use hyper::service::{make_service_fn, service_fn};

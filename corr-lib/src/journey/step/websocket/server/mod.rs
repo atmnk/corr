@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use std::net::SocketAddr;
 
 use futures_util::{SinkExt, StreamExt};
-use tokio_tungstenite::{accept_async, tungstenite::Error};
+use tokio_tungstenite::{accept_async};
 use tokio_tungstenite::tungstenite::{Message};
 use crate::core::Value;
 
