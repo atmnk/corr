@@ -14,8 +14,12 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          components: cargo-wix
           override: true
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-wix
+          version: latest
+          use-tool-cache: true
       - name: Build Binary
         uses: actions-rs/cargo@v1
         with:
