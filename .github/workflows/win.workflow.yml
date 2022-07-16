@@ -15,6 +15,7 @@ jobs:
         with:
           toolchain: nightly
           override: true
+      - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/install@v0.1
         with:
           crate: cargo-wix
@@ -28,11 +29,14 @@ jobs:
       - name: Get the version
         id: get_version
         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -c2-)
+      - name: List Content
+        run: |
+          dir target/wix
       - name: Upload corr binaries to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: 'target/wix/corr-${{steps.get_version.outputs.VERSION}}-x86_64.msi'
-          asset_name: 'corr-${{steps.get_version.outputs.VERSION}}-x86_64.msi'
+          file: ${{ format('target/wix/corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
+          asset_name: ${{ format('corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
           tag: ${{ github.ref }}
           overwrite: true
