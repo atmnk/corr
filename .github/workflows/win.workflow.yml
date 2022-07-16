@@ -16,6 +16,8 @@ jobs:
           toolchain: nightly
           override: true
       - uses: Swatinem/rust-cache@v1
+        with:
+          shared-key: "windows"
       - uses: actions-rs/install@v0.1
         with:
           crate: cargo-wix
@@ -31,7 +33,7 @@ jobs:
           args: --package corr
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::$(cargo get --root corr version)
+        run: echo "::set-output name=VERSION::$(cargo get --root corr version)"
       - name: List Content
         run: |
           dir target/wix
