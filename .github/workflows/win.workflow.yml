@@ -19,8 +19,11 @@ jobs:
       - uses: actions-rs/install@v0.1
         with:
           crate: cargo-wix
-          version: latest
-          use-tool-cache: true
+          version: latest=
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-get
+          version: latest=
       - name: Build Binary
         uses: actions-rs/cargo@v1
         with:
@@ -28,7 +31,7 @@ jobs:
           args: --package corr
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -c2-)
+        run: echo ::set-output name=VERSION::$(cargo get --root corr version)
       - name: List Content
         run: |
           dir target/wix
