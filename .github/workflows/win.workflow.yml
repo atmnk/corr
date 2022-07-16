@@ -19,11 +19,11 @@ jobs:
       - uses: actions-rs/install@v0.1
         with:
           crate: cargo-wix
-          version: latest=
+          version: latest
       - uses: actions-rs/install@v0.1
         with:
           crate: cargo-get
-          version: latest=
+          version: latest
       - name: Build Binary
         uses: actions-rs/cargo@v1
         with:
