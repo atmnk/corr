@@ -86,9 +86,7 @@ impl Client for CliInterface {
             if let Some(Message::Input(ip)) = self.rx.recv().await {
                 return Ok(ip);
             } else {
-                bail!(RuntimeError{
-                    message:format!("Unable to read input")
-                })
+                bail!(RuntimeError::new("Unable to read input"))
             }
         }
     }

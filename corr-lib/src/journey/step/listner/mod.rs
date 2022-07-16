@@ -170,9 +170,7 @@ impl Client for SystemRuntime{
     async fn send(&self, output: Output)->Result<()> {
         match output {
             Output::TellMe(a)=>{
-                bail!(RuntimeError{
-                    message:format!("Don't know value for {:?} of type {:?}",a.name,a.data_type)
-                });
+                bail!(RuntimeError::new(format!("Don't know value for {:?} of type {:?}",a.name,a.data_type).as_str()));
             },
             Output::KnowThat(k)=>{
                 println!("{:?}",k.message);
@@ -185,9 +183,7 @@ impl Client for SystemRuntime{
     }
 
     async fn get_message(&mut self) -> Result<Input> {
-        bail!(RuntimeError{
-            message:format!("Undesired State in step listener")
-        })
+        bail!(RuntimeError::new("Undesired State in step listener"))
     }
 }
 #[derive(Debug, Clone,PartialEq)]

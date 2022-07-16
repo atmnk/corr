@@ -13,17 +13,13 @@ impl Client for StandAloneInterface {
                 println!("{}",kto.message);
             },
             Output::TellMe(tmo)=>{
-                bail!(RuntimeError{
-                    message:format!("{} variable of type {:?} not defined",tmo.name,tmo.data_type)
-                });
+                bail!(RuntimeError::new(format!("{} variable of type {:?} not defined",tmo.name,tmo.data_type).as_str()));
             }
             _=>{},
         };
         Ok(())
     }
     async fn get_message(&mut self) -> Result<Input> {
-        bail!(RuntimeError{
-            message:format!("Some Variables are not defined!")
-        });
+        bail!(RuntimeError::new("Some Variables are not defined!"));
     }
 }

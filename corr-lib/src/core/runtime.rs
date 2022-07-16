@@ -779,7 +779,15 @@ impl Context {
 }
 #[derive(Debug,Clone)]
 pub struct RuntimeError{
-    pub message:String,
+    message:String,
+}
+
+impl RuntimeError {
+    pub fn new(message:&str)->Self{
+        Self{
+            message:message.to_string()
+        }
+    }
 }
 impl Display for RuntimeError{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
