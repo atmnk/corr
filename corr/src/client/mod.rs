@@ -27,7 +27,7 @@ use corr_lib::workload::WorkLoad;
 use anyhow::Result;
 pub async fn start_internal(journey:Arc<Journey>,context:CorrContext) {
     for param in journey.params.clone(){
-        if let Err(e) = context.read(param.clone()).await {
+        if let Err(_e) = context.read(param.clone()).await {
             panic!("Parameter {} not defined",param.name)
         }
     }

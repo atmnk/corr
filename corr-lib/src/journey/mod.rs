@@ -49,7 +49,7 @@ impl Executable for Journey{
                 let mut hm = context.local_program_lookup.write().await;
                 (*hm).insert(is.logical_name.to_string(),jn);
             } else {
-                context.write(format!("Journey {} not loaded in bunle",is.physical_name.to_string())).await;
+                context.write(format!("Journey {} not loaded in bunle",is.physical_name.to_string())).await?;
                 context.exit(-1).await;
             }
         }
@@ -98,10 +98,10 @@ pub async fn start(journies:&HashMap<String,Arc<Journey>>,filter_string: String,
         }).await?;
         if let Value::PositiveInteger(val) = choice.value.clone(){
             if val < journies.len()  as u128{
-                arr.get(val as usize).unwrap().execute(&context).await;
+                arr.get(val as usize).unwrap().execute(&context).await?;
                 break;
             } else {
-                context.write(format!("Invalid Value")).await;
+                context.write(format!("Invalid Value")).await?;
                 context.delete(format!("choice")).await;
                 continue;
             }
@@ -131,7 +131,7 @@ mod tests{
         let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger),Input::new_continue("name".to_string(),"100.01".to_string(),DataType::Double)];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());
-        start(&journes,"hello".to_string(),context).await;
+        start(&journes,"hello".to_string(),context).await.unwrap();
         assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_know_that("Choose from below matching journies".to_string()));
         assert_eq!(buffer.lock().unwrap().get(1).unwrap().clone(),Output::new_know_that("0)\ttest".to_string()));
         assert_eq!(buffer.lock().unwrap().get(2).unwrap().clone(),Output::new_know_that("Please Enter value between 0 to 0".to_string()));
@@ -149,7 +149,7 @@ mod tests{
         let input = vec![Input::new_continue("choice".to_string(),"3".to_string(),DataType::PositiveInteger),Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());
-        start(&journes,"hello".to_string(),context).await;
+        start(&journes,"hello".to_string(),context).await.unwrap();
             assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_know_that("Choose from below matching journies".to_string()));
             assert_eq!(buffer.lock().unwrap().get(1).unwrap().clone(),Output::new_know_that("0)\ttest".to_string()));
             assert_eq!(buffer.lock().unwrap().get(2).unwrap().clone(),Output::new_know_that("Please Enter value between 0 to 0".to_string()));

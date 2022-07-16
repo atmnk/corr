@@ -94,7 +94,7 @@ async fn handle(
 
                     let context = Context::from(&context).await;
                     for step in stub.steps {
-                        step.execute(&context).await;
+                        step.execute(&context).await?;
                     }
 
                     let resp = stub.response.body.evaluate(&context).await?;

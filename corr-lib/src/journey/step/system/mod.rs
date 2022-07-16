@@ -565,7 +565,7 @@ mod tests{
         let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_know_that("Hello World".to_string()));
 
     }
@@ -576,7 +576,7 @@ mod tests{
         let input = vec![];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         assert_eq!(context.read(Variable {
             name:format!("name"),
             data_type:Option::Some(DataType::String)
@@ -593,7 +593,7 @@ mod tests{
         let input = vec![];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         assert_eq!(context.read(Variable {
             name:format!("name"),
             data_type:Option::Some(DataType::String)
@@ -616,7 +616,7 @@ mod tests{
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_tell_me("persons::length".to_string(),DataType::PositiveInteger));
         assert_eq!(buffer.lock().unwrap().get(1).unwrap().clone(),Output::new_tell_me("person.name".to_string(),DataType::String));
         assert_eq!(buffer.lock().unwrap().get(2).unwrap().clone(),Output::new_know_that("Hello 0-Atmaram".to_string()));

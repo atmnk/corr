@@ -166,7 +166,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
@@ -185,7 +185,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         assert_eq!(context.get_var_from_store(format!("title")).await, Option::Some(Value::String("delectus aut autem".to_string())));
     }
 
@@ -210,7 +210,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
@@ -237,7 +237,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
@@ -262,7 +262,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
@@ -287,7 +287,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))

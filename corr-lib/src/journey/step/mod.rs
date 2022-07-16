@@ -122,7 +122,7 @@ mod tests{
         let input = vec![Input::new_continue("choice".to_string(),"0".to_string(),DataType::PositiveInteger)];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context= Context::mock(input,buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::new_know_that("Hello World".to_string()));
 
     }
