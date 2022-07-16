@@ -13,5 +13,5 @@ jobs:
         id: get_version
         run: echo ::set-output name=VERSION::$(echo 1.0.4)
       - name: Print Version
-        run |
+        run: |
         echo ${{ format('target/wix/corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
