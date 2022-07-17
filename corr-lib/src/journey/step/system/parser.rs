@@ -9,6 +9,7 @@ use nom::branch::alt;
 use crate::template::{VariableReferenceName, Assignable, Expression};
 use crate::journey::step::Step;
 use nom::multi::{many0, many1, separated_list0, separated_list1};
+use crate::journey::parser::parse_executable_name;
 
 
 impl Parsable for WhileStep{
@@ -54,9 +55,11 @@ impl Parsable for AssignmentStep{
 }
 impl Parsable for JourneyStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map( tuple((ws(VariableReferenceName::parser),ws(tag("(")),separated_list0(ws(tag(",")),Expression::parser),ws(tag(")")))),|(journey,_,args,_,)|{
+        map( tuple((ws(VariableReferenceName::parser),ws(tag(".")),ws(parse_executable_name),ws(tag("(")),separated_list0(ws(tag(",")),Expression::parser),ws(tag(")")))),|(journey,_,en,_,args,_,)|{
+            let mut jn = journey.parts.clone();
+            jn.push(en);
             JourneyStep{
-                journey:journey.to_string(),
+                journey:jn.join("."),
                 args
             }
         })(input)
@@ -201,7 +204,7 @@ impl Parsable for ConditionalStep{
 
 #[cfg(test)]
 mod tests{
-    use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep};
+    use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, JourneyStep};
     use crate::parser::Parsable;
     use crate::template::text::{Text, Block};
     use crate::parser::util::{assert_if, assert_no_error};
@@ -408,6 +411,25 @@ mod tests{
             }
         "#;
         assert_no_error(j,SystemStep::parser(j))
+    }
+    #[tokio::test]
+    async fn should_parse_journey_step_without_args(){
+        let j= r#"com.qalense.Hello()"#;
+        assert_if(j,JourneyStep::parser(j),JourneyStep{
+            journey:format!("com.qalense.Hello"),
+            args:vec![]
+        })
+    }
+    #[tokio::test]
+    async fn should_parse_journey_step_with_args(){
+        let j= r#"com.qalense.Hello(a,b)"#;
+        assert_if(j,JourneyStep::parser(j),JourneyStep{
+            journey:format!("com.qalense.Hello"),
+            args:vec![
+                Expression::Variable(format!("a"),None),
+                Expression::Variable(format!("b"),None)
+            ]
+        })
     }
     #[tokio::test]
     async fn should_parse_single_background_step(){

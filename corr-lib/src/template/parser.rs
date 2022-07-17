@@ -159,7 +159,7 @@ fn non_function_call_expression<'a>(input: &'a str)-> ParseResult<'a, Expression
             stack_expression,
             naked_function_expression,
             map(Value::parser,|val|Expression::Constant(val)),
-            map(VariableReferenceName::non_function_parser,|val|Expression::Variable(val.to_string(),Option::None)),
+            map(VariableReferenceName::parser,|val|Expression::Variable(val.to_string(),Option::None)),
     ))(input)
 }
 fn stack_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
@@ -355,6 +355,11 @@ mod tests{
         let text=r#"name.contains("Naik")"#;
         let a=Expression::parser(text);
         assert_if(text,a,Expression::Function("contains".to_string(),vec![Expression::Variable(format!("name"),Option::None),Expression::Constant(Value::String("Naik".to_string()))]))
+    }
+    fn should_parse_expression_when_dot_function_on_fqn_variable(){
+        let text=r#"person.name.len()"#;
+        let a=Expression::parser(text);
+        assert_if(text,a,Expression::Function("len".to_string(),vec![Expression::Variable(format!("person.name"),Option::None),Expression::Constant(Value::String("Naik".to_string()))]))
     }
     #[test]
     fn should_parse_expression_when_chain_dot_function_on_variable(){

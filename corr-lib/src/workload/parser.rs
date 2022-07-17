@@ -6,14 +6,14 @@ use nom::multi::{separated_list0, separated_list1};
 use nom::sequence::{delimited, tuple};
 use crate::core::parser::string;
 use crate::core::Variable;
-use crate::journey::parser::parse_name;
+use crate::journey::parser::{parse_executable_name, parse_name};
 use crate::parser::{Parsable, ParseResult, ws};
 use crate::workload::{ModelScenario, ModelStage, Scenario, WorkLoad};
 
 impl Parsable for WorkLoad {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(tuple((
-                      parse_name,
+            parse_executable_name,
                       ws(tag("(")),separated_list0(ws(tag(",")),Variable::parser),ws(tag(")")),ws(char('{')),
                       opt(delimited(tuple((ws(tag("startup")),ws(tag(":")))),ws(string), ws(tag(",")))),
                       ws(tag("scenarios")),ws(tag(":")),delimited(ws(tag("[")),separated_list1(ws(tag(",")),ws(Scenario::parser)),ws(tag("]"))))),

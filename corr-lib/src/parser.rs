@@ -44,13 +44,18 @@ pub fn non_back_quote<'a>(input:&'a str) ->ParseResult<'a,String>{
 }
 pub fn identifier_part<'a>(input: &'a str) -> ParseResult<'a,&str> {
     verify(recognize(
-        pair(
+        tuple((
             alt((alpha1,tag("_"))),
-            many0_count(preceded(opt(char('_')),alphanumeric1)))),|val:&&str|{!get_keywords().contains(val)})(input)
+            many0_count(preceded(opt(char('_')),alphanumeric1)),opt(tag("("))))),|val:&&str|{!get_keywords().contains(val) && !val.ends_with("(")})(input)
 }
-
+pub fn executable_identifier<'a>(input: &'a str) -> ParseResult<'a,&str> {
+    verify(recognize(
+        tuple((
+            alt((alpha1,tag("_"))),
+            many0_count(preceded(opt(char('_')),alphanumeric1))))),|val:&&str|{!get_keywords().contains(val)})(input)
+}
 pub fn function_name<'a>(input: &'a str) -> ParseResult<'a,&str> {
-    verify(identifier_part,|part|function_names().contains(&part))(input)
+    verify(executable_identifier,|part|function_names().contains(&part))(input)
     // verify(recognize(
     //     pair(
     //         alt((alpha1,tag("_"))),

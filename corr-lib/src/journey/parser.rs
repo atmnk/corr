@@ -1,4 +1,4 @@
-use crate::parser::{ParseResult, ws, non_back_quote, identifier_part};
+use crate::parser::{ParseResult, ws, non_back_quote, identifier_part, executable_identifier};
 use crate::journey::{ImportStatement, Journey};
 use nom::branch::alt;
 use nom::sequence::{terminated, preceded, tuple};
@@ -33,7 +33,7 @@ impl Parsable for Journey{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map( tuple((
             many0(ws(ImportStatement::parser)),
-            parse_name,ws(tag("(")),separated_list0(ws(tag(",")),Variable::parser),ws(tag(")")),ws(char('{')),steps,ws(char('}')))),|(import_statements,name,_,params,_,_,steps,_)|{
+            parse_executable_name,ws(tag("(")),separated_list0(ws(tag(",")),Variable::parser),ws(tag(")")),ws(char('{')),steps,ws(char('}')))),|(import_statements,name,_,params,_,_,steps,_)|{
             Journey{
                 import_statements,
                 name,
@@ -51,6 +51,13 @@ pub fn parse_name<'a>(input:&'a str) ->ParseResult<'a,String>{
     alt((
         terminated(preceded(char('`'),non_back_quote),char('`')),
         map(identifier_part,|val| val.to_string())
+    ))(input)
+
+}
+pub fn parse_executable_name<'a>(input:&'a str) ->ParseResult<'a,String>{
+    alt((
+        terminated(preceded(char('`'),non_back_quote),char('`')),
+        map(executable_identifier,|val| val.to_string())
     ))(input)
 
 }
