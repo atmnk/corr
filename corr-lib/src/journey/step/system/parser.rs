@@ -55,8 +55,13 @@ impl Parsable for AssignmentStep{
 }
 impl Parsable for JourneyStep{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map( tuple((ws(VariableReferenceName::parser),ws(tag(".")),ws(parse_executable_name),ws(tag("(")),separated_list0(ws(tag(",")),Expression::parser),ws(tag(")")))),|(journey,_,en,_,args,_,)|{
-            let mut jn = journey.parts.clone();
+        map( tuple((opt(terminated(ws(VariableReferenceName::parser),ws(tag(".")))),ws(parse_executable_name),ws(tag("(")),separated_list0(ws(tag(",")),Expression::parser),ws(tag(")")))),|(journey,en,_,args,_,)|{
+
+            let mut jn = if let Some(jr)=journey{
+                jr.parts.clone()
+            } else {
+                vec![]
+            };
             jn.push(en);
             JourneyStep{
                 journey:jn.join("."),
@@ -411,6 +416,14 @@ mod tests{
             }
         "#;
         assert_no_error(j,SystemStep::parser(j))
+    }
+    #[tokio::test]
+    async fn should_parse_journey_step_without_package(){
+        let j= r#"Hello()"#;
+        assert_if(j,JourneyStep::parser(j),JourneyStep{
+            journey:format!("Hello"),
+            args:vec![]
+        })
     }
     #[tokio::test]
     async fn should_parse_journey_step_without_args(){
