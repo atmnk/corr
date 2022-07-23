@@ -40,4 +40,35 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{github.event.inputs.target_os}}
-      - run: cargo test --all
+      - name: Install Cargo Get
+        uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-get
+          version: latest
+      - name: Get the version
+        id: get_version
+        run: echo "::set-output name=VERSION::$(cargo get --root corr version)"
+      ## Windows Steps For Building binaries
+      - name: Install Wix
+        if: "contains(github.event.inputs.target_os, 'windows')"
+        uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-wix
+          version: latest
+
+      - name: Build Binary
+        if: "contains(github.event.inputs.target_os, 'windows')"
+        uses: actions-rs/cargo@v1
+        with:
+          command: wix
+          args: --package corr
+      - name: Upload corr binaries to release
+        if: "contains(github.event.inputs.target_os, 'windows')"
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ format('target/wix/corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
+          asset_name: ${{ format('corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
+          tag: ${{ format('{0}-{1}-{2}',github.event.inputs.target_os,steps.get_version.outputs.VERSION,github.event.inputs.candidate)}}
+          overwrite: true
+
