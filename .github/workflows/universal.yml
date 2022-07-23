@@ -1,0 +1,43 @@
+on:
+  workflow_dispatch:
+    inputs:
+      target_os:
+        description: 'Target OS'
+        required: true
+        default: 'macos-latest'
+        type: choice
+        options:
+          - macos-latest
+          - ubuntu-20.04
+          - windows-latest
+      candidate:
+        description: 'Build Candidate'
+        required: true
+        default: 'beta'
+        type: choice
+        options:
+          - ga
+          - beta
+      branch:
+        description: 'Target Branch'
+        required: true
+        default: 'main'
+        type: string
+jobs:
+  release:
+    name: Universal Publish Binaries
+    runs-on: ${{github.event.inputs.target_os}}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{github.event.inputs.branch}}
+          fetch-depth: 1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{github.event.inputs.target_os}}
+      - run: cargo test --all
