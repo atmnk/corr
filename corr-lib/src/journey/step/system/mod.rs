@@ -1,9 +1,12 @@
 pub mod parser;
 
+
+
 use std::time::{Duration, Instant};
 use async_trait::async_trait;
 use num_traits::ToPrimitive;
 use crate::journey::{Executable};
+
 use crate::core::runtime::{Context, IO};
 use crate::core::{Number, Value};
 use crate::template::{VariableReferenceName, Fillable, Assignable, Expression};
@@ -50,7 +53,7 @@ pub struct WhileStep {
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum AssignmentStep {
-    WithVariableName(VariableReferenceName,Assignable)
+    WithVariableName(VariableReferenceName,Assignable,bool)
 }
 #[derive(Debug, Clone,PartialEq)]
 pub enum PushStep {
@@ -114,9 +117,18 @@ impl Executable for TransactionStep{
         // context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
         handles
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        let mut deps = Vec::new();
+        for step in &self.block {
+            deps.append(&mut step.get_deps());
+        }
+        deps
+    }
 }
 #[async_trait]
 impl Executable for WhileStep{
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let exp = self.condition.clone();
         let mut handles = vec![];
@@ -129,9 +141,18 @@ impl Executable for WhileStep{
         }
         handles
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        let mut deps = Vec::new();
+        for step in &self.steps {
+            deps.append(&mut step.get_deps());
+        }
+        deps
+    }
 }
 #[async_trait]
 impl Executable for MetricStep{
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let mut tags = vec![];
         for tag in &self.tags{
@@ -150,12 +171,21 @@ impl Executable for MetricStep{
         context.scrapper.ingest("metric",metric,tags).await;
         vec![]
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
 }
 #[async_trait]
 impl Executable for JourneyStep{
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let mut handles = vec![];
-        if let Some(journey)= context.journeys.iter().find(|journey|journey.name.eq(&self.journey)){
+        let mut jn = context.get_local_journey(self.journey.clone()).await;
+        if jn.is_none() {
+            jn = context.get_global_journey(self.journey.clone());
+        }
+        if let Some(journey)= jn{
             let mut i = 0;
             let mut defines = vec![];
             for arg in self.args.clone() {
@@ -170,13 +200,19 @@ impl Executable for JourneyStep{
                 context.undefine(var).await;
             }
         } else {
-            context.write(format!("Skipping call to {0} as {0} is not defined in current bundle",self.journey)).await;
+            context.write(format!("{} Journey Not Found",self.journey)).await;
+            context.exit(-1).await;
         }
         handles
+    }
+
+    fn get_deps(&self) -> Vec<String> {
+        return vec![self.journey.clone()]
     }
 }
 #[async_trait]
 impl Executable for ConditionalStep{
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let mut handles = vec![];
         let mut found = false;
@@ -196,9 +232,23 @@ impl Executable for ConditionalStep{
         }
         handles
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        let mut deps = vec![];
+        for ip in &self.if_parts {
+            for step in &ip.block{
+                deps.append(&mut step.get_deps());
+            }
+        }
+        for step in &self.else_part {
+            deps.append(&mut step.get_deps());
+        }
+        deps
+    }
 }
 #[async_trait]
 impl Executable for PushStep{
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         match self {
             PushStep::WithVariableName(var, asbl)=>{
@@ -207,9 +257,14 @@ impl Executable for PushStep{
         }
         return vec![]
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
 }
 #[async_trait]
 impl Executable for PrintStep{
+
     async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
             PrintStep::WithAssignable(asgn,debug)=>{
@@ -226,9 +281,14 @@ impl Executable for PrintStep{
         }
         return vec![]
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
 }
 #[async_trait]
 impl Executable for WaitStep {
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         match &self {
             WaitStep::WithTime(time_exp)=>{
@@ -238,9 +298,14 @@ impl Executable for WaitStep {
             }
         }
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
 }
 #[async_trait]
 impl Executable for ExitStep {
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         match &self {
             ExitStep::WithCode(code)=>{
@@ -250,9 +315,14 @@ impl Executable for ExitStep {
             }
         }
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
 }
 #[async_trait]
 impl Executable for ForLoopStep{
+
     async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
             ForLoopStep::WithVariableReference(on,with,index_var,inner_steps)=>{
@@ -273,9 +343,22 @@ impl Executable for ForLoopStep{
         }
 
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        let mut deps = Vec::new();
+        match &self {
+            ForLoopStep::WithVariableReference(_,_,_,steps)=>{
+                for step in steps {
+                    deps.append(&mut step.get_deps());
+                }
+            }
+        }
+        deps
+    }
 }
 #[async_trait]
 impl Executable for SystemStep{
+
     async fn execute(&self,context: &Context)->Vec<JoinHandle<bool>> {
         match self {
             SystemStep::Undefine(vrn)=>{
@@ -333,21 +416,80 @@ impl Executable for SystemStep{
         }
 
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        match self {
+            SystemStep::Undefine(_vrn)=>{
+                vec![]
+            }
+            SystemStep::Wait(ws)=>{
+                ws.get_deps()
+            },
+            SystemStep::Exit(es)=>{
+                es.get_deps()
+            },
+            SystemStep::Print(ps)=>{
+                ps.get_deps()
+            },
+            SystemStep::ForLoop(fls)=>{
+                fls.get_deps()
+            },
+            SystemStep::While(wl)=>{
+                wl.get_deps()
+            },
+            SystemStep::Push(pt)=>{
+                pt.get_deps()
+            },
+            SystemStep::Condition(pt)=>{
+                pt.get_deps()
+            },
+            SystemStep::LoadAssign(pt)=>{
+                pt.get_deps()
+            },
+            SystemStep::Sync(pt)=>{
+                pt.get_deps()
+            }
+            SystemStep::Assignment(asst)=>asst.get_deps(),
+            SystemStep::Transaction(tr)=>tr.get_deps(),
+            SystemStep::Metric(ms)=>ms.get_deps(),
+            SystemStep::Background(steps)=>{
+                let mut deps = Vec::new();
+                for step in steps {
+                    deps.append(&mut step.get_deps());
+                }
+                deps
+            },
+            SystemStep::JourneyStep(js)=>{
+                js.get_deps()
+            }
+            // SystemStep::Comment(_)=>{vec![]}
+        }
+    }
 }
 
 #[async_trait]
 impl Executable for AssignmentStep {
+
     async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
         match self {
-            AssignmentStep::WithVariableName(var, asbl)=>{
-                context.define(var.to_string(),asbl.fill(context).await).await;
+            AssignmentStep::WithVariableName(var, asbl,global)=>{
+                if *global {
+                    context.global_define(var.to_string(),asbl.fill(context).await).await;
+                } else {
+                    context.define(var.to_string(),asbl.fill(context).await).await;
+                }
             }
         }
         return vec![]
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
 }
 #[async_trait]
 impl Executable for LoadAssignStep {
+
     async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
         let dir:String = if let Some(sb)=&self.sandbox{
             sb.evaluate(context).await.to_string()
@@ -369,9 +511,14 @@ impl Executable for LoadAssignStep {
         context.define(self.variable.to_string(),val).await;
         return vec![]
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
 }
 #[async_trait]
 impl Executable for SyncStep {
+
     async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
         let dir:String = if let Some(sb)=&self.sandbox{
             sb.evaluate(context).await.to_string()
@@ -395,6 +542,10 @@ impl Executable for SyncStep {
 
         }
         return vec![]
+    }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
     }
 }
 #[cfg(test)]
@@ -421,6 +572,23 @@ mod tests{
     #[tokio::test]
     async fn should_execute_assignment_step(){
         let text = r#"let name = concat("Atmaram"," Naik")"#;
+        let (_,step)=SystemStep::parser(text).unwrap();
+        let input = vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context= Context::mock(input,buffer.clone());
+        step.execute(&context).await;
+        assert_eq!(context.read(Variable {
+            name:format!("name"),
+            data_type:Option::Some(DataType::String)
+        }).await,VariableValue {
+            name:format!("name"),
+            value:Value::String("Atmaram Naik".to_string())
+        })
+
+    }
+    #[tokio::test]
+    async fn should_execute_global_assignment_step(){
+        let text = r#"let global name = concat("Atmaram"," Naik")"#;
         let (_,step)=SystemStep::parser(text).unwrap();
         let input = vec![];
         let buffer = Arc::new(Mutex::new(vec![]));

@@ -1,10 +1,12 @@
 pub mod parser;
 
 
+
+
 use crate::template::object::extractable::{Extractable};
 use crate::template::rest::{ RequestBody, RequestHeaders, RestVerb, FillableRequest};
 use crate::template::rest::extractable::{ExtractableRestData, CorrResponse};
-use crate::journey::Executable;
+use crate::journey::{Executable};
 use crate::core::runtime::Context;
 use crate::template::Fillable;
 use async_trait::async_trait;
@@ -37,6 +39,7 @@ pub struct CorrRequest {
 }
 #[async_trait]
 impl Executable for RestSetp{
+
     async fn execute(&self, context: &Context) ->Vec<JoinHandle<bool>>{
         let start = Instant::now();
         let req = self.request.fill(context).await;
@@ -45,6 +48,10 @@ impl Executable for RestSetp{
         context.scrapper.ingest("response_time",duration.as_millis() as f64,vec![("method".to_string(),req.method.clone().as_str().to_string()),("url".to_string(),req.url.clone())]).await;
         context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
         return vec![]
+    }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
     }
 }
 pub async fn rest(request: CorrRequest, response:Option<ExtractableRestData>, context:&Context, is_async:bool) {

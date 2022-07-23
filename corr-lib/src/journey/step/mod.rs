@@ -4,6 +4,9 @@ pub mod parser;
 pub mod listner;
 pub mod db;
 pub mod websocket;
+
+
+
 use crate::journey::{Executable};
 use crate::journey::step::system::SystemStep;
 use async_trait::async_trait;
@@ -60,6 +63,40 @@ impl Executable for Step{
             },
             Step::WebSocketClientClose(ws)=>{
                 ws.execute(context).await
+            }
+            // Step::Rest(rest_step)=>{
+            //     rest_step.execute(context).await
+            // }
+        }
+    }
+    fn get_deps(&self)->Vec<String> {
+        match self {
+            Step::System(sys_step)=>{
+                return sys_step.get_deps()
+            },
+            Step::Rest(rst_step)=>{
+                return rst_step.get_deps()
+            }
+            Step::Listner(sls)=>{
+                return sls.get_deps()
+            },
+            Step::DefineConnection(dcs)=>{
+                return dcs.get_deps()
+            },
+            Step::InsertStep(is)=>{
+                return is.get_deps()
+            },
+            Step::WebSocketServer(ws)=>{
+                ws.get_deps()
+            },
+            Step::WebSocketClientConnect(ws)=>{
+                ws.get_deps()
+            },
+            Step::WebSocketClientSend(ws)=>{
+                ws.get_deps()
+            },
+            Step::WebSocketClientClose(ws)=>{
+                ws.get_deps()
             }
             // Step::Rest(rest_step)=>{
             //     rest_step.execute(context).await

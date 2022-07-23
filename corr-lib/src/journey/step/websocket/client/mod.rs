@@ -1,11 +1,14 @@
+
+
 use futures_util::{SinkExt, StreamExt};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::{http, Message};
 use crate::core::runtime::Context;
-use crate::journey::Executable;
+use crate::journey::{Executable};
 use crate::template::{Expression, Fillable, VariableReferenceName};
 use async_trait::async_trait;
+
 use crate::core::Value;
 use crate::journey::step::Step;
 use crate::template::rest::FillableRequestHeaders;
@@ -39,6 +42,7 @@ pub struct WebSocketSendBinaryStep{
 }
 #[async_trait]
 impl Executable for WebSocketClientConnectStep {
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let url = self.url.evaluate(context).await.to_string();
         let mut req_builder = http::Request::get(url.as_str());
@@ -84,9 +88,18 @@ impl Executable for WebSocketClientConnectStep {
 
 
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        let mut deps = vec![];
+        for step in &self.hook.block {
+            deps.append(&mut step.get_deps());
+        }
+        deps
+    }
 }
 #[async_trait]
 impl Executable for WebSocketSendStep{
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let conn_name = self.name.evaluate(context).await.to_string();
         if let Some(conn) = context.websocket_connection_store.get(conn_name.clone()).await{
@@ -107,9 +120,14 @@ impl Executable for WebSocketSendStep{
         }
         return vec![];
     }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
 }
 #[async_trait]
 impl Executable for WebSocketCloseStep{
+
     async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
         let conn_name = self.name.evaluate(context).await.to_string();
         if let Some(conn) = context.websocket_connection_store.get(conn_name.clone()).await{
@@ -125,5 +143,9 @@ impl Executable for WebSocketCloseStep{
             eprintln!("{}",msg);
         }
         return vec![];
+    }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
     }
 }

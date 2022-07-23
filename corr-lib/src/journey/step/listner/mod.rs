@@ -3,7 +3,7 @@ pub mod parser;
 use std::collections::HashMap;
 use crate::template::rest::{RestVerb, MultipartField};
 
-use crate::journey::Executable;
+use crate::journey::{Executable};
 use crate::core::runtime::{Context, Client};
 use crate::template::{Expression};
 use std::convert::Infallible;
@@ -212,7 +212,18 @@ impl StubResponse {
 
 #[async_trait]
 impl Executable for StartListenerStep {
+
     async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
         start_imposter_on_port(context,self.clone()).await
+    }
+
+    fn get_deps(&self) -> Vec<String> {
+        let mut deps = vec![];
+        for s in &self.stubs {
+            for step in &s.steps{
+                deps.append(&mut step.get_deps())
+            }
+        }
+        deps
     }
 }

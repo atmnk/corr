@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use tokio::sync::{mpsc};
 use warp::ws::{Message, WebSocket};
 use futures::stream::SplitStream;
@@ -76,8 +77,8 @@ impl Hub {
 
     }
 }
-pub fn get_journies()->Vec<Journey>{
-    let mut journeys=Vec::new();
+pub fn get_journies()->HashMap<String,Arc<Journey>>{
+    let mut journeys=HashMap::new();
     let app_path=app_root(AppDataType::UserConfig, &APP_INFO).unwrap();
     let path=app_path.join("journeys");
     for dir_entry in std::fs::read_dir(path).unwrap(){
@@ -86,9 +87,10 @@ pub fn get_journies()->Vec<Journey>{
             if let Some(extention) = dir_entry.extension() {
                 match extention.to_str() {
                     Some("journey") => {
+                        let nn = dir_entry.file_name().unwrap().to_str().unwrap().to_string();
                         let ctc=File::open(dir_entry).unwrap();
                         if let Some(journey)=read_journey_from_file(ctc){
-                            journeys.push(journey);
+                            journeys.insert(nn,Arc::new(journey));
                         }
                     },
                     _=>{}

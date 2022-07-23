@@ -1,19 +1,41 @@
 use crate::parser::{ParseResult, ws, non_back_quote, identifier_part};
-use crate::journey::Journey;
+use crate::journey::{ImportStatement, Journey};
 use nom::branch::alt;
 use nom::sequence::{terminated, preceded, tuple};
 use nom::character::complete::{char};
 use nom::bytes::complete::{tag};
-use nom::combinator::map;
+use nom::combinator::{map, opt};
 use nom::multi::{many0, separated_list0};
 use crate::journey::step::Step;
 use crate::parser::Parsable;
 use crate::core::Variable;
+use crate::template::VariableReferenceName;
 
+impl Parsable for ImportStatement {
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map(tuple((ws(tag("import")),ws(VariableReferenceName::parser),opt(preceded(ws(tag("as")),ws(VariableReferenceName::parser))))),|
+            (_,pn,lno)|{
+            if let Some(ln) = lno {
+                Self{
+                    physical_name:pn,
+                    logical_name:ln
+                }
+            } else {
+                Self{
+                    physical_name:pn.clone(),
+                    logical_name:VariableReferenceName::from(pn.parts.last().unwrap())
+                }
+            }
+        })(input)
+    }
+}
 impl Parsable for Journey{
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-        map( tuple((parse_name,ws(tag("(")),separated_list0(ws(tag(",")),Variable::parser),ws(tag(")")),ws(char('{')),steps,ws(char('}')))),|(name,_,params,_,_,steps,_)|{
+        map( tuple((
+            many0(ws(ImportStatement::parser)),
+            parse_name,ws(tag("(")),separated_list0(ws(tag(",")),Variable::parser),ws(tag(")")),ws(char('{')),steps,ws(char('}')))),|(import_statements,name,_,params,_,_,steps,_)|{
             Journey{
+                import_statements,
                 name,
                 steps,
                 params
@@ -37,7 +59,36 @@ mod tests{
     use crate::parser::Parsable;
     use crate::parser::util::{assert_no_error};
     use crate::journey::Journey;
-
+    #[tokio::test]
+    async fn should_parse_journey_with_plain_import_statements(){
+        let j= r#"import com.qalens.Hello `Hello World`(){
+            print text `Hello <%name%>`
+            print text `Hello <%name%>`
+        }"#;
+        assert_no_error(j
+                        ,Journey::parser(j)
+        )
+    }
+    #[tokio::test]
+    async fn should_parse_journey_with_multiple_import_statements(){
+        let j= r#"import com.qalens.Hello import com.qalens.World`Hello World`(){
+            print text `Hello <%name%>`
+            print text `Hello <%name%>`
+        }"#;
+        assert_no_error(j
+                        ,Journey::parser(j)
+        )
+    }
+    #[tokio::test]
+    async fn should_parse_journey_with_alias_import_statements(){
+        let j= r#"import com.qalens.Hello as MyHello`Hello World`(){
+            print text `Hello <%name%>`
+            print text `Hello <%name%>`
+        }"#;
+        assert_no_error(j
+                        ,Journey::parser(j)
+        )
+    }
     #[tokio::test]
     async fn should_parse_journey(){
         let j= r#"`Hello World`(){
