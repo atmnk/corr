@@ -18,7 +18,7 @@ pub struct MDP{
     tt:i64,
 }
 pub struct InfluxDB2Scrapper{
-    client:Client,
+    client:Arc<Client>,
     bucket:String,
     data_points:RwLock<Vec<MDP>>,
 }
@@ -41,8 +41,12 @@ impl Scrapper for InfluxDB2Scrapper{
                 builder = builder.timestamp(p.tt);
                 builder.build().unwrap()
             }).collect();
-            let _ = self.client.write(self.bucket.as_str(),stream::iter(pts)).await;
-
+            let cl = self.client.clone();
+            let b = self.bucket.clone();
+            let task = async move ||{
+                cl.write(b.as_str(),stream::iter(pts)).await;
+            };
+            tokio::spawn( task());
             sleep(Duration::from_millis(500)).await;
         }
     }
@@ -83,7 +87,7 @@ impl InfluxDB2Scrapper{
     pub fn new(url:&str,token:&str,org:&str,bucket:&str)->Self{
         InfluxDB2Scrapper {
             data_points:RwLock::new(vec![]),
-            client: Client::new(url, org,token),
+            client: Arc::new(Client::new(url, org,token)),
             bucket:bucket.to_string()
         }
     }
