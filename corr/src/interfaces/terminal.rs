@@ -2,10 +2,10 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::io::{AsyncBufReadExt, BufReader, Lines, Stdin};
 use async_trait::async_trait;
 use corr_lib::core::proto::{Input, Output};
-use corr_lib::core::runtime::Client;
+use corr_lib::core::runtime::{Client, RuntimeError};
 use tokio::sync::mpsc;
 use crate::client::Message;
-
+use anyhow::{bail, Result};
 pub struct Terminal{
     tx:Sender<Message>,
     rx:Receiver<Message>,
@@ -77,15 +77,16 @@ pub struct CliInterface{
 
 #[async_trait]
 impl Client for CliInterface {
-    async fn send(&self,output:Output){
-        if let Err(_err) = &self.tx.send(Message::Output(output)).await {
-            println!("Some Error")
-        }
+    async fn send(&self,output:Output)->Result<()>{
+         let _ = &self.tx.send(Message::Output(output)).await?;
+        Ok(())
     }
-    async fn get_message(&mut self)->Input{
+    async fn get_message(&mut self)->Result<Input>{
         loop {
             if let Some(Message::Input(ip)) = self.rx.recv().await {
-                return ip;
+                return Ok(ip);
+            } else {
+                bail!(RuntimeError::new("Unable to read input"))
             }
         }
     }

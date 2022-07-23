@@ -7,13 +7,13 @@ use crate::core::runtime::Context;
 use crate::journey::{Executable};
 use crate::journey::step::Step;
 use crate::template::{Expression, VariableReferenceName};
-
+use anyhow::Result;
 use async_trait::async_trait;
 use std::net::SocketAddr;
 
 use futures_util::{SinkExt, StreamExt};
-use tokio_tungstenite::{accept_async, tungstenite::Error};
-use tokio_tungstenite::tungstenite::{Message, Result};
+use tokio_tungstenite::{accept_async};
+use tokio_tungstenite::tungstenite::{Message};
 use crate::core::Value;
 
 #[derive(Debug, Clone,PartialEq)]
@@ -40,8 +40,8 @@ pub enum WebSocketStep{
 #[async_trait]
 impl Executable for WebSocketServerStep {
 
-    async fn execute(&self, context: &Context) -> Vec<JoinHandle<bool>> {
-        let addr = format!("0.0.0.0:{}",self.port.evaluate(context).await.to_string());
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
+        let addr = format!("0.0.0.0:{}",self.port.evaluate(context).await?.to_string());
         let listner = TcpListener::bind(&addr).await.expect("Can't listen");
         let accept_connection = async  move |peer: SocketAddr, stream: TcpStream,ctx_para:Context,hook:WebSocketServerHook|{
             let ctx = ctx_para.clone();
@@ -56,10 +56,10 @@ impl Executable for WebSocketServerStep {
                         for step in &hook.block {
                             match step {
                                 WebSocketStep::SendStep(snd)=>{
-                                    ws_stream.send(Message::Text(format!("{}",snd.evaluate(&ctx).await.to_string()) )).await?;
+                                    ws_stream.send(Message::Text(format!("{}",snd.evaluate(&ctx).await?.to_string()) )).await?;
                                 },
                                 WebSocketStep::NormalStep(stp)=>{
-                                    let mut inner_handles = stp.execute(&ctx).await;
+                                    let mut inner_handles = stp.execute(&ctx).await?;
                                     handles.append(&mut inner_handles);
                                 }
                             }
@@ -71,10 +71,7 @@ impl Executable for WebSocketServerStep {
                 Ok(())
             };
             if let Err(e) = handle_connection(peer, stream).await {
-                match e {
-                    Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
-                    err => println!("Error processing connection: {}", err),
-                }
+                println!("Error processing connection: {}", e)
             }
         };
         let new_ct_out = context.clone();
@@ -87,10 +84,10 @@ impl Executable for WebSocketServerStep {
                 let peer = stream.peer_addr().expect("connected streams should have a peer address");
                 tokio::spawn(accept_connection(peer,stream,new_ct,om));
             };
-            true
+            Ok(true)
         };
         let handle = tokio::spawn(connect());
-        vec![handle]
+        Ok(vec![handle])
     }
 
     fn get_deps(&self) -> Vec<String> {

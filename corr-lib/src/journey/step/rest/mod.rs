@@ -18,7 +18,7 @@ use hyper::Client;
 use hyper::client::HttpConnector;
 use lazy_static::lazy_static;
 use std::time::{Instant};
-
+use anyhow::Result;
 lazy_static! {
     static ref HTTPCLIENT: Client<HttpConnector> = Client::builder().build::<_, hyper::Body>(HttpConnector::new());
 }
@@ -40,14 +40,14 @@ pub struct CorrRequest {
 #[async_trait]
 impl Executable for RestSetp{
 
-    async fn execute(&self, context: &Context) ->Vec<JoinHandle<bool>>{
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>>{
         let start = Instant::now();
-        let req = self.request.fill(context).await;
+        let req = self.request.fill(context).await?;
         rest(req.clone(),self.response.clone(),context,self.is_async).await;
         let duration = start.elapsed();
         context.scrapper.ingest("response_time",duration.as_millis() as f64,vec![("method".to_string(),req.method.clone().as_str().to_string()),("url".to_string(),req.url.clone())]).await;
         context.rest_stats_store.push_stat((req.method,req.url,duration.as_millis())).await;
-        return vec![]
+        return Ok(vec![])
     }
 
     fn get_deps(&self) -> Vec<String> {
@@ -166,7 +166,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
@@ -185,7 +185,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         assert_eq!(context.get_var_from_store(format!("title")).await, Option::Some(Value::String("delectus aut autem".to_string())));
     }
 
@@ -210,7 +210,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
@@ -237,7 +237,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
@@ -262,7 +262,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
@@ -287,7 +287,7 @@ mod tests {
         ];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
-        step.execute(&context).await;
+        step.execute(&context).await.unwrap();
         mock.assert();
         assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))

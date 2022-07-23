@@ -4,14 +4,15 @@ use std::collections::HashMap;
 use crate::template::rest::{RestVerb, MultipartField};
 
 use crate::journey::{Executable};
-use crate::core::runtime::{Context, Client};
+use crate::core::runtime::{Context, Client, RuntimeError};
 use crate::template::{Expression};
 use std::convert::Infallible;
+
 use std::net::SocketAddr;
 use hyper::{Body, Request, Response, Server, StatusCode};
 use hyper::service::{make_service_fn, service_fn};
 use async_trait::async_trait;
-
+use anyhow::{bail, Result};
 
 
 
@@ -40,7 +41,7 @@ async fn handle(
     _addr: SocketAddr,
     req: Request<Body>,
     _lock:Arc<tokio::sync::RwLock<u16>>
-) -> hyper::http::Result<Response<Body>> {
+) -> anyhow::Result<Response<Body>> {
     let mut ret = Option::None;
     let mut ret_st = Option::Some(404);
     {
@@ -93,11 +94,11 @@ async fn handle(
 
                     let context = Context::from(&context).await;
                     for step in stub.steps {
-                        step.execute(&context).await;
+                        step.execute(&context).await?;
                     }
 
-                    let resp = stub.response.body.evaluate(&context).await;
-                    let status: Option<u16> = stub.response.status.evaluate(&context).await.parse();
+                    let resp = stub.response.body.evaluate(&context).await?;
+                    let status: Option<u16> = stub.response.status.evaluate(&context).await?.parse();
                     ret_st = status.clone();
                     ret = Option::Some(Response::builder()
                         .status(StatusCode::from_u16(status.unwrap_or(200)).unwrap_or(StatusCode::OK))
@@ -110,18 +111,20 @@ async fn handle(
         logs.push(ret_st);
     }
     if let Some(f_ret) = ret {
-        f_ret
+        let res = f_ret?;
+        Ok(res)
     } else {
-        Response::builder()
+        let res = Response::builder()
             .status(StatusCode::NOT_FOUND)
-            .body(Body::from("Not found".to_string()))
+            .body(Body::from("Not found".to_string()))?;
+        Ok(res)
     }
 }
 
 
-async fn start_imposter_on_port(context:&Context,sls :StartListenerStep)->Vec<JoinHandle<bool>>{
+async fn start_imposter_on_port(context:&Context,sls :StartListenerStep)->Result<Vec<JoinHandle<Result<bool>>>>{
 
-    let port:u16 = sls.port.evaluate(context).await.parse().unwrap_or(8100);
+    let port:u16 = sls.port.evaluate(context).await?.parse().unwrap_or(8100);
     let context = context.clone();
     let cloned = sls.clone();
     let lock = Arc::new(tokio::sync::RwLock::new(port));
@@ -152,11 +155,11 @@ async fn start_imposter_on_port(context:&Context,sls :StartListenerStep)->Vec<Jo
     println!("starting server on {:}",port);
     let handle = tokio::spawn(async {
         if let Some(_) = server.await.ok(){
-            return true
+            return Ok(true)
         }
-        return false
+        return Ok(false)
     });
-    vec![handle]
+    Ok(vec![handle])
     // if let Err(e) = server.await {
     //     eprintln!("server error: {}", e);
     // }
@@ -164,22 +167,23 @@ async fn start_imposter_on_port(context:&Context,sls :StartListenerStep)->Vec<Jo
 struct SystemRuntime;
 #[async_trait]
 impl Client for SystemRuntime{
-    async fn send(&self, output: Output) {
+    async fn send(&self, output: Output)->Result<()> {
         match output {
             Output::TellMe(a)=>{
-                eprintln!("Don't know value for {:?} of type {:?}",a.name,a.data_type)
+                bail!(RuntimeError::new(format!("Don't know value for {:?} of type {:?}",a.name,a.data_type).as_str()));
             },
             Output::KnowThat(k)=>{
-                println!("{:?}",k.message)
+                println!("{:?}",k.message);
             },
             _=>{
-                println!("Don't know what to do")
+                println!("Don't know what to do");
             }
-        }
+        };
+        Ok(())
     }
 
-    async fn get_message(&mut self) -> Input {
-        panic!("Should not happen")
+    async fn get_message(&mut self) -> Result<Input> {
+        bail!(RuntimeError::new("Undesired State in step listener"))
     }
 }
 #[derive(Debug, Clone,PartialEq)]
@@ -213,7 +217,7 @@ impl StubResponse {
 #[async_trait]
 impl Executable for StartListenerStep {
 
-    async fn execute(&self, context: &Context)->Vec<JoinHandle<bool>> {
+    async fn execute(&self, context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         start_imposter_on_port(context,self.clone()).await
     }
 

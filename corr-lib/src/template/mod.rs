@@ -5,6 +5,7 @@ pub mod functions;
 pub mod parser;
 pub mod rest;
 pub mod form;
+
 use crate::core::{DataType, runtime::Context, Value, runtime::IO, Variable};
 use std::fmt::Debug;
 use async_trait::async_trait;
@@ -12,7 +13,7 @@ use crate::template::functions::*;
 use crate::template::text::Text;
 use crate::template::object::FillableObject;
 use std::sync::Arc;
-
+use anyhow::Result;
 #[derive(Debug, Clone,PartialEq)]
 pub enum Assignable{
     Expression(Expression),
@@ -20,16 +21,16 @@ pub enum Assignable{
 }
 #[async_trait]
 impl Fillable<Value> for Assignable{
-    async fn fill(&self, context: &Context) -> Value {
+    async fn fill(&self, context: &Context) -> Result<Value> {
         match self {
             Assignable::Expression(expr)=>expr.fill(context).await,
-            Assignable::FillableText(txt)=>Value::String(txt.fill(context).await),
+            Assignable::FillableText(txt)=>Ok(Value::String(txt.fill(context).await?)),
         }
     }
 }
 #[async_trait]
 pub trait Fillable<T>{
-    async fn fill(&self,context:&Context)->T;
+    async fn fill(&self,context:&Context)->Result<T>;
 }
 #[derive(Clone,Debug,PartialEq)]
 pub enum BinaryOperator {
@@ -209,17 +210,17 @@ impl VariableReferenceName {
 }
 #[async_trait]
 pub trait Function:Debug+Sync+Send{
-    async fn evaluate(&self,args:Vec<Expression>,context:&Context)->Value;
+    async fn evaluate(&self,args:Vec<Expression>,context:&Context)->Result<Value>;
 }
 impl Expression{
-    pub(crate) async fn evaluate(&self, context: &Context) -> Value {
+    pub(crate) async fn evaluate(&self, context: &Context) -> Result<Value> {
         match self {
             Expression::Variable(name,data_type)=>{
                 let vv=context.read(Variable{
                     name:name.clone(),
                     data_type:data_type.clone()
-                }).await;
-                vv.value
+                }).await?;
+                Ok(vv.value)
             },
             Expression::Function(func,args)=>{
                 get_function(func.as_str()).evaluate(args.clone(),context).await
@@ -230,7 +231,7 @@ impl Expression{
                 get_function(func.as_str()).evaluate(cloned,context).await
             },
             Expression::Constant(val)=>{
-                val.clone()
+                Ok(val.clone())
             },
             Expression::Operator(op,args)=>{
                 op.get_function().evaluate(args.clone(),context).await
@@ -259,7 +260,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=assbl.fill(&context).await;
+        let result=assbl.fill(&context).await.unwrap();
         assert_eq!(result,Value::String("Atmaram".to_string()));
     }
 
@@ -270,7 +271,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=assbl.fill(&context).await;
+        let result=assbl.fill(&context).await.unwrap();
         assert_eq!(result,Value::String("Hello Atmaram".to_string()));
     }
 
@@ -281,7 +282,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=assbl.fill(&context).await;
+        let result=assbl.fill(&context).await.unwrap();
         assert_eq!(result,Value::String("Atmaram".to_string()));
     }
 
@@ -291,7 +292,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=expr.evaluate(&context).await;
+        let result=expr.evaluate(&context).await.unwrap();
         assert_eq!(result,Value::String("Atmaram".to_string()));
         assert_eq!(buffer.lock().unwrap().get(0).unwrap().clone(),Output::TellMe(TellMeOutput{name:"name".to_string(),data_type:DataType::String}));
     }
@@ -301,7 +302,7 @@ mod tests{
         let input=vec![];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=expr.evaluate(&context).await;
+        let result=expr.evaluate(&context).await.unwrap();
         assert_eq!(result,Value::String("Hello".to_string()));
     }
     #[tokio::test]
@@ -310,7 +311,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let result=expr.evaluate(&context).await;
+        let result=expr.evaluate(&context).await.unwrap();
         assert_eq!(result,Value::PositiveInteger(12));
     }
 }

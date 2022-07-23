@@ -24,12 +24,23 @@ use corr_lib::parser::Parsable;
 
 
 use corr_lib::workload::WorkLoad;
+use anyhow::Result;
 pub async fn start_internal(journey:Arc<Journey>,context:CorrContext) {
     for param in journey.params.clone(){
-        context.read(param).await;
+        if let Err(_e) = context.read(param.clone()).await {
+            panic!("Parameter {} not defined",param.name)
+        }
     }
     let handles = journey.execute(&context).await;
-    futures::future::join_all(handles).await;
+    match handles {
+        Err(e)=>{
+            eprintln!("Error {} while executing journey {}",e,journey.name);
+        },
+        Ok(handles)=>{
+            futures::future::join_all(handles).await;
+        }
+    }
+
 }
 pub async fn start(journey:Arc<Journey>,mut context:CorrContext) {
     let mut rx = context.exiter();
@@ -38,7 +49,7 @@ pub async fn start(journey:Arc<Journey>,mut context:CorrContext) {
         _ = rx.recv() => {},
         _ = start_internal(journey,context) => {},
     }
-    user.lock().await.send(Output::new_done("Done Executing Journey".to_string())).await;
+    user.lock().await.send(Output::new_done("Done Executing Journey".to_string())).await.unwrap();
 }
 pub fn unpack(target:String) -> Result<String, std::io::Error> {
     let tc = target.clone();

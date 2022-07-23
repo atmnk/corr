@@ -4,7 +4,6 @@ codegen-units = 4
 [workspace]
 members = [
     "corr",
-    "corrs",
     "corr-lib",
     "playground"
 ]

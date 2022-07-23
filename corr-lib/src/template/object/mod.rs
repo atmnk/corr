@@ -5,6 +5,7 @@ use nom::lib::std::collections::HashMap;
 use async_trait::async_trait;
 pub mod parser;
 pub mod extractable;
+use anyhow::Result;
 #[derive(Clone,Debug,PartialEq)]
 pub enum FillableObject{
     WithExpression(Expression),
@@ -35,60 +36,60 @@ pub struct FilledPair{
 }
 #[async_trait]
 impl Fillable<FilledPair> for FillablePair{
-    async fn fill(&self, context: &Context) -> FilledPair {
+    async fn fill(&self, context: &Context) -> Result<FilledPair> {
         match self {
-            FillablePair::WithKeyAndValue(key,value)=> FilledPair {
+            FillablePair::WithKeyAndValue(key,value)=> Ok(FilledPair {
                 key:key.clone(),
-                value:value.fill(&context).await
-            }
+                value:value.fill(&context).await?
+            })
         }
     }
 }
 #[async_trait]
 impl Fillable<Value> for Expression {
-    async fn fill(&self, context: &Context) -> Value {
+    async fn fill(&self, context: &Context) -> Result<Value> {
         self.evaluate(context).await
     }
 }
 #[async_trait]
 impl Fillable<Value> for FillableMapObject {
-    async fn fill(&self, context: &Context) -> Value {
+    async fn fill(&self, context: &Context) -> Result<Value> {
         match self {
             FillableMapObject::WithPairs(pairs)=>{
                 let mut value_map = HashMap::new();
                 for pair in pairs {
-                    let filled_pair=pair.fill(context).await;
+                    let filled_pair=pair.fill(context).await?;
                     value_map.insert(filled_pair.key.clone(),filled_pair.value.clone());
                 }
-                Value::Map(value_map)
+                Ok(Value::Map(value_map))
             },
         }
     }
 }
 #[async_trait]
 impl Fillable<Value> for FillableForLoop {
-    async fn fill(&self, context: &Context) -> Value {
-        Value::Array(context.iterate(self.on.to_string(),self.with.clone().map(|vr|vr.to_string()),async move |context,index|{
+    async fn fill(&self, context: &Context) -> Result<Value> {
+        Ok(Value::Array(context.iterate(self.on.to_string(),self.with.clone().map(|vr|vr.to_string()),async move |context,index|{
             if let Some(index_var) = self.index.clone(){
                 context.define(index_var.to_string(),Value::PositiveInteger(index as u128)).await
             }
             self.inner.clone().fill(&context).await
-        }).await)
+        }).await?))
     }
 }
 #[async_trait]
 impl Fillable<Value> for Vec<FillableObject>{
-    async fn fill(&self, context: &Context) -> Value {
+    async fn fill(&self, context: &Context) -> Result<Value> {
         let mut arr = vec![];
         for value in self {
-            arr.push(value.fill(context).await)
+            arr.push(value.fill(context).await?)
         }
-        Value::Array(arr)
+        Ok(Value::Array(arr))
     }
 }
 #[async_trait]
 impl Fillable<Value> for FillableObject{
-    async fn fill(&self, context: &Context) -> Value {
+    async fn fill(&self, context: &Context) -> Result<Value> {
         match self {
             FillableObject::WithExpression(expr)=>expr.fill(context).await,
             FillableObject::WithMap(map)=>map.fill(context).await,
@@ -116,7 +117,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = fo.fill(&context).await;
+        let filled = fo.fill(&context).await.unwrap();
         assert_eq!(filled,Value::String(format!("Atmaram")))
     }
 
@@ -127,7 +128,7 @@ mod tests{
         let input=vec![Input::Continue(ContinueInput{name:"name".to_string(),value:"Atmaram".to_string(),data_type:DataType::String})];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = fo.fill(&context).await;
+        let filled = fo.fill(&context).await.unwrap();
         let mut hm = HashMap::new();
         hm.insert(format!("name"),Value::String(format!("Atmaram")));
         assert_eq!(filled,Value::Map(hm));
@@ -143,7 +144,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = fo.fill(&context).await;
+        let filled = fo.fill(&context).await.unwrap();
         let mut v = vec![];
         v.push(Value::String(format!("Atmaram")));
         v.push(Value::String(format!("Mumbai")));
@@ -162,7 +163,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = fo.fill(&context).await;
+        let filled = fo.fill(&context).await.unwrap();
         let mut v = vec![];
         v.push(Value::String(format!("Atmaram")));
         v.push(Value::String(format!("Yogesh")));
@@ -183,7 +184,7 @@ mod tests{
         let mut hm = HashMap::new();
         hm.insert(format!("name"),Value::String(format!("Atmaram")));
         hm.insert(format!("place"),Value::String(format!("Mumbai")));
-        let filled = fmo.fill(&context).await;
+        let filled = fmo.fill(&context).await.unwrap();
         assert_eq!(filled,Value::Map(hm));
     }
 
@@ -201,7 +202,7 @@ mod tests{
         let mut vec_val = vec![];
         vec_val.push(Value::String(format!("Atmaram0")));
         vec_val.push(Value::String(format!("Yogesh1")));
-        let filled = fmo.fill(&context).await;
+        let filled = fmo.fill(&context).await.unwrap();
         assert_eq!(filled,Value::Array(vec_val));
     }
 
@@ -214,7 +215,7 @@ mod tests{
         ];
         let buffer:Arc<Mutex<Vec<Output>>> = Arc::new(Mutex::new(vec![]));
         let context=Context::mock(input,buffer.clone());
-        let filled = fp.fill(&context).await;
+        let filled = fp.fill(&context).await.unwrap();
         assert_eq!(filled,FilledPair{
             key:format!("name"),
             value:Value::String(format!("Atmaram"))

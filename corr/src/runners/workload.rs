@@ -4,14 +4,12 @@ use std::time::{Duration};
 use futures::lock::Mutex;
 use core::option::Option;
 use std::collections::HashMap;
-
-
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tokio::time::{Instant, sleep};
 use crate::{client, Out};
 use crate::interfaces::standalone::StandAloneInterface;
-use corr_lib::core::runtime::{Context as CorrContext, Context};
+use corr_lib::core::runtime::{Context as CorrContext};
 use corr_lib::core::scrapper::influxdb2::InfluxDB2Scrapper;
 use corr_lib::core::scrapper::none::NoneScraper;
 use corr_lib::core::scrapper::{Scrapper};
@@ -281,6 +279,6 @@ async fn start_iteration(name:String,journeys:HashMap<String,Arc<Journey>>,scrap
 async fn test(name:String,journeys:HashMap<String,Arc<Journey>>,_scrapper:Arc<Box<dyn Scrapper>>,context:CorrContext)->u128{
     let context = CorrContext::copy_from(&context).await;//CorrContext::new(Arc::new(Mutex::new(StandAloneInterface{})),journeys.clone(),scrapper.clone());
     let now = Instant::now();
-    client::start(journeys.get(&name).unwrap().clone(), Context::from_without_fallback(&context).await).await;
+    client::start(journeys.get(&name).unwrap().clone(), context).await;
     now.elapsed().as_millis()
 }
