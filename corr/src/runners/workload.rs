@@ -13,6 +13,7 @@ use corr_lib::core::runtime::{Context as CorrContext};
 use corr_lib::core::scrapper::influxdb2::InfluxDB2Scrapper;
 use corr_lib::core::scrapper::none::NoneScraper;
 use corr_lib::core::scrapper::{Scrapper};
+use corr_lib::core::Value;
 
 use corr_lib::journey::{Journey};
 use corr_lib::workload::{ModelScenario, Scenario, WorkLoad};
@@ -186,8 +187,9 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMa
                 println!("Ramping down {} VUs in {} seconds for test {}",delta*-1,stage.duration,scenario.journey.clone());
                 let delay = stage.duration * 1000 / ((delta * -1) as u64);
                 for _i in 0..(delta*-1){
-                    if let Some(vu) = vus.pop(){
-                        let _ = vu.send(1);
+                    if let Some(vuc) = vus.pop(){
+                        let _ = vuc.send(1);
+                        vu=vu-1;
                     }
                     sleep(Duration::from_millis(delay)).await;
                     let count = vu_count.read().await;
@@ -215,6 +217,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMa
 
 }
 async fn start_vu(number:u64,name:String,journeys:HashMap<String,Arc<Journey>>,scrapper:Arc<Box<dyn Scrapper>>,vu_count:Arc<RwLock<f64>>,ic:Arc<RwLock<f64>>,context:CorrContext)->(tokio::sync::mpsc::UnboundedSender<u64>,JoinHandle<()>){
+    context.define("__VU".into(),Value::PositiveInteger(number.clone() as u128)).await;
     let (tx,mut rx) = tokio::sync::mpsc::unbounded_channel();
     let flag = Arc::new(RwLock::new(true));
     let name_clone=name.clone();
@@ -236,6 +239,7 @@ async fn start_vu(number:u64,name:String,journeys:HashMap<String,Arc<Journey>>,s
         let mut total_resp = 0;
         let mut intc:f64 = 0.0;
         loop {
+            context.define("__ITER".into(),Value::PositiveInteger(iteration.clone())).await;
             let flg = checker.read().await;
             if *flg {
                 let resp = test(name.clone(),journeys.clone(),scrapper.clone(),context.clone()).await;
