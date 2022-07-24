@@ -9,6 +9,7 @@ use crate::journey::{Executable};
 use crate::template::{Expression, Fillable, VariableReferenceName};
 use async_trait::async_trait;
 use anyhow::Result;
+use tokio::time::Instant;
 use crate::core::Value;
 use crate::journey::step::Step;
 use crate::template::rest::FillableRequestHeaders;
@@ -45,6 +46,7 @@ impl Executable for WebSocketClientConnectStep {
 
     async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         let url = self.url.evaluate(context).await?.to_string();
+        let name= self.connection_name.evaluate(context).await?.to_string();
         let mut req_builder = http::Request::get(url.as_str());
         if let Some(headers) = &self.headers {
             let fh = headers.fill(context).await?;
@@ -52,11 +54,14 @@ impl Executable for WebSocketClientConnectStep {
                 req_builder = req_builder.header(header.key.clone(),header.value.clone());
             }
         }
+        let start = Instant::now();
         let conn=connect_async(req_builder.body(()).unwrap()).await;
+        let duration = start.elapsed();
+        context.scrapper.ingest("connection_time",duration.as_millis() as f64,vec![(format!("name"),name.clone())]).await;
         match conn {
             Ok((socket, _))=> {
                 let (ssk,mut ssm) = socket.split();
-                context.websocket_connection_store.define(self.connection_name.evaluate(context).await?.to_string(),ssk).await;
+                context.websocket_connection_store.define(name.clone(),ssk).await;
                 let hook = self.hook.clone();
                 let new_ct = context.clone();
                 let handle:JoinHandle<Result<bool>> = tokio::spawn(async move {
