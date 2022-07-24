@@ -1,32 +1,15 @@
 on:
-  workflow_dispatch:
-    inputs:
-      target_os:
-        description: 'Target OS'
-        required: true
-        default: 'macos-latest'
-        type: choice
-        options:
-          - macos-latest
-          - ubuntu-20.04
-          - windows-latest
-      candidate:
-        description: 'Build Candidate'
-        required: true
-        default: 'beta'
-        type: choice
-        options:
-          - ga
-          - beta
-      branch:
-        description: 'Target Branch'
-        required: true
-        default: 'main'
-        type: string
+  push:
+    tags:
+      - 'v*'
+      - 'b*'
 jobs:
   release:
+    strategy:
+      matrix:
+        target_os: [macos-latest, ubuntu-20.04, windows-latest]
     name: Universal Publish Binaries
-    runs-on: ${{github.event.inputs.target_os}}
+    runs-on: ${{matrix.target_os}}
 
     steps:
       - uses: actions/checkout@v3
@@ -39,7 +22,7 @@ jobs:
           override: true
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: ${{github.event.inputs.target_os}}
+          shared-key: ${{matrix.target_os}}
       - name: Install Cargo Get
         uses: actions-rs/install@v0.1
         with:
@@ -48,27 +31,96 @@ jobs:
       - name: Get the version
         id: get_version
         run: echo "::set-output name=VERSION::$(cargo get --root corr version)"
-      ## Windows Steps For Building binaries
+      ## Windows Steps For Building and Publishing Binaries
       - name: Install Wix
-        if: "contains(github.event.inputs.target_os, 'windows')"
+        if: "contains(matrix.target_os, 'windows')"
         uses: actions-rs/install@v0.1
         with:
           crate: cargo-wix
           version: latest
-
       - name: Build Binary
-        if: "contains(github.event.inputs.target_os, 'windows')"
+        if: "contains(matrix.target_os, 'windows')"
         uses: actions-rs/cargo@v1
         with:
           command: wix
           args: --package corr
       - name: Upload corr binaries to release
-        if: "contains(github.event.inputs.target_os, 'windows')"
+        if: "contains(matrix.target_os, 'windows')"
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ format('target/wix/corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
           asset_name: ${{ format('corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
-          tag: ${{ format('{0}-{1}-{2}',github.event.inputs.target_os,steps.get_version.outputs.VERSION,github.event.inputs.candidate)}}
+          tag: ${{ github.ref }}
           overwrite: true
-
+      ## Ubuntu Steps For Building and Publishing Binaries
+      - name: Build corr Package
+        uses: actions-rs/cargo@v1
+        if: "contains(matrix.target_os, 'ubuntu')"
+        with:
+          command: build
+          args: --release --all-features --package corr
+      - name: Script To create Debian Package
+        if: "contains(matrix.target_os, 'ubuntu')"
+        run: |
+          mkdir -p .debpkg/usr/bin
+          mkdir -p .debpkg/usr/lib/corr
+          cp target/release/corr .debpkg/usr/bin/corr
+          chmod +x .debpkg/usr/bin/corr
+          echo -e "a=1" > .debpkg/usr/lib/corr/corr.conf
+      - name: Build Debian Bundle
+        if: "contains(matrix.target_os, 'ubuntu')"
+        uses: jiro4989/build-deb-action@v2
+        id: bundle_debian
+        with:
+          package: corr
+          package_root: .debpkg
+          maintainer: Atmaram
+          version: ${{steps.get_version.outputs.VERSION}}
+          arch: 'amd64'
+          desc: 'Corr Binaries'
+      - name: Upload corr binaries to release
+        if: "contains(matrix.target_os, 'ubuntu')"
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{steps.bundle_debian.outputs.file_name}}
+          asset_name: ${{steps.bundle_debian.outputs.file_name}}
+          tag: ${{ github.ref }}
+          overwrite: true
+      ## macos Steps For Building and Publishing Binaries
+      - name: Build corr Package
+        if: "contains(matrix.target_os, 'macos')"
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features --package corr
+      - name: Compress corr package
+        if: "contains(matrix.target_os, 'macos')"
+        uses: master-atul/tar-action@v1.0.2
+        id: compress-corr
+        with:
+          command: c
+          cwd: target/release
+          files: |
+            corr
+          outPath: corr.tar.gz
+      - name: Upload corr binaries to release
+        if: "contains(matrix.target_os, 'macos')"
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: corr.tar.gz
+          asset_name: corr.tar.gz
+          tag: ${{ github.ref }}
+          overwrite: true
+      - name: Update corr formula
+        if: "contains(matrix.target_os, 'macos') && !contains(github.ref, '-')"
+        uses: mislav/bump-homebrew-formula-action@v1.6
+        env:
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+        with:
+          homebrew-tap: atmnk/homebrew-corr
+          formula-name: corr
+          download-url: ${{format('{0}{1}{2}', 'https://github.com/atmnk/corr/releases/download/v', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
+          commit-message: 'Bump up {{formulaName}} formula to v{{version}} version'
