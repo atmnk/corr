@@ -70,6 +70,7 @@ pub async fn schedule_workload(workload:WorkLoad, journeys:HashMap<String,Arc<Jo
     }
 }
 async fn schedule_scenario(scenario:Scenario, journeys:HashMap<String,Arc<Journey>>, scrapper:Arc<Box<dyn Scrapper>>, context:CorrContext, debug:bool){
+    let dist = env::var("J_WORKERS").unwrap_or("1".into()).as_str().parse().unwrap_or(1.0);
     let count = Arc::new(RwLock::new(0.0));
     let vu_count = Arc::new(RwLock::new(0.0));
     let cc = count.clone();
@@ -80,9 +81,9 @@ async fn schedule_scenario(scenario:Scenario, journeys:HashMap<String,Arc<Journe
             let mut ct = count.write().await;
             let vuct = vuc.read().await;
             scpr.ingest("iteration_count",*ct,vec![("journey".to_string(),jn.clone())]).await;
-            scpr.ingest("vus",*vuct,vec![("jounrey".to_string(),jn.clone())]).await;
+            scpr.ingest("vus",(dist*(*vuct)),vec![("jounrey".to_string(),jn.clone())]).await;
             *ct = 0.0;
-            sleep(Duration::from_millis(200)).await
+            sleep(Duration::from_millis(100)).await
         }
     };
     match scenario {
