@@ -1,61 +1,61 @@
-name: Publish
-
-on:
-  push:
-    tags:
-      - 'v*'
-jobs:
-  build:
-    name: Publish Binaries
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-      - uses: Swatinem/rust-cache@v1
-      - name: Build corr Package
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --all-features --package corr
-      - name: Compress corr package
-        uses: master-atul/tar-action@v1.0.2
-        id: compress-corr
-        with:
-          command: c
-          cwd: target/release
-          files: |
-            corr
-          outPath: corr.tar.gz
-
-      - name: Upload corr binaries to release
-        uses: svenstaro/upload-release-action@v1-release
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: corr.tar.gz
-          asset_name: corr.tar.gz
-          tag: ${{ github.ref }}
-          overwrite: true
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
-
-      - name: Update corr formula
-        uses: mislav/bump-homebrew-formula-action@v1.6
-        env:
-          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
-        if: "!contains(github.ref, '-')" # skip prereleases
-        with:
-          homebrew-tap: atmnk/homebrew-corr
-          formula-name: corr
-          download-url: ${{format('{0}{1}{2}', 'https://github.com/atmnk/corr/releases/download/', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
-          commit-message: 'Bump up {{formulaName}} formula to v{{version}} version'
-      - name: Delete old releases
-        uses: dev-drprasad/delete-older-releases@v0.2.0
-        with:
-          keep_latest: 30
-        env:
-          GITHUB_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+#name: Publish
+#
+#on:
+#  push:
+#    tags:
+#      - 'v*'
+#jobs:
+#  build:
+#    name: Publish Binaries
+#    runs-on: macos-latest
+#
+#    steps:
+#      - uses: actions/checkout@v2
+#      - uses: actions-rs/toolchain@v1
+#        with:
+#          toolchain: nightly
+#          override: true
+#      - uses: Swatinem/rust-cache@v1
+#      - name: Build corr Package
+#        uses: actions-rs/cargo@v1
+#        with:
+#          command: build
+#          args: --release --all-features --package corr
+#      - name: Compress corr package
+#        uses: master-atul/tar-action@v1.0.2
+#        id: compress-corr
+#        with:
+#          command: c
+#          cwd: target/release
+#          files: |
+#            corr
+#          outPath: corr.tar.gz
+#
+#      - name: Upload corr binaries to release
+#        uses: svenstaro/upload-release-action@v1-release
+#        with:
+#          repo_token: ${{ secrets.GITHUB_TOKEN }}
+#          file: corr.tar.gz
+#          asset_name: corr.tar.gz
+#          tag: ${{ github.ref }}
+#          overwrite: true
+#      - name: Get the version
+#        id: get_version
+#        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+#
+#      - name: Update corr formula
+#        uses: mislav/bump-homebrew-formula-action@v1.6
+#        env:
+#          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+#        if: "!contains(github.ref, '-')" # skip prereleases
+#        with:
+#          homebrew-tap: atmnk/homebrew-corr
+#          formula-name: corr
+#          download-url: ${{format('{0}{1}{2}', 'https://github.com/atmnk/corr/releases/download/', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
+#          commit-message: 'Bump up {{formulaName}} formula to v{{version}} version'
+#      - name: Delete old releases
+#        uses: dev-drprasad/delete-older-releases@v0.2.0
+#        with:
+#          keep_latest: 30
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.COMMITTER_TOKEN }}

@@ -1,47 +1,47 @@
-name: Build Windows
-on:
-  push:
-    tags:
-      - 'w*'
-
-  
-jobs:
-  build:
-    runs-on: windows-latest
-    name: Test The Commit
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-      - uses: Swatinem/rust-cache@v1
-        with:
-          shared-key: "windows"
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-wix
-          version: latest
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-get
-          version: latest
-      - name: Build Binary
-        uses: actions-rs/cargo@v1
-        with:
-          command: wix
-          args: --package corr
-      - name: Get the version
-        id: get_version
-        run: echo "::set-output name=VERSION::$(cargo get --root corr version)"
-      - name: List Content
-        run: |
-          dir target/wix
-      - name: Upload corr binaries to release
-        uses: svenstaro/upload-release-action@v1-release
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ format('target/wix/corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
-          asset_name: ${{ format('corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
-          tag: ${{ github.ref }}
-          overwrite: true
+#name: Build Windows
+#on:
+#  push:
+#    tags:
+#      - 'w*'
+#
+#
+#jobs:
+#  build:
+#    runs-on: windows-latest
+#    name: Test The Commit
+#    steps:
+#      - uses: actions/checkout@v2
+#      - uses: actions-rs/toolchain@v1
+#        with:
+#          toolchain: nightly
+#          override: true
+#      - uses: Swatinem/rust-cache@v1
+#        with:
+#          shared-key: "windows"
+#      - uses: actions-rs/install@v0.1
+#        with:
+#          crate: cargo-wix
+#          version: latest
+#      - uses: actions-rs/install@v0.1
+#        with:
+#          crate: cargo-get
+#          version: latest
+#      - name: Build Binary
+#        uses: actions-rs/cargo@v1
+#        with:
+#          command: wix
+#          args: --package corr
+#      - name: Get the version
+#        id: get_version
+#        run: echo "::set-output name=VERSION::$(cargo get --root corr version)"
+#      - name: List Content
+#        run: |
+#          dir target/wix
+#      - name: Upload corr binaries to release
+#        uses: svenstaro/upload-release-action@v1-release
+#        with:
+#          repo_token: ${{ secrets.GITHUB_TOKEN }}
+#          file: ${{ format('target/wix/corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
+#          asset_name: ${{ format('corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
+#          tag: ${{ github.ref }}
+#          overwrite: true
