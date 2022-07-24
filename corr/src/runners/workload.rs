@@ -71,29 +71,33 @@ pub async fn schedule_workload(workload:WorkLoad, journeys:HashMap<String,Arc<Jo
 }
 async fn schedule_scenario(scenario:Scenario, journeys:HashMap<String,Arc<Journey>>, scrapper:Arc<Box<dyn Scrapper>>, context:CorrContext, debug:bool){
     let count = Arc::new(RwLock::new(0.0));
+    let vu_count = Arc::new(RwLock::new(0.0));
     let cc = count.clone();
+    let vuc = vu_count.clone();
     let scpr = scrapper.clone();
-    let iteration_scrapper = async move |jn:String|{
+    let counters_scrapper = async move |jn:String|{
         loop {
             let mut ct = count.write().await;
+            let vuct = vuc.read().await;
             scpr.ingest("iteration_count",*ct,vec![("journey".to_string(),jn.clone())]).await;
+            scpr.ingest("vus",*vuct,vec![("jounrey".to_string(),jn.clone())]).await;
             *ct = 0.0;
-            sleep(Duration::from_millis(50)).await
+            sleep(Duration::from_millis(200)).await
         }
     };
     match scenario {
         Scenario::Closed(cms)=>{
             let jn = cms.journey.clone();
             tokio::select! {
-                _=closed_model_scenario_scheduler(cms,journeys,scrapper,cc,context.clone(),debug)=>{},
-                _=iteration_scrapper(jn)=>{},
+                _=closed_model_scenario_scheduler(cms,journeys,scrapper,cc,vu_count,context.clone(),debug)=>{},
+                _=counters_scrapper(jn)=>{},
             };
         },
         Scenario::Open(oms)=>{
             let jn = oms.journey.clone();
             tokio::select! {
                 _=open_model_scenario_scheduler(oms,journeys,scrapper,cc,context.clone(),debug)=>{},
-                _=iteration_scrapper(jn)=>{},
+                _=counters_scrapper(jn)=>{},
             };
         }
     }
@@ -143,13 +147,12 @@ async fn open_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMap<
     }
 
 }
-async fn closed_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMap<String,Arc<Journey>>, scrapper:Arc<Box<dyn Scrapper>>, ic:Arc<RwLock<f64>>, context:CorrContext, debug:bool) {
+async fn closed_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMap<String,Arc<Journey>>, scrapper:Arc<Box<dyn Scrapper>>, ic:Arc<RwLock<f64>>,vu_count:Arc<RwLock<f64>>, context:CorrContext, debug:bool) {
 
     let stages= scenario.stages.clone();
     let mut vus = vec![];
     let mut threads = vec![];
     let mut prev_num:i64 = 0;
-    let vu_count = Arc::new(RwLock::new(0 as f64));
     let mut vu =0;
     let _vcc = vu_count.clone();
     let _scc = scrapper.clone();
@@ -171,14 +174,14 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMa
                         sleep(Duration::from_millis(delay)).await;
                         vu = vu + 1;
                         let count = vu_count.read().await;
-                        scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
+                        // scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
                     }
                 }
                 else {
                     let mut st=0;
                     while st<stage.duration {
                         let count = vu_count.read().await;
-                        scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
+                        // scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
                         sleep(Duration::from_secs(1)).await;
                         st =st +1;
                     }
@@ -193,7 +196,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMa
                     }
                     sleep(Duration::from_millis(delay)).await;
                     let count = vu_count.read().await;
-                    scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
+                    // scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
                 }
 
             }
