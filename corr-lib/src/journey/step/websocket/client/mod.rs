@@ -160,30 +160,65 @@ impl Executable for WebSocketCloseStep{
         vec![]
     }
 }
-// #[cfg(test)]
-// mod tests {
-//     use std::sync::{Arc, Mutex};
-//     use crate::core::runtime::Context;
-//     use crate::journey::Executable;
-//     use crate::journey::step::websocket::client::WebSocketClientConnectStep;
-//     use crate::parser::Parsable;
-//
-//     #[tokio::test]
-//     async fn should_execute_websocket_client_connect_step() {
-//         let text = r#"connect websocket named "demo" with url "ws://localhost:9002" and listener msg => {
-//         let counter = counter + 1
-//         print text `<%msg.message%>`
-//     }
-//     let ranks = object [1,2,3,4,5,6,7,8,9]
-//     ranks.for(i)=>{
-//         send object {"name":"Atmaram","rank": i} on websocket named "demo"
-//     }"#;
-//         let (_, step) = WebSocketClientConnectStep::parser(text).unwrap();
-//         let input = vec![];
-//         let buffer = Arc::new(Mutex::new(vec![]));
-//         let context = Context::mock(input, buffer.clone());
-//         step.execute(&context).await.unwrap();
-//         // assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
-//         // assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use std::net::SocketAddr;
+    use std::sync::{Arc, Mutex};
+    use futures_util::{SinkExt, StreamExt};
+    use tokio::net::{TcpListener, TcpStream};
+    use tokio_tungstenite::accept_async;
+    use crate::core::runtime::Context;
+    use crate::journey::Executable;
+    use crate::journey::step::websocket::client::WebSocketClientConnectStep;
+    use crate::parser::Parsable;
+    async fn start_server(rx:tokio::sync::oneshot::Receiver<()>){
+        let addr = format!("0.0.0.0:{}",9002);
+        let listner = TcpListener::bind(&addr).await.expect("Can't listen");
+        let accept_connection = async  move |peer: SocketAddr, stream: TcpStream|{
+            let  handle_connection= async move |peer: SocketAddr, stream: TcpStream| -> anyhow::Result<()> {
+                let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
+                while let Some(Ok(m)) = ws_stream.next().await {
+                    if m.is_text() {
+                        ws_stream.send(m).await?
+                    }
+                }
+                Ok(())
+            };
+            if let Err(e) = handle_connection(peer, stream).await {
+                println!("Error processing connection: {}", e)
+            }
+        };
+        let connect = async move||{
+            while let Ok((stream,_)) = listner.accept().await{
+                let peer = stream.peer_addr().expect("connected streams should have a peer address");
+                tokio::spawn(accept_connection(peer,stream));
+            };
+        };
+        tokio::select! {
+            _ = connect() => {},
+            _ = rx => {},
+        }
+    }
+    #[tokio::test]
+    async fn should_execute_websocket_client_connect_step() {
+        let (mut tx,mut rx)=tokio::sync::oneshot::channel();
+        let t=tokio::spawn(start_server(rx));
+        let text = r#"connect websocket named "demo" with url "ws://localhost:9002" and listener msg => {
+        let counter = counter + 1
+        print text `<%msg.message%>`
+    }
+    let ranks = object [1,2,3,4,5,6,7,8,9]
+    ranks.for(i)=>{
+        send object {"name":"Atmaram","rank": i} on websocket named "demo"
+    }"#;
+        let (_, step) = WebSocketClientConnectStep::parser(text).unwrap();
+        let input = vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context = Context::mock(input, buffer.clone());
+        step.execute(&context).await.unwrap();
+        tx.send(());
+        t.await;
+        // assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
+        // assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
+    }
+}
