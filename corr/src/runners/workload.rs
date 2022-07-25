@@ -81,7 +81,7 @@ async fn schedule_scenario(scenario:Scenario, journeys:HashMap<String,Arc<Journe
             let mut ct = count.write().await;
             let vuct = vuc.read().await;
             scpr.ingest("iteration_count",*ct,vec![("journey".to_string(),jn.clone())]).await;
-            scpr.ingest("vus",(dist*(*vuct)),vec![("jounrey".to_string(),jn.clone())]).await;
+            scpr.ingest("vus",dist*(*vuct),vec![("jounrey".to_string(),jn.clone())]).await;
             *ct = 0.0;
             sleep(Duration::from_millis(100)).await
         }
@@ -157,7 +157,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMa
     let mut vu =0;
     let _vcc = vu_count.clone();
     let _scc = scrapper.clone();
-    let jnn = scenario.journey.clone();
+    let _jnn = scenario.journey.clone();
     let _jnnc = scenario.journey.clone();
     if debug {
         start_iteration(scenario.journey.clone(),journeys.clone(),scrapper.clone(),ic.clone(),context.clone()).await.await.unwrap();
@@ -174,14 +174,14 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMa
                         threads.push(th);
                         sleep(Duration::from_millis(delay)).await;
                         vu = vu + 1;
-                        let count = vu_count.read().await;
+                        let _count = vu_count.read().await;
                         // scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
                     }
                 }
                 else {
                     let mut st=0;
                     while st<stage.duration {
-                        let count = vu_count.read().await;
+                        let _count = vu_count.read().await;
                         // scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
                         sleep(Duration::from_secs(1)).await;
                         st =st +1;
@@ -196,7 +196,7 @@ async fn closed_model_scenario_scheduler(scenario:ModelScenario, journeys:HashMa
                         vu=vu-1;
                     }
                     sleep(Duration::from_millis(delay)).await;
-                    let count = vu_count.read().await;
+                    let _count = vu_count.read().await;
                     // scrapper.ingest("vus",*count,vec![("jounrey".to_string(),jnn.clone())]).await;
                 }
 

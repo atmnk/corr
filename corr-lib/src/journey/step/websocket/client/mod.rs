@@ -2,7 +2,7 @@
 
 use futures_util::{SinkExt, StreamExt};
 use tokio::task::JoinHandle;
-use tokio_tungstenite::{connect_async, Connector};
+use tokio_tungstenite::{Connector};
 use tokio_tungstenite::tungstenite::{http, Message};
 use crate::core::runtime::Context;
 use crate::journey::{Executable};
@@ -175,7 +175,7 @@ mod tests {
         let addr = format!("0.0.0.0:{}",9002);
         let listner = TcpListener::bind(&addr).await.expect("Can't listen");
         let accept_connection = async  move |peer: SocketAddr, stream: TcpStream|{
-            let  handle_connection= async move |peer: SocketAddr, stream: TcpStream| -> anyhow::Result<()> {
+            let  handle_connection= async move |_peer: SocketAddr, stream: TcpStream| -> anyhow::Result<()> {
                 let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
                 while let Some(Ok(m)) = ws_stream.next().await {
                     if m.is_text() {
@@ -201,7 +201,7 @@ mod tests {
     }
     #[tokio::test]
     async fn should_execute_websocket_client_connect_step() {
-        let (mut tx,mut rx)=tokio::sync::oneshot::channel();
+        let (tx,rx)=tokio::sync::oneshot::channel();
         let t=tokio::spawn(start_server(rx));
         let text = r#"connect websocket named "demo" with url "ws://localhost:9002" and listener msg => {
         let counter = counter + 1
@@ -216,8 +216,8 @@ mod tests {
         let buffer = Arc::new(Mutex::new(vec![]));
         let context = Context::mock(input, buffer.clone());
         step.execute(&context).await.unwrap();
-        tx.send(());
-        t.await;
+        tx.send(()).unwrap();
+        t.await.unwrap();
         // assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
         // assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
     }

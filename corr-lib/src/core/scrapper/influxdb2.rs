@@ -44,7 +44,7 @@ impl Scrapper for InfluxDB2Scrapper{
             let cl = self.client.clone();
             let b = self.bucket.clone();
             let task = async move ||{
-                cl.write(b.as_str(),stream::iter(pts)).await;
+                cl.write(b.as_str(),stream::iter(pts)).await.unwrap();
             };
             tokio::spawn( task());
             sleep(Duration::from_millis(500)).await;

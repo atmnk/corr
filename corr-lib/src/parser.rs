@@ -1,7 +1,7 @@
 use nom::error::{VerboseError};
 use nom::IResult;
 use nom::bytes::complete::{take_while, tag, escaped_transform, is_not};
-use nom::sequence::{preceded, terminated, pair, delimited, tuple};
+use nom::sequence::{preceded, terminated, delimited, tuple};
 use nom::combinator::{map, verify, recognize, opt};
 use nom::branch::alt;
 use nom::multi::{many0_count, many0};
