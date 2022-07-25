@@ -2,13 +2,14 @@
 
 use futures_util::{SinkExt, StreamExt};
 use tokio::task::JoinHandle;
-use tokio_tungstenite::connect_async;
+use tokio_tungstenite::{connect_async, Connector};
 use tokio_tungstenite::tungstenite::{http, Message};
 use crate::core::runtime::Context;
 use crate::journey::{Executable};
 use crate::template::{Expression, Fillable, VariableReferenceName};
 use async_trait::async_trait;
 use anyhow::Result;
+use hyper_tls::native_tls::TlsConnector;
 use tokio::time::Instant;
 use crate::core::Value;
 use crate::journey::step::Step;
@@ -55,7 +56,11 @@ impl Executable for WebSocketClientConnectStep {
             }
         }
         let start = Instant::now();
-        let conn=connect_async(req_builder.body(()).unwrap()).await;
+        let conn=if url.starts_with("wss") {
+            tokio_tungstenite::connect_async_tls_with_config(req_builder.body(()).unwrap(), None, Some(Connector::NativeTls(TlsConnector::builder().danger_accept_invalid_certs(true).build().unwrap()))).await
+        } else {
+            tokio_tungstenite::connect_async(req_builder.body(()).unwrap()).await
+        };//;
         let duration = start.elapsed();
         context.scrapper.ingest("connection_time",duration.as_millis() as f64,vec![(format!("name"),name.clone())]).await;
         match conn {

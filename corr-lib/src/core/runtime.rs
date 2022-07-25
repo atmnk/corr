@@ -13,13 +13,14 @@ use futures_util::stream::SplitSink;
 use num_traits::ToPrimitive;
 use test::stats::Stats;
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::WebSocketStream;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use crate::core::scrapper::none::NoneScraper;
 use crate::core::scrapper::Scrapper;
 use crate::journey::Journey;
 use crate::template::rest::RestVerb;
 use crate::template::VariableReferenceName;
 use anyhow::Result;
+use tokio::net::TcpStream;
 
 pub enum HeapObject{
     Final(Value),
@@ -109,7 +110,7 @@ pub struct TransactionsStatsStore{
 }
 #[derive(Clone)]
 pub struct WebsocketConnectionStore{
-    references:Arc<Mutex<HashMap<String,Arc<Mutex<SplitSink<WebSocketStream<tokio_tungstenite::stream::Stream<tokio::net::TcpStream,hyper_tls::TlsStream<tokio::net::TcpStream>>>,Message>>>>>>
+    references:Arc<Mutex<HashMap<String,Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>,Message>>>>>>
 }
 #[derive(Clone)]
 pub struct ConnectionStore{
@@ -342,11 +343,11 @@ impl WebsocketConnectionStore{
         }
     }
 
-    pub async fn get(&self,name:String)->Option<Arc<Mutex<SplitSink<WebSocketStream<tokio_tungstenite::stream::Stream<tokio::net::TcpStream,hyper_tls::TlsStream<tokio::net::TcpStream>>>,Message>>>>{
+    pub async fn get(&self,name:String)->Option<Arc<Mutex<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>,Message>>>>{
         let tmp = self.references.lock().await;
         tmp.get(&(name)).map(|arc|arc.clone())
     }
-    pub async fn define(&self,path:String,connection:SplitSink<WebSocketStream<tokio_tungstenite::stream::Stream<tokio::net::TcpStream,hyper_tls::TlsStream<tokio::net::TcpStream>>>,Message>){
+    pub async fn define(&self,path:String,connection:SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>,Message>){
         let mut refs = self.references.lock().await;
         refs.insert(path,Arc::new(Mutex::new(connection)));
     }
