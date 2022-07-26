@@ -1,5 +1,4 @@
-
-
+use std::str::FromStr;
 use futures_util::{SinkExt, StreamExt};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{Connector};
@@ -11,7 +10,10 @@ use async_trait::async_trait;
 use anyhow::{bail, Result};
 use hyper_tls::native_tls::TlsConnector;
 use tokio::time::Instant;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::http::header::HeaderName;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
+use warp::http::HeaderValue;
 use crate::core::Value;
 use crate::journey::step::Step;
 use crate::template::rest::FillableRequestHeaders;
@@ -49,18 +51,20 @@ impl Executable for WebSocketClientConnectStep {
     async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         let url = self.url.evaluate(context).await?.to_string();
         let name= self.connection_name.evaluate(context).await?.to_string();
-        let mut req_builder = http::Request::get(url.as_str());
+        let mut req = url.clone().into_client_request()?;//http::Request::get(url.as_str());
         if let Some(headers) = &self.headers {
             let fh = headers.fill(context).await?;
+            let h =req.headers_mut();
+
             for header in fh.headers {
-                req_builder = req_builder.header(header.key.clone(),header.value.clone());
+                h.append(HeaderName::from_str(header.key.as_str())?,HeaderValue::from_str(header.value.clone().as_str())?);
             }
         }
         let start = Instant::now();
         let conn=if url.starts_with("wss") {
-            tokio_tungstenite::connect_async_tls_with_config(req_builder.body(()).unwrap(), Some(WebSocketConfig::default()), Some(Connector::NativeTls(TlsConnector::builder().danger_accept_invalid_certs(true).build().unwrap()))).await
+            tokio_tungstenite::connect_async_tls_with_config(req, Some(WebSocketConfig::default()), Some(Connector::NativeTls(TlsConnector::builder().danger_accept_invalid_certs(true).build()?))).await
         } else {
-            tokio_tungstenite::connect_async_with_config(req_builder.body(()).unwrap(),Some(WebSocketConfig::default())).await
+            tokio_tungstenite::connect_async_with_config(req,Some(WebSocketConfig::default())).await
         };//;
         let duration = start.elapsed();
         context.scrapper.ingest("connection_time",duration.as_millis() as f64,vec![(format!("name"),name.clone())]).await;
@@ -203,7 +207,7 @@ mod tests {
     async fn should_execute_websocket_client_connect_step() {
         let (tx,rx)=tokio::sync::oneshot::channel();
         let t=tokio::spawn(start_server(rx));
-        let text = r#"connect websocket named "demo" with url "ws://localhost:9002" and listener msg => {
+        let text = r#"connect websocket named "demo" with url "ws://localhost:9002", headers { "x-api-key":"test"} and listener msg => {
         let counter = counter + 1
         print text `<%msg.message%>`
     }
