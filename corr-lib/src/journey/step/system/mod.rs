@@ -292,7 +292,7 @@ impl Executable for WaitStep {
     async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         match &self {
             WaitStep::WithTime(time_exp)=>{
-                let wt = time_exp.evaluate(context).await?.to_number().unwrap_or(Number::Integer(128)).as_usize()?;
+                let wt = time_exp.evaluate(context).await?.to_number().unwrap_or(Number::Integer(128)).as_usize().unwrap_or(1);
                 sleep(Duration::from_millis(wt.to_u64().unwrap())).await;
                 return Ok(vec![]);
             }
