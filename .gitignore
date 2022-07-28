@@ -1,6 +1,6 @@
-/target
+target/
+build/
 .DS_Store
 .idea
 *.txt
 .vscode
-index.html

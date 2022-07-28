@@ -1,6 +1,6 @@
-use crate::parser::{Parsable, ParseResult, ws, identifier_part, function_name};
+use crate::parser::{Parsable, ParseResult, ws, function_name};
 use crate::template::{Expression, VariableReferenceName, Assignable, BinaryOperator, Operator, UnaryPostOperator, FunctionCallChain, UnaryPreOperator};
-use nom::combinator::{map, verify};
+use nom::combinator::{map};
 use crate::core::{Value, Variable};
 use nom::sequence::{tuple};
 use nom::branch::alt;
@@ -9,7 +9,6 @@ use nom::multi::{separated_list0, separated_list1, many1};
 use crate::template::text::Text;
 use crate::template::object::FillableObject;
 use nom::bytes::complete::tag;
-use crate::template::functions::{function_names};
 use crate::journey::parser::parse_name;
 
 impl Parsable for Assignable {
@@ -168,21 +167,21 @@ fn stack_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
 fn operator_expression<'a>(input: &'a str)-> ParseResult<'a, Expression>{
     Operator::expression_with_operator_parser(input)
 }
-impl VariableReferenceName {
-    fn non_function_parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
-            alt((map(tuple((separated_list1(ws(tag(".")),ws(identifier_part)),verify(tuple((ws(tag(".")),ws(identifier_part))),|(_,last)|{!function_names().contains(last)}))),|(first,(_,last))|{
-                let mut parts:Vec<String> = first.iter().map(|i|i.to_string()).collect();
-                parts.push(last.to_string());
-                VariableReferenceName{
-                parts,
-            }}),
-                 map(verify(identifier_part,|part|{!function_names().contains(&part)}),|part|{VariableReferenceName::from(part)})
-            ))(input)
-        // map(
-        //     separated_list1(ws(char('.')),
-        //                     map(identifier_part,|val|{val.to_string()})),|parts| { VariableReferenceName {parts}})(input)
-    }
-}
+// impl VariableReferenceName {
+//     fn non_function_parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+//             alt((map(tuple((separated_list1(ws(tag(".")),ws(identifier_part)),verify(tuple((ws(tag(".")),ws(identifier_part))),|(_,last)|{!function_names().contains(last)}))),|(first,(_,last))|{
+//                 let mut parts:Vec<String> = first.iter().map(|i|i.to_string()).collect();
+//                 parts.push(last.to_string());
+//                 VariableReferenceName{
+//                 parts,
+//             }}),
+//                  map(verify(identifier_part,|part|{!function_names().contains(&part)}),|part|{VariableReferenceName::from(part)})
+//             ))(input)
+//         // map(
+//         //     separated_list1(ws(char('.')),
+//         //                     map(identifier_part,|val|{val.to_string()})),|parts| { VariableReferenceName {parts}})(input)
+//     }
+// }
 impl Parsable for VariableReferenceName {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
         map(
@@ -356,10 +355,11 @@ mod tests{
         let a=Expression::parser(text);
         assert_if(text,a,Expression::Function("contains".to_string(),vec![Expression::Variable(format!("name"),Option::None),Expression::Constant(Value::String("Naik".to_string()))]))
     }
+    #[test]
     fn should_parse_expression_when_dot_function_on_fqn_variable(){
         let text=r#"person.name.len()"#;
         let a=Expression::parser(text);
-        assert_if(text,a,Expression::Function("len".to_string(),vec![Expression::Variable(format!("person.name"),Option::None),Expression::Constant(Value::String("Naik".to_string()))]))
+        assert_if(text,a,Expression::Function("len".to_string(),vec![Expression::Variable(format!("person.name"),Option::None)]))
     }
     #[test]
     fn should_parse_expression_when_chain_dot_function_on_variable(){

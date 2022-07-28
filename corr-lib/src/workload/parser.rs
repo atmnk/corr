@@ -6,7 +6,7 @@ use nom::multi::{separated_list0, separated_list1};
 use nom::sequence::{delimited, tuple};
 use crate::core::parser::string;
 use crate::core::Variable;
-use crate::journey::parser::{parse_executable_name, parse_name};
+use crate::journey::parser::{parse_executable_name};
 use crate::parser::{Parsable, ParseResult, ws};
 use crate::workload::{ModelScenario, ModelStage, Scenario, WorkLoad};
 

@@ -1,14 +1,19 @@
-
-
+use std::str::FromStr;
 use futures_util::{SinkExt, StreamExt};
 use tokio::task::JoinHandle;
-use tokio_tungstenite::connect_async;
+use tokio_tungstenite::{Connector};
 use tokio_tungstenite::tungstenite::{http, Message};
 use crate::core::runtime::Context;
 use crate::journey::{Executable};
 use crate::template::{Expression, Fillable, VariableReferenceName};
 use async_trait::async_trait;
-use anyhow::Result;
+use anyhow::{bail, Result};
+use hyper_tls::native_tls::TlsConnector;
+use tokio::time::Instant;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::http::header::HeaderName;
+use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
+use warp::http::HeaderValue;
 use crate::core::Value;
 use crate::journey::step::Step;
 use crate::template::rest::FillableRequestHeaders;
@@ -45,18 +50,28 @@ impl Executable for WebSocketClientConnectStep {
 
     async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         let url = self.url.evaluate(context).await?.to_string();
-        let mut req_builder = http::Request::get(url.as_str());
+        let name= self.connection_name.evaluate(context).await?.to_string();
+        let mut req = url.clone().into_client_request()?;//http::Request::get(url.as_str());
         if let Some(headers) = &self.headers {
             let fh = headers.fill(context).await?;
+            let h =req.headers_mut();
+
             for header in fh.headers {
-                req_builder = req_builder.header(header.key.clone(),header.value.clone());
+                h.append(HeaderName::from_str(header.key.as_str())?,HeaderValue::from_str(header.value.clone().as_str())?);
             }
         }
-        let conn=connect_async(req_builder.body(()).unwrap()).await;
+        let start = Instant::now();
+        let conn=if url.starts_with("wss") {
+            tokio_tungstenite::connect_async_tls_with_config(req, Some(WebSocketConfig::default()), Some(Connector::NativeTls(TlsConnector::builder().danger_accept_invalid_certs(true).build()?))).await
+        } else {
+            tokio_tungstenite::connect_async_with_config(req,Some(WebSocketConfig::default())).await
+        };//;
+        let duration = start.elapsed();
+        context.scrapper.ingest("connection_time",duration.as_millis() as f64,vec![(format!("name"),name.clone())]).await;
         match conn {
             Ok((socket, _))=> {
                 let (ssk,mut ssm) = socket.split();
-                context.websocket_connection_store.define(self.connection_name.evaluate(context).await?.to_string(),ssk).await;
+                context.websocket_connection_store.define(name.clone(),ssk).await;
                 let hook = self.hook.clone();
                 let new_ct = context.clone();
                 let handle:JoinHandle<Result<bool>> = tokio::spawn(async move {
@@ -82,7 +97,7 @@ impl Executable for WebSocketClientConnectStep {
             Err(e)=> {
                 context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",e.to_string())),(format!("api"),format!("{}",url))]).await;
                 eprintln!("Error while connecting websocket {} - {}",url,e.to_string());
-                return Ok(vec![])
+                bail!("Error while connecting websocket {} - {}",url,e.to_string())
             }
         }
 
@@ -147,5 +162,67 @@ impl Executable for WebSocketCloseStep{
 
     fn get_deps(&self) -> Vec<String> {
         vec![]
+    }
+}
+#[cfg(test)]
+mod tests {
+    use std::net::SocketAddr;
+    use std::sync::{Arc, Mutex};
+    use futures_util::{SinkExt, StreamExt};
+    use tokio::net::{TcpListener, TcpStream};
+    use tokio_tungstenite::accept_async;
+    use crate::core::runtime::Context;
+    use crate::journey::Executable;
+    use crate::journey::step::websocket::client::WebSocketClientConnectStep;
+    use crate::parser::Parsable;
+    async fn start_server(rx:tokio::sync::oneshot::Receiver<()>){
+        let addr = format!("0.0.0.0:{}",9002);
+        let listner = TcpListener::bind(&addr).await.expect("Can't listen");
+        let accept_connection = async  move |peer: SocketAddr, stream: TcpStream|{
+            let  handle_connection= async move |_peer: SocketAddr, stream: TcpStream| -> anyhow::Result<()> {
+                let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
+                while let Some(Ok(m)) = ws_stream.next().await {
+                    if m.is_text() {
+                        ws_stream.send(m).await?
+                    }
+                }
+                Ok(())
+            };
+            if let Err(e) = handle_connection(peer, stream).await {
+                println!("Error processing connection: {}", e)
+            }
+        };
+        let connect = async move||{
+            while let Ok((stream,_)) = listner.accept().await{
+                let peer = stream.peer_addr().expect("connected streams should have a peer address");
+                tokio::spawn(accept_connection(peer,stream));
+            };
+        };
+        tokio::select! {
+            _ = connect() => {},
+            _ = rx => {},
+        }
+    }
+    #[tokio::test]
+    async fn should_execute_websocket_client_connect_step() {
+        let (tx,rx)=tokio::sync::oneshot::channel();
+        let t=tokio::spawn(start_server(rx));
+        let text = r#"connect websocket named "demo" with url "ws://localhost:9002", headers { "x-api-key":"test"} and listener msg => {
+        let counter = counter + 1
+        print text `<%msg.message%>`
+    }
+    let ranks = object [1,2,3,4,5,6,7,8,9]
+    ranks.for(i)=>{
+        send object {"name":"Atmaram","rank": i} on websocket named "demo"
+    }"#;
+        let (_, step) = WebSocketClientConnectStep::parser(text).unwrap();
+        let input = vec![];
+        let buffer = Arc::new(Mutex::new(vec![]));
+        let context = Context::mock(input, buffer.clone());
+        step.execute(&context).await.unwrap();
+        tx.send(()).unwrap();
+        t.await.unwrap();
+        // assert_eq!(context.get_var_from_store(format!("id")).await, Option::Some(Value::PositiveInteger(1)));
+        // assert_eq!(context.get_var_from_store(format!("a")).await, Option::Some(Value::String("Hello".to_string())))
     }
 }
