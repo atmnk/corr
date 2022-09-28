@@ -15,27 +15,52 @@ use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::{accept_async};
 use tokio_tungstenite::tungstenite::{Message};
 use crate::core::Value;
+use crate::template::functions::Uuid;
 
 #[derive(Debug, Clone,PartialEq)]
 pub struct WebSocketServerHook{
     variable:VariableReferenceName,
-    block:Vec<WebSocketStep>
+    block:Vec<Step>
 }
 #[derive(Debug, Clone,PartialEq)]
 pub struct WebSocketServerStep {
     port:Expression,
-    hook: WebSocketServerHook,
-    // on_message:OnMessage
+    hook: WebSocketServerHook
 }
-// #[derive(Debug, Clone,PartialEq)]
-// pub struct OnMessage {
-//     pub extract:ExtractableObject,
-//     pub steps:Vec<WebSocketStep>,
-// }
 #[derive(Debug, Clone,PartialEq)]
-pub enum WebSocketStep{
-    SendStep(Expression),
-    NormalStep(Step)
+pub struct WebSocketServerSendToClient {
+    id: Expression,
+    message: Expression,
+    is_binary:bool,
+}
+#[async_trait]
+impl Executable for WebSocketServerSendToClient {
+
+    async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
+        let conn_name = self.id.evaluate(context).await?.to_string();
+
+        if let Some(conn) = context.websocket_clients.get(conn_name.clone()).await{
+            let mut connection = conn.lock().await;
+            let msg = if self.is_binary {
+                Message::Binary(self.message.evaluate(context).await?.to_binary())
+            } else {
+                Message::Text(self.message.evaluate(context).await?.to_string())
+            };
+            if let Err(e)=(*connection).send(msg).await{
+                context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",e.to_string())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
+                eprintln!("Error while sending data over websocket {} - {}",conn_name.clone(),e.to_string());
+            }
+        } else {
+            let msg = format!("Websocket with name {} not found",conn_name.clone());
+            context.scrapper.ingest("errors",1.0,vec![(format!("message"),format!("{}",msg.clone())),(format!("connection"),format!("{}",conn_name.clone()))]).await;
+            eprintln!("{}",msg);
+        }
+        return Ok(vec![]);
+    }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
 }
 #[async_trait]
 impl Executable for WebSocketServerStep {
@@ -47,22 +72,19 @@ impl Executable for WebSocketServerStep {
             let ctx = ctx_para.clone();
             let  handle_connection= async move |peer: SocketAddr, stream: TcpStream| -> Result<()> {
                 let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
+                let (mut tx,mut rx) = ws_stream.split();
+                let connId = uuid::Uuid::new_v4().to_string();
+                ctx.websocket_clients.define(connId.clone(),tx).await;
+                ctx.define("connectionId".to_string(),Value::String(connId)).await;
                 println!("New WebSocket connection: {}", peer);
-                while let Some(Ok(m)) = ws_stream.next().await {
+                while let Some(Ok(m)) = rx.next().await {
                     if m.is_text() {
                         let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
                         ctx.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
                         let mut handles = vec![];
                         for step in &hook.block {
-                            match step {
-                                WebSocketStep::SendStep(snd)=>{
-                                    ws_stream.send(Message::Text(format!("{}",snd.evaluate(&ctx).await?.to_string()) )).await?;
-                                },
-                                WebSocketStep::NormalStep(stp)=>{
-                                    let mut inner_handles = stp.execute(&ctx).await?;
-                                    handles.append(&mut inner_handles);
-                                }
-                            }
+                            let mut inner_handles = step.execute(&ctx).await?;
+                            handles.append(&mut inner_handles);
                         }
                         futures::future::join_all(handles).await;
                     }
@@ -93,12 +115,7 @@ impl Executable for WebSocketServerStep {
     fn get_deps(&self) -> Vec<String> {
         let mut deps = vec![];
         for step in &self.hook.block {
-            match step {
-                WebSocketStep::NormalStep(s)=>{
-                    deps.append(&mut s.get_deps());
-                }
-                _=>{}
-            }
+            deps.append(&mut step.get_deps());
         }
         deps
     }
