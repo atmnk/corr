@@ -1,4 +1,4 @@
-use crate::core::{Value, DataType, Variable, VariableValue};
+use crate::core::{Value, DataType, Variable, VariableValue, Number};
 use std::sync::{Arc};
 use tokio::sync::RwLock;
 use futures::lock::Mutex;
@@ -435,6 +435,21 @@ impl ReferenceStore{
         }
     }
     #[async_recursion]
+    pub async fn remove(&self,path:String,value:Number){
+        let array = if let Some(arc) = self.references.read().await.get(&path){
+            arc.clone()
+        } else {
+            return
+        };
+        let ho =&mut *array.write().await;
+        match ho {
+            HeapObject::List(ls)=>{
+                ls.remove(value.as_usize().unwrap());
+            }
+            _=>{}
+        }
+    }
+    #[async_recursion]
     pub async fn set(&self,path:String,value:Arc<RwLock<HeapObject>>){
         if let Some((left,right)) = break_on(path.clone(),'.'){
             let mut new_obj = false;
@@ -676,6 +691,16 @@ impl Context {
     }
     pub async fn undefine(&self,var:String){
         self.delete(var).await;
+    }
+    pub async fn remove(&self,var:String,value:Value){
+        if self.store.contains_reference(var.clone()).await{
+            self.store.remove(var,value.to_number().unwrap()).await;
+        } else if self.global_store.contains_reference(var.clone()).await {
+            self.global_store.remove(var,value.to_number().unwrap()).await;
+        } else {
+            self.store.remove(var,value.to_number().unwrap()).await;
+        }
+
     }
     pub async fn push(&self,var:String,value:Value){
         if self.store.contains_reference(var.clone()).await{
