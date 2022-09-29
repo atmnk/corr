@@ -71,6 +71,7 @@ impl Executable for WebSocketServerStep {
         let accept_connection = async  move |peer: SocketAddr, stream: TcpStream,ctx_para:Context,hook:WebSocketServerHook|{
             let ctx = ctx_para.clone();
             let  handle_connection= async move |peer: SocketAddr, stream: TcpStream| -> Result<()> {
+                let ctx = Context::from_without_fallback(&ctx).await;
                 let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
                 let (mut tx,mut rx) = ws_stream.split();
                 let connId = uuid::Uuid::new_v4().to_string();
