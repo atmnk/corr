@@ -1,5 +1,5 @@
 use crate::parser::{Parsable, ws};
-use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep, JourneyStep, WaitStep, TransactionStep, MetricStep, WhileStep, ExitStep};
+use crate::journey::step::system::{SystemStep, PrintStep, ForLoopStep, AssignmentStep, PushStep, ConditionalStep, IfPart, SyncStep, LoadAssignStep, JourneyStep, WaitStep, TransactionStep, MetricStep, WhileStep, ExitStep, RemoveStep};
 use crate::parser::ParseResult;
 use nom::combinator::{map, opt};
 use nom::sequence::{delimited, preceded, terminated, tuple};
@@ -75,6 +75,11 @@ impl Parsable for PushStep{
         map(tuple((ws(VariableReferenceName::parser),ws(tag(".push")),ws(tag("(")),ws(Assignable::parser),ws(tag(")")))),|(var,_,_,assbl,_)|{PushStep::WithVariableName(var,assbl)})(input)
     }
 }
+impl Parsable for RemoveStep{
+    fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
+        map(tuple((ws(VariableReferenceName::parser),ws(tag(".remove")),ws(tag("(")),ws(Expression::parser),ws(tag(")")))),|(var,_,_,assbl,_)|{RemoveStep::WithVariableName(var,assbl)})(input)
+    }
+}
 fn for_left_part<'a>(input: &'a str) -> ParseResult<'a, VariableReferenceName>{
     map(tuple((
         ws(VariableReferenceName::parser),
@@ -136,6 +141,7 @@ impl Parsable for SystemStep{
             map(AssignmentStep::parser,|asst| SystemStep::Assignment(asst)),
             map(SyncStep::parser,|asst| SystemStep::Sync(asst)),
             map(PushStep::parser,|ps|{SystemStep::Push(ps)}),
+            map(RemoveStep::parser,|rs|{SystemStep::Remove(rs)}),
             map(preceded(ws(tag("call")),ws(JourneyStep::parser)),|js|{SystemStep::JourneyStep(js)}),
             )
         )

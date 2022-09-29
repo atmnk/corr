@@ -40,7 +40,7 @@ pub fn get_journey_keywords<'a>()->Vec<&'a str>{
                 "background",
                 "connect",
                 "listener",
-                "postgres","form","push","sync","load","object","text","for","let","request","url","body","headers","get","put","post","patch","delete","matching","and"]
+                "postgres","form","push","remove","sync","load","object","text","for","let","request","url","body","headers","get","put","post","patch","delete","matching","and"]
 }
 pub fn get_scriptlet_keywords<'a>()->Vec<&'a str>{
     return vec!["null","true","false"]
