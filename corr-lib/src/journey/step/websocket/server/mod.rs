@@ -76,7 +76,7 @@ impl Executable for WebSocketServerStep {
                 let (mut tx,mut rx) = ws_stream.split();
                 let connId = uuid::Uuid::new_v4().to_string();
                 ctx.websocket_clients.define(connId.clone(),tx).await;
-                ctx.define("connectionId".to_string(),Value::String(connId)).await;
+                ctx.define("connectionId".to_string(),Value::String(connId.clone())).await;
                 println!("New WebSocket connection: {}", peer);
                 while let Some(Ok(ms)) = rx.next().await {
                     if ms.is_text() {
@@ -94,6 +94,17 @@ impl Executable for WebSocketServerStep {
                             futures::future::join_all(handles).await;
                         };
                         tokio::spawn(cb());
+                    }
+                    if ms.is_close() {
+                        if let Some(conn) = ctx.websocket_clients.get(connId.clone()).await{
+                            let mut connection = conn.lock().await;
+                            if let Err(e)=(*connection).close().await{
+                                eprintln!("Error while closing connection for connection id {}",connId.clone());
+                            }
+                        } else {
+                            eprintln!("Websocket with name {} not found",connId.clone());
+                        }
+
                     }
                 }
 
