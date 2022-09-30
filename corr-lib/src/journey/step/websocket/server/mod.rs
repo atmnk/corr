@@ -78,22 +78,16 @@ impl Executable for WebSocketServerStep {
                 ctx.websocket_clients.define(connId.clone(),tx).await;
                 ctx.define("connectionId".to_string(),Value::String(connId)).await;
                 println!("New WebSocket connection: {}", peer);
-                while let Some(Ok(ms)) = rx.next().await {
-                    let m = ms.clone();
-                    let hook = hook.clone();
-                    let ctx = Context::from_without_fallback(&ctx).await;
-                    let cb = async move ||{
+                while let Some(Ok(m)) = rx.next().await {
+                    if m.is_text() {
                         let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
                         ctx.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
                         let mut handles = vec![];
                         for step in &hook.block {
-                            let mut inner_handles = step.execute(&ctx).await.unwrap();
+                            let mut inner_handles = step.execute(&ctx).await?;
                             handles.append(&mut inner_handles);
                         }
                         futures::future::join_all(handles).await;
-                    };
-                    if ms.is_text() {
-                        tokio::spawn(cb());
                     }
                 }
 
