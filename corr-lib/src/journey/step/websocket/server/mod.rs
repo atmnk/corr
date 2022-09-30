@@ -79,20 +79,20 @@ impl Executable for WebSocketServerStep {
                 ctx.define("connectionId".to_string(),Value::String(connId)).await;
                 println!("New WebSocket connection: {}", peer);
                 while let Some(Ok(ms)) = rx.next().await {
-                    let m = ms.clone();
-                    let hook = hook.clone();
-                    let ctx = Context::from_without_fallback(&ctx).await;
-                    let cb = async move ||{
-                        let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
-                        ctx.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
-                        let mut handles = vec![];
-                        for step in &hook.block {
-                            let mut inner_handles = step.execute(&ctx).await.unwrap();
-                            handles.append(&mut inner_handles);
-                        }
-                        futures::future::join_all(handles).await;
-                    };
                     if ms.is_text() {
+                        let m = ms.clone();
+                        let hook = hook.clone();
+                        let ctx = Context::from_without_fallback(&ctx).await;
+                        let cb = async move ||{
+                            let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
+                            ctx.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
+                            let mut handles = vec![];
+                            for step in &hook.block {
+                                let mut inner_handles = step.execute(&ctx).await.unwrap();
+                                handles.append(&mut inner_handles);
+                            }
+                            futures::future::join_all(handles).await;
+                        };
                         tokio::spawn(cb());
                     }
                 }
@@ -107,12 +107,13 @@ impl Executable for WebSocketServerStep {
         let om_out=self.hook.clone();
 
         let connect = async move||{
-            while let Ok((stream,_)) = listner.accept().await{
+            while true {
+                let (stream,_) = listner.accept().await? ;
                 let om=om_out.clone();
                 let new_ct = new_ct_out.clone();
                 let peer = stream.peer_addr().expect("connected streams should have a peer address");
                 tokio::spawn(accept_connection(peer,stream,new_ct,om));
-            };
+            }
             Ok(true)
         };
         let handle = tokio::spawn(connect());
