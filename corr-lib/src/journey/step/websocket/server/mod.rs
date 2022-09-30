@@ -96,6 +96,7 @@ impl Executable for WebSocketServerStep {
                         tokio::spawn(cb());
                     }
                     if ms.is_close() {
+                        println!("Got close for connection with id {}",connId.clone());
                         if let Some(conn) = ctx.websocket_clients.get(connId.clone()).await{
                             let mut connection = conn.lock().await;
                             if let Err(e)=(*connection).close().await{
@@ -104,7 +105,8 @@ impl Executable for WebSocketServerStep {
                         } else {
                             eprintln!("Websocket with name {} not found",connId.clone());
                         }
-
+                        ctx.websocket_clients.undefine(connId.clone()).await;
+                        println!("Closed connection with id {}",connId.clone());
                     }
                 }
 
