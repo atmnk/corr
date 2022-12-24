@@ -26,6 +26,7 @@ pub enum SystemStep{
     Assignment(AssignmentStep),
     Undefine(VariableReferenceName),
     Push(PushStep),
+    Remove(RemoveStep),
     LoadAssign(LoadAssignStep),
     Sync(SyncStep),
     Background(Vec<Step>),
@@ -58,6 +59,10 @@ pub enum AssignmentStep {
 #[derive(Debug, Clone,PartialEq)]
 pub enum PushStep {
     WithVariableName(VariableReferenceName,Assignable)
+}
+#[derive(Debug, Clone,PartialEq)]
+pub enum RemoveStep {
+    WithVariableName(VariableReferenceName,Expression)
 }
 
 #[derive(Debug, Clone,PartialEq)]
@@ -263,6 +268,22 @@ impl Executable for PushStep{
     }
 }
 #[async_trait]
+impl Executable for RemoveStep{
+
+    async fn execute(&self, context: &Context) -> Result<Vec<JoinHandle<Result<bool>>>> {
+        match self {
+            RemoveStep::WithVariableName(var, asbl)=>{
+                context.remove(var.to_string(),asbl.fill(context).await?).await;
+            }
+        }
+        return Ok(vec![])
+    }
+
+    fn get_deps(&self) -> Vec<String> {
+        vec![]
+    }
+}
+#[async_trait]
 impl Executable for PrintStep{
 
     async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
@@ -383,6 +404,9 @@ impl Executable for SystemStep{
             SystemStep::Push(pt)=>{
                 pt.execute(context).await
             },
+            SystemStep::Remove(pt)=>{
+                pt.execute(context).await
+            },
             SystemStep::Condition(pt)=>{
                 pt.execute(context).await
             },
@@ -438,6 +462,9 @@ impl Executable for SystemStep{
                 wl.get_deps()
             },
             SystemStep::Push(pt)=>{
+                pt.get_deps()
+            },
+            SystemStep::Remove(pt)=>{
                 pt.get_deps()
             },
             SystemStep::Condition(pt)=>{

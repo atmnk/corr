@@ -1,4 +1,4 @@
-use crate::core::{Value, DataType, Variable, VariableValue};
+use crate::core::{Value, DataType, Variable, VariableValue, Number};
 use std::sync::{Arc};
 use tokio::sync::RwLock;
 use futures::lock::Mutex;
@@ -107,6 +107,10 @@ pub struct RestStatsStore{
 pub struct TransactionsStatsStore{
     parent:Option<Box<TransactionsStatsStore>>,
     samples:Arc<Mutex<Vec<(String,u128)>>>
+}
+#[derive(Clone)]
+pub struct WebSocketClientConnections{
+    references: Arc<Mutex<HashMap<String,Arc<Mutex<SplitSink<WebSocketStream<TcpStream>,Message>>>>>>
 }
 #[derive(Clone)]
 pub struct WebsocketConnectionStore{
@@ -356,6 +360,31 @@ impl WebsocketConnectionStore{
         refs.remove(&path);
     }
 }
+impl WebSocketClientConnections{
+    pub fn new()->Self{
+        Self{
+            references:Arc::new(Mutex::new(HashMap::new()))
+        }
+    }
+    pub async fn from(rs:&WebSocketClientConnections)->Self{
+        return Self{
+            references:rs.references.clone()
+        }
+    }
+
+    pub async fn get(&self,name:String)->Option<Arc<Mutex<SplitSink<WebSocketStream<TcpStream>,Message>>>>{
+        let tmp = self.references.lock().await;
+        tmp.get(&(name)).map(|arc|arc.clone())
+    }
+    pub async fn define(&self,path:String,connection:SplitSink<WebSocketStream<TcpStream>,Message>){
+        let mut refs = self.references.lock().await;
+        refs.insert(path,Arc::new(Mutex::new(connection)));
+    }
+    pub async fn undefine(&self,path:String){
+        let mut refs = self.references.lock().await;
+        refs.remove(&path);
+    }
+}
 impl ReferenceStore{
     pub fn new()->Self{
         Self{
@@ -403,6 +432,21 @@ impl ReferenceStore{
                 }
                 _=>{}
             }
+        }
+    }
+    #[async_recursion]
+    pub async fn remove(&self,path:String,value:Number){
+        let array = if let Some(arc) = self.references.read().await.get(&path){
+            arc.clone()
+        } else {
+            return
+        };
+        let ho =&mut *array.write().await;
+        match ho {
+            HeapObject::List(ls)=>{
+                ls.remove(value.as_usize().unwrap());
+            }
+            _=>{}
         }
     }
     #[async_recursion]
@@ -567,6 +611,7 @@ pub struct Context{
     global_store:ReferenceStore,
     store:ReferenceStore,
     pub connection_store:ConnectionStore,
+    pub websocket_clients:WebSocketClientConnections,
     pub websocket_connection_store:WebsocketConnectionStore,
     pub rest_stats_store:RestStatsStore,
     pub tr_stats_store:TransactionsStatsStore,
@@ -612,6 +657,7 @@ impl Context {
             user:context.user.clone(),
             connection_store:ConnectionStore::new(),
             websocket_connection_store:WebsocketConnectionStore::new(),
+            websocket_clients:WebSocketClientConnections::new(),
             rest_stats_store:context.rest_stats_store.clone(),
             tr_stats_store:context.tr_stats_store.clone(),
             global_store:context.global_store.clone(),
@@ -629,6 +675,7 @@ impl Context {
             user:user,
             connection_store:ConnectionStore::new(),
             websocket_connection_store:WebsocketConnectionStore::new(),
+            websocket_clients:WebSocketClientConnections::new(),
             rest_stats_store:RestStatsStore::new(),
             tr_stats_store:TransactionsStatsStore::new(),
             global_store:ReferenceStore::new(),
@@ -644,6 +691,16 @@ impl Context {
     }
     pub async fn undefine(&self,var:String){
         self.delete(var).await;
+    }
+    pub async fn remove(&self,var:String,value:Value){
+        if self.store.contains_reference(var.clone()).await{
+            self.store.remove(var,value.to_number().unwrap()).await;
+        } else if self.global_store.contains_reference(var.clone()).await {
+            self.global_store.remove(var,value.to_number().unwrap()).await;
+        } else {
+            self.store.remove(var,value.to_number().unwrap()).await;
+        }
+
     }
     pub async fn push(&self,var:String,value:Value){
         if self.store.contains_reference(var.clone()).await{
@@ -674,6 +731,7 @@ impl Context {
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
             websocket_connection_store:WebsocketConnectionStore::from(&context.websocket_connection_store).await,
+            websocket_clients:WebSocketClientConnections::from(&context.websocket_clients).await,
             rest_stats_store:RestStatsStore::from(&context.rest_stats_store).await,
             tr_stats_store:TransactionsStatsStore::from(&context.tr_stats_store).await,
             global_store:context.global_store.clone(),
@@ -691,6 +749,7 @@ impl Context {
             user:context.user.clone(),
             connection_store:ConnectionStore::from(&context.connection_store).await,
             websocket_connection_store:WebsocketConnectionStore::from(&context.websocket_connection_store).await,
+            websocket_clients:WebSocketClientConnections::from(&context.websocket_clients).await,
             rest_stats_store:RestStatsStore::from(&context.rest_stats_store).await,
             tr_stats_store:TransactionsStatsStore::from(&context.tr_stats_store).await,
             global_store:context.global_store.clone(),
