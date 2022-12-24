@@ -30,7 +30,7 @@ base64 = "0.13.0"
 rand = "0.7.3"
 strfmt = "0.1.6"
 hyper = { version = "0.14", features = ["full"] }
-regex = "1.5.4"
+regex = "1.5.5"
 captcha = "0.0.8"
 multer = "2.0.1"
 hyper-tls = "0.5.0"
