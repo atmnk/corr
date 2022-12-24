@@ -18,7 +18,6 @@ jobs:
           toolchain: nightly
           override: true
       - uses: Swatinem/rust-cache@v1
-      - uses: actions/checkout@v2
       - run: cargo test --all
     outputs:
       job-status: ${{ job.status }}
