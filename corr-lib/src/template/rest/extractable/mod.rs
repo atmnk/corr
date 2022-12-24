@@ -12,6 +12,7 @@ use hyper::{header::HeaderValue};
 use hyper::HeaderMap;
 use crate::template::rest::MultipartField;
 use crate::template::form::extractable::ExtractableForm;
+use crate::template::text::extractable::ExtractableText;
 // use formdata::FormData;
 
 #[derive(Debug, Clone,PartialEq)]
@@ -63,11 +64,13 @@ impl CorrResponse {
 #[derive(Debug, Clone,PartialEq)]
 pub enum ExtractableBody {
     WithObject(ExtractableObject),
-    WithForm(ExtractableForm)
+    WithForm(ExtractableForm),
+    WithText(ExtractableText)
 }
 pub enum RestBody {
     JSON(serde_json::Value),
-    Form(Vec<MultipartField>)
+    Form(Vec<MultipartField>),
+    Text(String)
     // FormData(FormData)
 }
 #[derive(Debug, Clone,PartialEq)]
@@ -79,10 +82,18 @@ pub struct ExtractableRestData {
 impl Extractable<RestBody> for ExtractableBody {
     async fn extract_from(&self, context: &Context, value: RestBody) {
         match self {
+            ExtractableBody::WithText(eb)=>{
+                match value {
+                    RestBody::Text(val)=>{
+                        eb.capture(val.as_str(),context).await;
+                    },
+                    _=>{}
+                }
+            }
             ExtractableBody::WithObject(eb)=>{
                 match value {
                     RestBody::JSON(body)=>{
-                        eb.extract_from(context,body).await
+                        eb.extract_from(context,body).await;
                     },
                     _=>{}
                 }
@@ -90,7 +101,7 @@ impl Extractable<RestBody> for ExtractableBody {
             },
             ExtractableBody::WithForm(form)=>{
                 if let RestBody::Form(fields) = value {
-                    form.extract_from(context,fields).await
+                    form.extract_from(context,fields).await;
                 }
             }
         }
@@ -103,6 +114,9 @@ impl Extractable<CorrResponse> for ExtractableRestData {
                 match eb {
                     ExtractableBody::WithObject(_)=>{
                         eb.extract_from(context, RestBody::JSON(serde_json::from_str::<serde_json::Value>(value.body.as_str()).unwrap_or(serde_json::Value::Null))).await;
+                    },
+                    ExtractableBody::WithText(_)=>{
+                       eb.extract_from(context,RestBody::Text(value.body.clone())).await
                     },
                     _=>{}
                 }
@@ -119,6 +133,22 @@ impl Extractable<(serde_json::Value,HeaderMap)> for ExtractableRestData {
             match eb {
                 ExtractableBody::WithObject(_)=>{
                     eb.extract_from(context, RestBody::JSON(body)).await;
+                }
+                _=>{}
+            }
+        }
+        if let Some(eh) = &self.headers{
+            eh.extract_from(context,headers).await
+        }
+    }
+}
+#[async_trait]
+impl Extractable<(String,HeaderMap)> for ExtractableRestData {
+    async fn extract_from(&self, context: &Context, (body,headers): (String,HeaderMap)) {
+        if let Some(eb) = &self.body{
+            match eb {
+                ExtractableBody::WithText(_)=>{
+                    eb.extract_from(context, RestBody::Text(body)).await;
                 }
                 _=>{}
             }
