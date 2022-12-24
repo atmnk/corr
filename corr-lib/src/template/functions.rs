@@ -14,6 +14,7 @@ use rand::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
 use strfmt::{ Formatter, strfmt_map};
 use std::collections::HashMap;
+use std::env;
 use anyhow::Result;
 use captcha::Captcha;
 use num_traits::ToPrimitive;
@@ -72,6 +73,10 @@ pub struct Contains;
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct CorrCaptcha;
+
+//Concat Function
+#[derive(Debug,Clone,PartialEq)]
+pub struct EnvVar;
 
 //Concat Function
 #[derive(Debug,Clone,PartialEq)]
@@ -279,7 +284,12 @@ impl Function for Contains{
     }
 }
 
-
+#[async_trait]
+impl Function for EnvVar{
+    async fn evaluate(&self, args: Vec<Expression>, context: &Context) -> Result<Value> {
+        Ok(env::var(args.get(0).unwrap().evaluate(context).await?.to_string()).map(|e|Value::String(e)).unwrap_or(Value::Null))
+    }
+}
 //Add Function
 #[derive(Debug,Clone,PartialEq)]
 pub struct Add;
@@ -1063,7 +1073,8 @@ pub fn functions()->Vec<(&'static str,Arc<dyn Function>)>{
         ("array",Arc::new(Array{})),
         ("unique_random_elements",Arc::new(UniqueRandomElements{})),
         ("contains",Arc::new(Contains{})),
-        ("random_element",Arc::new(RandomElement{}))
+        ("random_element",Arc::new(RandomElement{})),
+        ("env",Arc::new(EnvVar{}))
     ]
 }
 pub fn function_names()->Vec<&'static str>{

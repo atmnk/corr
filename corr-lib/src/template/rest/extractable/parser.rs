@@ -10,6 +10,7 @@ use nom::multi::separated_list1;
 use crate::core::parser::string;
 use crate::template::VariableReferenceName;
 use crate::template::form::extractable::ExtractableForm;
+use crate::template::text::extractable::ExtractableText;
 
 impl Parsable for ExtractableRestData {
     fn parser<'a>(input: &'a str) -> ParseResult<'a, Self> {
@@ -44,6 +45,8 @@ impl Parsable for ExtractableBody {
         alt((
         map(ExtractableForm::parser,|ef|
             ExtractableBody::WithForm(ef)),
+        map(ExtractableText::parser,|ef|
+            ExtractableBody::WithText(ef)),
         map(ExtractableObject::parser,|eo|
             ExtractableBody::WithObject(eo)),
 
