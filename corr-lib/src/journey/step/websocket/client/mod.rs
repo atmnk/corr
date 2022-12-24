@@ -2,7 +2,7 @@ use std::str::FromStr;
 use futures_util::{SinkExt, StreamExt};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{Connector};
-use tokio_tungstenite::tungstenite::{http, Message};
+use tokio_tungstenite::tungstenite::{Message};
 use crate::core::runtime::Context;
 use crate::journey::{Executable};
 use crate::template::{Expression, Fillable, VariableReferenceName};
