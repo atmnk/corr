@@ -3,11 +3,8 @@ use crate::core::runtime::Context;
 use crate::template::VariableReferenceName;
 use crate::template::object::extractable::{ExtractableObject, Extractable};
 use async_trait::async_trait;
-// use warp::hyper::http::HeaderValue;
 use crate::core::Value;
 use hyper::{header::HeaderValue};
-// use isahc::prelude::Response;
-// use isahc::Body;
 
 use hyper::HeaderMap;
 use crate::template::rest::MultipartField;
@@ -212,11 +209,11 @@ mod tests{
     use crate::core::{Value};
     use crate::core::proto::{Output};
     use std::sync::{Arc, Mutex};
+    use hyper::header::HeaderValue;
     use crate::core::runtime::{Context};
     use crate::parser::Parsable;
     use crate::template::rest::extractable::{ExtractableHeaderValue, ExtractableHeaders, CorrResponse, Header, ExtractableRestData, ExtractableBody, RestBody};
     use crate::template::object::extractable::Extractable;
-    use warp::hyper::http::HeaderValue;
 
     #[tokio::test]
     async fn should_extract_extractableresponseheadervalue(){

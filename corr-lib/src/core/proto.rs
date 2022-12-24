@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::result;
-use warp::Error;
 use crate::core::{DataType, convert, VariableValue};
 
-pub type Result<T> = result::Result<T, Error>;
+pub type Result<T> = result::Result<T, anyhow::Error>;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload", rename_all = "camelCase")]
 pub enum Input {
