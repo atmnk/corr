@@ -1,5 +1,12 @@
 `Server`(){
-    listen on 8088 with {
-        on get with url text `/` { respond with body "Hello" }
+    let cons = object []
+    websocket server 8088 with listener msg=>{
+        print text `<%connectionId%>`
+        if !cons.contains(connectionId) {
+            cons.push(connectionId)
+        }
+        cons.for(cid)=> {
+            to websocket client cid send msg
+        }
     }
 }

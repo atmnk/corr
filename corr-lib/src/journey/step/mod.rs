@@ -16,7 +16,7 @@ use crate::journey::step::listner::StartListenerStep;
 use tokio::task::JoinHandle;
 use crate::journey::step::db::{DefineConnectionStep, ExecuteStep};
 use crate::journey::step::websocket::client::{WebSocketClientConnectStep, WebSocketCloseStep, WebSocketSendStep};
-use crate::journey::step::websocket::server::WebSocketServerStep;
+use crate::journey::step::websocket::server::{WebSocketServerSendToClient, WebSocketServerStep};
 
 #[derive(Debug, Clone,PartialEq)]
 pub enum Step{
@@ -27,7 +27,8 @@ pub enum Step{
     InsertStep(ExecuteStep),
     WebSocketServer(WebSocketServerStep),
     WebSocketClientConnect(WebSocketClientConnectStep),
-    WebSocketClientSend(WebSocketSendStep),
+    WebSocketClientSendMessage(WebSocketSendStep),
+    WebSocketServerSendToClient(WebSocketServerSendToClient),
     WebSocketClientClose(WebSocketCloseStep),
     // Rest(RestStep)
 }
@@ -58,7 +59,10 @@ impl Executable for Step{
             Step::WebSocketClientConnect(ws)=>{
                 ws.execute(context).await
             },
-            Step::WebSocketClientSend(ws)=>{
+            Step::WebSocketClientSendMessage(ws)=>{
+                ws.execute(context).await
+            },
+            Step::WebSocketServerSendToClient(ws)=>{
                 ws.execute(context).await
             },
             Step::WebSocketClientClose(ws)=>{
@@ -71,6 +75,7 @@ impl Executable for Step{
     }
     fn get_deps(&self)->Vec<String> {
         match self {
+
             Step::System(sys_step)=>{
                 return sys_step.get_deps()
             },
@@ -92,11 +97,14 @@ impl Executable for Step{
             Step::WebSocketClientConnect(ws)=>{
                 ws.get_deps()
             },
-            Step::WebSocketClientSend(ws)=>{
+            Step::WebSocketClientSendMessage(ws)=>{
                 ws.get_deps()
             },
-            Step::WebSocketClientClose(ws)=>{
+            Step::WebSocketServerSendToClient(ws)=>{
                 ws.get_deps()
+            },
+            Step::WebSocketClientClose(cc)=>{
+                cc.get_deps()
             }
             // Step::Rest(rest_step)=>{
             //     rest_step.execute(context).await

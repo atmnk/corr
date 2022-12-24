@@ -1,0 +1,14 @@
+`WSClient`(){
+    connect websocket named "WebsocketClient" with url "ws://localhost:8088" and listener msg=>{
+        print text `Client0: <%msg%>`
+    }
+    let data = read_binary("./src/Server.journey")
+    send "From Client 0 Hello" on websocket named "WebsocketClient"
+    send "From Client 0 Hi" on websocket named "WebsocketClient"
+    send binary data on websocket named "WebsocketClient"
+    connect websocket named "WebsocketClient1" with url "ws://localhost:8088" and listener msg=>{
+        print text `Client1: <%msg%>`
+    }
+    send "From Client 1 Hello" on websocket named "WebsocketClient1"
+    send "From Client 1 Hi" on websocket named "WebsocketClient1"
+}
