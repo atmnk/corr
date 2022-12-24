@@ -13,9 +13,6 @@ jobs:
     name: Test The Commit
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: dev
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
