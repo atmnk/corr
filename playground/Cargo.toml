@@ -5,7 +5,7 @@ authors = ["Atmaram Naik <naik.atmaram@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-tokio = { version = "1.4.0", features = ["full"] }
+tokio = { version = "1.23.1", features = ["full"] }
 async-trait = "0.1.36"
 futures = "0.3.17"
 futures-util = "*"
