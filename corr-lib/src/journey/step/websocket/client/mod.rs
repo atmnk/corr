@@ -62,9 +62,9 @@ impl Executable for WebSocketClientConnectStep {
         }
         let start = Instant::now();
         let conn=if url.starts_with("wss") {
-            tokio_tungstenite::connect_async_tls_with_config(req, Some(WebSocketConfig::default()), Some(Connector::NativeTls(TlsConnector::builder().danger_accept_invalid_certs(true).build()?))).await
+            tokio_tungstenite::connect_async_tls_with_config(req, Some(WebSocketConfig::default()), false,Some(Connector::NativeTls(TlsConnector::builder().danger_accept_invalid_certs(true).build()?))).await
         } else {
-            tokio_tungstenite::connect_async_with_config(req,Some(WebSocketConfig::default())).await
+            tokio_tungstenite::connect_async_with_config(req,Some(WebSocketConfig::default()),false).await
         };//;
         let duration = start.elapsed();
         context.scrapper.ingest("connection_time",duration.as_millis() as f64,vec![(format!("name"),name.clone())]).await;
