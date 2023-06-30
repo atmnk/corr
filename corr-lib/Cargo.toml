@@ -1,6 +1,6 @@
 [package]
 name = "corr-lib"
-version = "1.2.0"
+version = "1.2.1"
 authors = ["ATM <naik.atmaram@gmail.com>"]
 edition = "2018"
 
@@ -39,5 +39,5 @@ rdbc-async-postgres = { git = "https://github.com/qalens/rdbc-async" }
 url = "2.2.2"
 hound = "3.4.0"
 serde_urlencoded = "0.7.1"
-influxdb2 ="0.1.0"
+influxdb2 ="0.4.2"
 anyhow = "1.0.58"

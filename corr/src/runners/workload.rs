@@ -81,7 +81,7 @@ async fn schedule_scenario(scenario:Scenario, journeys:HashMap<String,Arc<Journe
             let mut ct = count.write().await;
             let vuct = vuc.read().await;
             scpr.ingest("iteration_count",*ct,vec![("journey".to_string(),jn.clone())]).await;
-            scpr.ingest("vus",dist*(*vuct),vec![("jounrey".to_string(),jn.clone())]).await;
+            scpr.ingest("vus",dist*(*vuct),vec![("journey".to_string(),jn.clone())]).await;
             *ct = 0.0;
             sleep(Duration::from_millis(100)).await
         }
