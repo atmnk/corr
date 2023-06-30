@@ -15,7 +15,7 @@ use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::{accept_async};
 use tokio_tungstenite::tungstenite::{Message};
 use crate::core::Value;
-use crate::template::functions::Uuid;
+
 
 #[derive(Debug, Clone,PartialEq)]
 pub struct WebSocketServerHook{
@@ -72,8 +72,8 @@ impl Executable for WebSocketServerStep {
             let ctx = ctx_para.clone();
             let  handle_connection= async move |peer: SocketAddr, stream: TcpStream| -> Result<()> {
                 let ctx = Context::from_without_fallback(&ctx).await;
-                let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
-                let (mut tx,mut rx) = ws_stream.split();
+                let ws_stream = accept_async(stream).await.expect("Failed to accept");
+                let (tx,mut rx) = ws_stream.split();
                 let connId = uuid::Uuid::new_v4().to_string();
                 ctx.websocket_clients.define(connId.clone(),tx).await;
                 ctx.define("connectionId".to_string(),Value::String(connId)).await;
