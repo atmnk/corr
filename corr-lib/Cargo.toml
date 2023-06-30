@@ -1,6 +1,6 @@
 [package]
 name = "corr-lib"
-version = "1.2.0"
+version = "1.2.1"
 authors = ["ATM <naik.atmaram@gmail.com>"]
 edition = "2018"
 
