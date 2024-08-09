@@ -20,7 +20,7 @@ futures-util = "*"
 tokio-tungstenite = { version = "0.19.0", features = ["native-tls"] }
 tokio = { version = "1.39.2", features = ["full"] }
 async-trait = "0.1.81"
-async-recursion = "0.3.2"
+async-recursion = "1.1.1"
 nom = "7.0.0"
 nom_locate = "4.0.0"
 fake = "2.2.3"
