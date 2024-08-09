@@ -84,7 +84,8 @@ async fn handle(
                                 Ok(val) => {
                                     stub.rest_data.extract_from(&context, (val, parts.headers.clone())).await;
                                 },
-                                Err(_) => {
+                                Err(e) => {
+                                    stub.rest_data.extract_from(&context, (serde_json::Value::Null, parts.headers.clone())).await;
                                 }
                             }
                         } else {
