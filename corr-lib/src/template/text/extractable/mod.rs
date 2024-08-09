@@ -25,7 +25,7 @@ impl ExtractableText{
                 }
             },
             Self::Multi(first,vars,last)=>{
-                let mut remaining = input.clone();
+                let mut remaining = input;
                 let mut vars_to_define = vec![] ;
                 if let Some(f) = first {
                     if let Some((i,_t))=dynamic_tag (remaining,f.clone()).ok(){
