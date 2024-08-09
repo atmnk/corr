@@ -1,4 +1,4 @@
-#![feature(generators, generator_trait)]
+#![feature(coroutines)]
 #![feature(async_closure)]
 #![feature(backtrace)]
 use std::str::FromStr;
