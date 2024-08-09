@@ -100,7 +100,7 @@ impl Executable for WebSocketServerStep {
         let new_ct_out = context.clone();
         let om_out=self.hook.clone();
 
-        let connect = async move||{
+        let connect = async move|listner:TcpListener,om_out:WebSocketServerHook,new_ct_out:Context|{
             while let Ok((stream,_)) = listner.accept().await{
                 let om=om_out.clone();
                 let new_ct = new_ct_out.clone();
@@ -109,7 +109,7 @@ impl Executable for WebSocketServerStep {
             };
             Ok(true)
         };
-        let handle = tokio::spawn(connect());
+        let handle = tokio::spawn(connect(listner,om_out,new_ct_out));
         Ok(vec![handle])
     }
 
