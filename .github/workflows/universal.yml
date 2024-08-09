@@ -30,7 +30,7 @@ jobs:
           version: latest
       - name: Get the version
         id: get_version
-        run: echo "::set-output name=VERSION::$(cargo get --root corr version)"
+        run: echo "::set-output name=VERSION::$(cargo get package.version --entry corr)"
       ## Windows Steps For Building and Publishing Binaries
       - name: Install Wix
         if: "contains(matrix.target_os, 'windows')"
