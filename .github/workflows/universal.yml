@@ -97,7 +97,7 @@ jobs:
           args: --release --all-features --package corr
       - name: Compress corr package
         if: "contains(matrix.target_os, 'macos')"
-        uses: master-atul/tar-action@v1.0.2
+        uses: a7ul/tar-action@v1.1.0
         id: compress-corr
         with:
           command: c
