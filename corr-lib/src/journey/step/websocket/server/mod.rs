@@ -67,41 +67,41 @@ impl Executable for WebSocketServerStep {
 
     async fn execute(&self,context: &Context)->Result<Vec<JoinHandle<Result<bool>>>> {
         let addr = format!("0.0.0.0:{}",self.port.evaluate(context).await?.to_string());
-        let listner = TcpListener::bind(&addr).await.expect("Can't listen");
-        let accept_connection = async  move |peer: SocketAddr, stream: TcpStream,ctx_para:Context,hook:WebSocketServerHook|{
-            let ctx = ctx_para.clone();
-            let  handle_connection= async move |peer: SocketAddr, stream: TcpStream| -> Result<()> {
-                let ctx = Context::from_without_fallback(&ctx).await;
-                let ws_stream = accept_async(stream).await.expect("Failed to accept");
-                let (tx,mut rx) = ws_stream.split();
-                let connId = uuid::Uuid::new_v4().to_string();
-                ctx.websocket_clients.define(connId.clone(),tx).await;
-                ctx.define("connectionId".to_string(),Value::String(connId)).await;
-                println!("New WebSocket connection: {}", peer);
-                while let Some(Ok(m)) = rx.next().await {
-                    if m.is_text() {
-                        let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
-                        ctx.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
-                        let mut handles = vec![];
-                        for step in &hook.block {
-                            let mut inner_handles = step.execute(&ctx).await?;
-                            handles.append(&mut inner_handles);
-                        }
-                        futures::future::join_all(handles).await;
-                    }
-                }
-
-                Ok(())
-            };
-            if let Err(e) = handle_connection(peer, stream).await {
-                println!("Error processing connection: {}", e)
-            }
-        };
+        let listener = TcpListener::bind(&addr).await.expect("Can't listen");
         let new_ct_out = context.clone();
         let om_out=self.hook.clone();
 
-        let connect = async move|listner:TcpListener,om_out:WebSocketServerHook,new_ct_out:Context|{
-            while let Ok((stream,_)) = listner.accept().await{
+        let connect = async move|listener:TcpListener, om_out:WebSocketServerHook, new_ct_out:Context|{
+            let accept_connection = async  move |peer: SocketAddr, stream: TcpStream,ctx_para:Context,hook:WebSocketServerHook|{
+                let ctx = ctx_para.clone();
+                let  handle_connection= async move |peer: SocketAddr, stream: TcpStream| -> Result<()> {
+                    let ctx = Context::from_without_fallback(&ctx).await;
+                    let ws_stream = accept_async(stream).await.expect("Failed to accept");
+                    let (tx,mut rx) = ws_stream.split();
+                    let connId = uuid::Uuid::new_v4().to_string();
+                    ctx.websocket_clients.define(connId.clone(),tx).await;
+                    ctx.define("connectionId".to_string(),Value::String(connId)).await;
+                    println!("New WebSocket connection: {}", peer);
+                    while let Some(Ok(m)) = rx.next().await {
+                        if m.is_text() {
+                            let sv = serde_json::from_str(&m.to_string()).unwrap_or(serde_json::Value::String(m.to_string()));
+                            ctx.define(hook.variable.to_string(),Value::from_json_value(sv)).await;
+                            let mut handles = vec![];
+                            for step in &hook.block {
+                                let mut inner_handles = step.execute(&ctx).await?;
+                                handles.append(&mut inner_handles);
+                            }
+                            futures::future::join_all(handles).await;
+                        }
+                    }
+
+                    Ok(())
+                };
+                if let Err(e) = handle_connection(peer, stream).await {
+                    println!("Error processing connection: {}", e)
+                }
+            };
+            while let Ok((stream,_)) = listener.accept().await{
                 let om=om_out.clone();
                 let new_ct = new_ct_out.clone();
                 let peer = stream.peer_addr().expect("connected streams should have a peer address");
@@ -109,7 +109,7 @@ impl Executable for WebSocketServerStep {
             };
             Ok(true)
         };
-        let handle = tokio::spawn(connect(listner,om_out,new_ct_out));
+        let handle = tokio::spawn(connect(listener, om_out, new_ct_out));
         Ok(vec![handle])
     }
 

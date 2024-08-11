@@ -225,7 +225,7 @@ async fn start_vu(number:u64,name:String,journeys:HashMap<String,Arc<Journey>>,s
     let (tx,mut rx) = tokio::sync::mpsc::unbounded_channel();
     let flag = Arc::new(RwLock::new(true));
     let name_clone=name.clone();
-    let setter = async move |checker:Arc<RwLock<bool>>|{
+    let mut setter = async move |checker:Arc<RwLock<bool>>|{
         if let Some(_val)=rx.recv().await{
             println!("Got Signal to Stop VU {} for test {}",number, name_clone);
             let mut flg = checker.write().await;
