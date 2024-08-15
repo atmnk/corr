@@ -78,9 +78,9 @@ impl Executable for WebSocketServerStep {
                     let ctx = Context::from_without_fallback(&ctx).await;
                     let ws_stream = accept_async(stream).await.expect("Failed to accept");
                     let (tx,mut rx) = ws_stream.split();
-                    let connId = uuid::Uuid::new_v4().to_string();
-                    ctx.websocket_clients.define(connId.clone(),tx).await;
-                    ctx.define("connectionId".to_string(),Value::String(connId)).await;
+                    let conn_id = uuid::Uuid::new_v4().to_string();
+                    ctx.websocket_clients.define(conn_id.clone(), tx).await;
+                    ctx.define("connectionId".to_string(),Value::String(conn_id)).await;
                     println!("New WebSocket connection: {}", peer);
                     while let Some(Ok(m)) = rx.next().await {
                         if m.is_text() {

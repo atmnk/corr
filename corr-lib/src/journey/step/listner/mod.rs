@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::template::rest::{RestVerb, MultipartField};
 
 use crate::journey::{Executable};
-use crate::core::runtime::{Context, Client, RuntimeError};
+use crate::core::runtime::{Context};
 use crate::template::{Expression};
 use std::convert::Infallible;
 
@@ -12,12 +12,7 @@ use std::net::SocketAddr;
 use hyper::{Body, Request, Response, Server, StatusCode};
 use hyper::service::{make_service_fn, service_fn};
 use async_trait::async_trait;
-use anyhow::{bail, Result};
-
-
-
-use crate::core::proto::{Output, Input};
-
+use anyhow::{ Result};
 use std::sync::{Arc};
 
 
@@ -84,7 +79,7 @@ async fn handle(
                                 Ok(val) => {
                                     stub.rest_data.extract_from(&context, (val, parts.headers.clone())).await;
                                 },
-                                Err(e) => {
+                                Err(_) => {
                                     stub.rest_data.extract_from(&context, (serde_json::Value::Null, parts.headers.clone())).await;
                                 }
                             }
@@ -161,32 +156,8 @@ async fn start_imposter_on_port(context:&Context,sls :StartListenerStep)->Result
         return Ok(false)
     });
     Ok(vec![handle])
-    // if let Err(e) = server.await {
-    //     eprintln!("server error: {}", e);
-    // }
 }
-struct SystemRuntime;
-#[async_trait]
-impl Client for SystemRuntime{
-    async fn send(&self, output: Output)->Result<()> {
-        match output {
-            Output::TellMe(a)=>{
-                bail!(RuntimeError::new(format!("Don't know value for {:?} of type {:?}",a.name,a.data_type).as_str()));
-            },
-            Output::KnowThat(k)=>{
-                println!("{:?}",k.message);
-            },
-            _=>{
-                println!("Don't know what to do");
-            }
-        };
-        Ok(())
-    }
 
-    async fn get_message(&mut self) -> Result<Input> {
-        bail!(RuntimeError::new("Undesired State in step listener"))
-    }
-}
 #[derive(Debug, Clone,PartialEq)]
 pub struct Stub{
     method: RestVerb,
