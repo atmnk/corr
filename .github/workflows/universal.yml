@@ -45,12 +45,11 @@ jobs:
           command: wix
           args: --package corr
       - name: Upload corr binaries to release
-        working-directory: ./target/release
         if: "contains(matrix.target_os, 'windows')"
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ format('target/wix/corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
+          file:  ${{ format('target/wix/corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
           asset_name: ${{ format('corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
           tag: ${{ github.ref }}
           overwrite: true
@@ -86,7 +85,7 @@ jobs:
         with:
           cwd: target/release
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: "./target/release/${{steps.bundle_debian.outputs.file_name}}"
+          file: ${{ format('target/release/{0}', steps.bundle_debian.outputs.file_name) }}"
           asset_name: ${{steps.bundle_debian.outputs.file_name}}
           tag: ${{ github.ref }}
           overwrite: true
