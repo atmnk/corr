@@ -45,10 +45,10 @@ jobs:
           command: wix
           args: --package corr
       - name: Upload corr binaries to release
+        working-directory: ./target/release
         if: "contains(matrix.target_os, 'windows')"
         uses: svenstaro/upload-release-action@v1-release
         with:
-          cwd: target/release
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ format('target/wix/corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
           asset_name: ${{ format('corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
@@ -81,6 +81,7 @@ jobs:
           arch: 'amd64'
           desc: 'Corr Binaries'
       - name: Upload corr binaries to release
+        working-directory: ./target/release
         if: "contains(matrix.target_os, 'ubuntu')"
         uses: svenstaro/upload-release-action@v1-release
         with:
@@ -107,11 +108,8 @@ jobs:
           files: |
             corr
           outPath: corr.tar.gz
-      - name: list all files
-        if: "contains(matrix.target_os, 'macos')"
-        id: list-file
-        run: ls -al target/release
       - name: Upload corr binaries to release
+        working-directory: ./target/release
         if: "contains(matrix.target_os, 'macos')"
         uses: svenstaro/upload-release-action@v1-release
         with:
