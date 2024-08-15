@@ -81,13 +81,12 @@ jobs:
           arch: 'amd64'
           desc: 'Corr Binaries'
       - name: Upload corr binaries to release
-        working-directory: ./target/release
         if: "contains(matrix.target_os, 'ubuntu')"
         uses: svenstaro/upload-release-action@v1-release
         with:
           cwd: target/release
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{steps.bundle_debian.outputs.file_name}}
+          file: "./target/release/${{steps.bundle_debian.outputs.file_name}}"
           asset_name: ${{steps.bundle_debian.outputs.file_name}}
           tag: ${{ github.ref }}
           overwrite: true
@@ -109,13 +108,12 @@ jobs:
             corr
           outPath: corr.tar.gz
       - name: Upload corr binaries to release
-        working-directory: ./target/release
         if: "contains(matrix.target_os, 'macos')"
         uses: svenstaro/upload-release-action@v1-release
         with:
           cwd: target/release
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: corr.tar.gz
+          file: "./target/release/corr.tar.gz"
           asset_name: corr.tar.gz
           tag: ${{ github.ref }}
           overwrite: true
