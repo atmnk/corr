@@ -110,8 +110,8 @@ jobs:
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: corr.tar.gz
-          asset_name: corr.tar.gz
+          file: corr1.tar.gz
+          asset_name: corr1.tar.gz
           tag: ${{ github.ref }}
           overwrite: true
       - name: Update corr formula
