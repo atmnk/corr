@@ -105,6 +105,10 @@ jobs:
           files: |
             corr
           outPath: corr.tar.gz
+      - name: list all files
+        if: "contains(matrix.target_os, 'macos')"
+        id: list-file
+        run: ls -al target/release
       - name: Upload corr binaries to release
         if: "contains(matrix.target_os, 'macos')"
         uses: svenstaro/upload-release-action@v1-release
