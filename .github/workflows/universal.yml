@@ -83,6 +83,9 @@ jobs:
           cp "target/release/${{ matrix.bin_name }}" "dist/${{ matrix.bin_name }}"
           chmod +x "dist/${{ matrix.bin_name }}"
           tar -C dist -czf "dist/${{ steps.meta.outputs.asset_name }}" "${{ matrix.bin_name }}"
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            cp "dist/${{ steps.meta.outputs.asset_name }}" "dist/corr.tar.gz"
+          fi
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
@@ -97,6 +100,14 @@ jobs:
         with:
           name: ${{ steps.meta.outputs.asset_name }}
           path: dist/${{ steps.meta.outputs.asset_name }}
+          if-no-files-found: error
+
+      - name: Upload Homebrew artifact
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: corr.tar.gz
+          path: dist/corr.tar.gz
           if-no-files-found: error
 
   publish:
@@ -116,3 +127,19 @@ jobs:
           tag_name: ${{ github.ref_name }}
           prerelease: ${{ startsWith(github.ref_name, 'b') }}
           files: release-assets/*
+
+  bump-homebrew:
+    name: Bump Homebrew Formula
+    needs: publish
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref_name, 'v')
+    steps:
+      - name: Update corr formula in tap
+        uses: mislav/bump-homebrew-formula-action@v3
+        env:
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+        with:
+          homebrew-tap: atmnk/homebrew-corr
+          formula-name: corr
+          download-url: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/corr.tar.gz
+          commit-message: Bump {{formulaName}} formula to {{version}}
