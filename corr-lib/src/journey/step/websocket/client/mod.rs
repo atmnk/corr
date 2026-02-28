@@ -166,6 +166,7 @@ impl Executable for WebSocketCloseStep{
 }
 #[cfg(test)]
 mod tests {
+    use std::net::TcpListener as StdTcpListener;
     use std::net::SocketAddr;
     use std::sync::{Arc, Mutex};
     use futures_util::{SinkExt, StreamExt};
@@ -205,6 +206,9 @@ mod tests {
     }
     #[tokio::test]
     async fn should_execute_websocket_client_connect_step() {
+        if StdTcpListener::bind("127.0.0.1:0").is_err() {
+            return;
+        }
         let (tx,rx)=tokio::sync::oneshot::channel();
         let t=tokio::spawn(start_server(rx));
         let text = r#"connect websocket named "demo" with url "ws://localhost:9002", headers { "x-api-key":"test"} and listener msg => {

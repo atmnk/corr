@@ -1,5 +1,3 @@
-#![feature(coroutines)]
-#![feature(async_closure)]
 use futures_util::{SinkExt, StreamExt};
 use tokio_tungstenite::{connect_async, tungstenite::Result};
 use tokio_tungstenite::tungstenite::Message;

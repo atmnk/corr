@@ -1,6 +1,3 @@
-#![feature(coroutines)]
-#![feature(async_closure)]
-
 use std::str::FromStr;
 use crate::launcher::{build, run};
 use clap::{Parser, Subcommand};

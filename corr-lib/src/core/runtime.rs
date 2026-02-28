@@ -11,7 +11,6 @@ use crate::core::proto::{Input, Output};
 use std::future::Future;
 use futures_util::stream::SplitSink;
 use num_traits::ToPrimitive;
-use test::stats::Stats;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use crate::core::scrapper::none::NoneScraper;
@@ -21,6 +20,47 @@ use crate::template::rest::RestVerb;
 use crate::template::VariableReferenceName;
 use anyhow::Result;
 use tokio::net::TcpStream;
+
+fn min(values: &[f64]) -> f64 {
+    values
+        .iter()
+        .copied()
+        .reduce(f64::min)
+        .unwrap_or(0.0)
+}
+
+fn max(values: &[f64]) -> f64 {
+    values
+        .iter()
+        .copied()
+        .reduce(f64::max)
+        .unwrap_or(0.0)
+}
+
+fn mean(values: &[f64]) -> f64 {
+    if values.is_empty() {
+        0.0
+    } else {
+        values.iter().sum::<f64>() / values.len() as f64
+    }
+}
+
+fn percentile(values: &[f64], pct: f64) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    let mut sorted = values.to_vec();
+    sorted.sort_by(|a, b| a.total_cmp(b));
+    let rank = (pct / 100.0) * (sorted.len().saturating_sub(1) as f64);
+    let lower = rank.floor() as usize;
+    let upper = rank.ceil() as usize;
+    if lower == upper {
+        sorted[lower]
+    } else {
+        let weight = rank - lower as f64;
+        sorted[lower] * (1.0 - weight) + sorted[upper] * weight
+    }
+}
 
 pub enum HeapObject{
     Final(Value),
@@ -221,9 +261,9 @@ impl RestStatsStore{
         let samples = self.samples.lock().await;
         if (&*samples).len() > 0 {
             let samples:Vec<f64> =(&(*samples)).iter().map(|(_v,_u,t)|t.to_f64().unwrap()).collect();
-            println!("MIN: {}",samples.min());
-            println!("MAX: {}",samples.max());
-            println!("Average: {}",samples.mean());
+            println!("MIN: {}", min(&samples));
+            println!("MAX: {}", max(&samples));
+            println!("Average: {}", mean(&samples));
         }
     }
     pub async fn get_stats(&self)->Vec<(RestVerb,String,u128)>{
@@ -282,7 +322,16 @@ impl TransactionsStatsStore{
             println!("{:30}{:>20}{:>20}{:>20}{:>20}{:>20}{:>20}","Transaction","Min","Max","Average","90%","95%","Total Samples");
             for (tr,sam) in groups{
                 let samp:Vec<f64> = sam.iter().map(|tm|tm.clone()).collect();
-                println!("{:30}{:20.2}{:20.2}{:20.2}{:20.2}{:20.2}{:20}",tr,samp.min(),samp.max(),samp.mean(),samp.percentile(90.0),samp.percentile(95.0,),samp.len());
+                println!(
+                    "{:30}{:20.2}{:20.2}{:20.2}{:20.2}{:20.2}{:20}",
+                    tr,
+                    min(&samp),
+                    max(&samp),
+                    mean(&samp),
+                    percentile(&samp, 90.0),
+                    percentile(&samp, 95.0),
+                    samp.len()
+                );
 
             }
         }
