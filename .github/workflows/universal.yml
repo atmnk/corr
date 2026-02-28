@@ -1,128 +1,118 @@
+name: Universal Release
+
 on:
   push:
     tags:
-      - 'v*'
-      - 'b*'
+      - "v*"
+      - "b*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: universal-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  release:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        target_os: [macos-latest, ubuntu-20.04, windows-latest]
-    name: Universal Publish Binaries
-    runs-on: ${{matrix.target_os}}
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run test suite
+        run: cargo test --workspace --all-targets
+
+  build:
+    name: Build Release Asset (${{ matrix.os }})
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+            archive_ext: tar.gz
+            bin_name: corr
+          - os: macos-latest
+            platform: macos-x86_64
+            archive_ext: tar.gz
+            bin_name: corr
+          - os: windows-latest
+            platform: windows-x86_64
+            archive_ext: zip
+            bin_name: corr.exe
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{github.event.inputs.branch}}
-          fetch-depth: 1
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{matrix.target_os}}
-      - name: Install Cargo Get
-        uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-get
-          version: latest
-      - name: Get the version
-        id: get_version
-        run: echo "::set-output name=VERSION::$(cargo get package.version --entry corr)"
-      ## Windows Steps For Building and Publishing Binaries
-      - name: Install Wix
-        if: "contains(matrix.target_os, 'windows')"
-        uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-wix
-          version: latest
-      - name: Build Binary
-        if: "contains(matrix.target_os, 'windows')"
-        uses: actions-rs/cargo@v1
-        with:
-          command: wix
-          args: --package corr
-      - name: Upload corr binaries to release
-        if: "contains(matrix.target_os, 'windows')"
-        uses: svenstaro/upload-release-action@v1-release
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file:  ${{ format('target/wix/corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
-          asset_name: ${{ format('corr-{0}-x86_64.msi', steps.get_version.outputs.VERSION) }}
-          tag: ${{ github.ref }}
-          overwrite: true
-      ## Ubuntu Steps For Building and Publishing Binaries
-      - name: Build corr Package
-        uses: actions-rs/cargo@v1
-        if: "contains(matrix.target_os, 'ubuntu')"
-        with:
-          command: build
-          args: --release --all-features --package corr
-      - name: Script To create Debian Package
-        if: "contains(matrix.target_os, 'ubuntu')"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build corr (release)
+        run: cargo build --release --package corr
+
+      - name: Compute asset metadata
+        id: meta
+        shell: bash
         run: |
-          mkdir -p .debpkg/usr/bin
-          mkdir -p .debpkg/usr/lib/corr
-          cp target/release/corr .debpkg/usr/bin/corr
-          chmod +x .debpkg/usr/bin/corr
-          echo -e "a=1" > .debpkg/usr/lib/corr/corr.conf
-      - name: Build Debian Bundle
-        if: "contains(matrix.target_os, 'ubuntu')"
-        uses: jiro4989/build-deb-action@v2
-        id: bundle_debian
+          ASSET_NAME="corr-${GITHUB_REF_NAME}-${{ matrix.platform }}.${{ matrix.archive_ext }}"
+          echo "asset_name=${ASSET_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "target/release/${{ matrix.bin_name }}" "dist/${{ matrix.bin_name }}"
+          chmod +x "dist/${{ matrix.bin_name }}"
+          tar -C dist -czf "dist/${{ steps.meta.outputs.asset_name }}" "${{ matrix.bin_name }}"
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          Copy-Item "target/release/${{ matrix.bin_name }}" "dist/${{ matrix.bin_name }}" -Force
+          Compress-Archive -Path "dist/${{ matrix.bin_name }}" -DestinationPath "dist/${{ steps.meta.outputs.asset_name }}" -Force
+
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
         with:
-          package: corr
-          package_root: .debpkg
-          maintainer: Atmaram
-          version: ${{steps.get_version.outputs.VERSION}}
-          arch: 'amd64'
-          desc: 'Corr Binaries'
-      - name: Upload corr binaries to release
-        if: "contains(matrix.target_os, 'ubuntu')"
-        uses: svenstaro/upload-release-action@v1-release
+          name: ${{ steps.meta.outputs.asset_name }}
+          path: dist/${{ steps.meta.outputs.asset_name }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all packaged artifacts
+        uses: actions/download-artifact@v4
         with:
-          cwd: target/release
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ format('target/release/{0}', steps.bundle_debian.outputs.file_name) }}"
-          asset_name: ${{steps.bundle_debian.outputs.file_name}}
-          tag: ${{ github.ref }}
-          overwrite: true
-      ## macos Steps For Building and Publishing Binaries
-      - name: Build corr Package
-        if: "contains(matrix.target_os, 'macos')"
-        uses: actions-rs/cargo@v1
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
         with:
-          command: build
-          args: --release --all-features --package corr
-      - name: Compress corr package
-        if: "contains(matrix.target_os, 'macos')"
-        uses: a7ul/tar-action@v1.1.0
-        id: compress-corr
-        with:
-          command: c
-          cwd: target/release
-          files: |
-            corr
-          outPath: corr.tar.gz
-      - name: Upload corr binaries to release
-        if: "contains(matrix.target_os, 'macos')"
-        uses: svenstaro/upload-release-action@v1-release
-        with:
-          cwd: target/release
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: "./target/release/corr.tar.gz"
-          asset_name: corr.tar.gz
-          tag: ${{ github.ref }}
-          overwrite: true
-      - name: Update corr formula
-        if: "contains(matrix.target_os, 'macos') && !contains(github.ref, '-')"
-        uses: mislav/bump-homebrew-formula-action@v1.6
-        env:
-          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
-        with:
-          homebrew-tap: atmnk/homebrew-corr
-          formula-name: corr
-          download-url: ${{format('{0}{1}{2}', 'https://github.com/atmnk/corr/releases/download/v', steps.get_version.outputs.VERSION , '/corr.tar.gz')}}
-          commit-message: 'Bump up {{formulaName}} formula to v{{version}} version'
+          tag_name: ${{ github.ref_name }}
+          prerelease: ${{ startsWith(github.ref_name, 'b') }}
+          files: release-assets/*
