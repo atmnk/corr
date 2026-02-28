@@ -1,8 +1,4 @@
-#![feature(coroutines)]
-#![feature(async_closure)]
-#![feature(test)]
 extern crate lazy_static;
-extern crate test;
 extern crate influxdb2;
 extern crate rand;
 pub mod journey;

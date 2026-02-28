@@ -42,19 +42,19 @@ pub fn non_back_quote<'a>(input:&'a str) ->ParseResult<'a,String>{
     map(escaped_transform(is_not("\\`"), '\\', |i: &'a str| alt((tag("`"),tag("\\")))(i)),|val| val.to_string())(input)
 
 }
-pub fn identifier_part<'a>(input: &'a str) -> ParseResult<'a,&str> {
+pub fn identifier_part<'a>(input: &'a str) -> ParseResult<'a,&'a str> {
     verify(recognize(
         tuple((
             alt((alpha1,tag("_"))),
             many0_count(preceded(opt(char('_')),alphanumeric1)),opt(tag("("))))),|val:&&str|{!get_keywords().contains(val) && !val.ends_with("(")})(input)
 }
-pub fn executable_identifier<'a>(input: &'a str) -> ParseResult<'a,&str> {
+pub fn executable_identifier<'a>(input: &'a str) -> ParseResult<'a,&'a str> {
     verify(recognize(
         tuple((
             alt((alpha1,tag("_"))),
             many0_count(preceded(opt(char('_')),alphanumeric1))))),|val:&&str|{!get_keywords().contains(val)})(input)
 }
-pub fn function_name<'a>(input: &'a str) -> ParseResult<'a,&str> {
+pub fn function_name<'a>(input: &'a str) -> ParseResult<'a,&'a str> {
     verify(executable_identifier,|part|function_names().contains(&part))(input)
     // verify(recognize(
     //     pair(
